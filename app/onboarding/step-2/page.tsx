@@ -38,51 +38,51 @@ export default function OnboardingStep2() {
   };
 
   return (
-    <div className="min-h-screen bg-surface p-6 sm:p-12">
+    <div className="min-h-screen bg-surface p-4 sm:p-8 md:p-12">
       <OnboardingStepper currentStep={2} />
 
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <span className="text-[11px] font-bold text-primary uppercase tracking-wider">Langkah 2 dari 4</span>
-          <h1 className="text-2xl font-bold text-slate-900 mt-1">Pilih Paket Langganan KOSTKU</h1>
+        <div className="text-center mb-6 sm:mb-8">
+          <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase tracking-wider">Langkah 2 dari 4</span>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">Pilih Paket Langganan KOSTKU</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Paket dapat ditingkatkan atau diturunkan sewaktu-waktu sesuai perkembangan bisnis kost Anda.
+            Paket dapat diubah sewaktu-waktu sesuai perkembangan bisnis Anda.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 mb-8">
           {plans.map((p) => {
             const isSelected = selectedPlan === p.id;
             return (
               <div
                 key={p.id}
                 onClick={() => setSelectedPlan(p.id)}
-                className={`skeu-card p-6 rounded-2xl cursor-pointer flex flex-col justify-between transition-all relative ${
-                  isSelected ? "border-2 border-primary shadow-xl scale-[1.02]" : "hover:border-slate-300"
+                className={`skeu-card p-5 sm:p-6 rounded-2xl cursor-pointer flex flex-col justify-between transition-all relative ${
+                  isSelected ? "border-2 border-primary shadow-xl scale-[1.01]" : "hover:border-slate-300"
                 }`}
               >
                 {p.badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] sm:text-[10px] font-bold px-3 py-0.5 rounded-full uppercase whitespace-nowrap shadow-sm">
                     {p.badge}
                   </div>
                 )}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-slate-900 text-base">{p.name}</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">{p.name}</h3>
                     <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                      className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
                         isSelected ? "bg-primary border-primary text-white" : "border-slate-300"
                       }`}
                     >
-                      {isSelected && <span className="material-symbols-outlined text-[14px]">check</span>}
+                      {isSelected && <span className="material-symbols-outlined text-[12px]">check</span>}
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-slate-900 mb-1">{p.price}</div>
+                  <div className="text-xl sm:text-2xl font-black text-slate-900 mb-1">{p.price}</div>
                   <p className="text-[11px] text-slate-500 mb-4">{p.desc}</p>
                   <ul className="space-y-2 text-xs text-slate-600">
                     {p.features.map((f, i) => (
                       <li key={i} className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-emerald-600 text-[16px]">check_circle</span>
+                        <span className="material-symbols-outlined text-emerald-600 text-[16px] shrink-0">check_circle</span>
                         <span>{f}</span>
                       </li>
                     ))}
@@ -90,8 +90,8 @@ export default function OnboardingStep2() {
                 </div>
                 <div className="mt-6 pt-4 border-t border-white/60">
                   <span
-                    className={`block text-center py-2 rounded-xl text-xs font-bold ${
-                      isSelected ? "skeu-button text-white" : "skeu-button-secondary text-slate-700"
+                    className={`block text-center py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                      isSelected ? "skeu-button text-white" : "skeu-button-secondary text-slate-700 hover:bg-white"
                     }`}
                   >
                     {isSelected ? "Paket Terpilih" : "Pilih Paket Ini"}
@@ -102,18 +102,18 @@ export default function OnboardingStep2() {
           })}
         </div>
 
-        <div className="flex items-center justify-between max-w-xl mx-auto">
+        <div className="flex items-center justify-between max-w-xl mx-auto gap-3">
           <button
             onClick={() => router.push("/onboarding/step-1")}
-            className="skeu-button-secondary px-5 py-2.5 rounded-xl text-xs font-semibold"
+            className="skeu-button-secondary px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold"
           >
             ← Kembali
           </button>
           <button
             onClick={handleNext}
-            className="skeu-button px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md"
+            className="skeu-button px-5 sm:px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md"
           >
-            <span>Lanjut ke Penentuan Subdomain</span>
+            <span>Lanjut ke Subdomain</span>
             <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
           </button>
         </div>
@@ -121,4 +121,3 @@ export default function OnboardingStep2() {
     </div>
   );
 }
-

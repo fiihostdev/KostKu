@@ -20,7 +20,7 @@ const initialRooms: Room[] = [
   { id: "4", nomor: "A-04", lantai: 1, tipe: "VIP", harga: 2500000, status: "Terisi", penyewa: "Rian Hidayat", fasilitas: ["AC", "Water Heater", "TV", "Balkon"] },
   { id: "5", nomor: "B-01", lantai: 2, tipe: "Standard", harga: 1500000, status: "Terisi", penyewa: "Fajar Nugraha", fasilitas: ["AC", "K. Mandi Dalam"] },
   { id: "6", nomor: "B-02", lantai: 2, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Budi Santoso", fasilitas: ["AC", "K. Mandi Dalam", "WiFi"] },
-  { id: "7", nomor: "B-03", lantai: 2, tipe: "Standard", harga: 1500000, status: "Perawatan", fasilitas: ["AC", "K. Mandi Dalam", "Pengecatan Ulang"] },
+  { id: "7", nomor: "B-03", lantai: 2, tipe: "Standard", harga: 1500000, status: "Perawatan", fasilitas: ["AC", "K. Mandi Dalam", "Cat Ulang"] },
   { id: "8", nomor: "B-04", lantai: 2, tipe: "VIP", harga: 2600000, status: "Terisi", penyewa: "Siti Rahmawati", fasilitas: ["AC", "Kulkas Mini", "Water Heater", "TV"] },
 ];
 
@@ -62,20 +62,20 @@ export default function DataKamarPage() {
   const perawatanCount = rooms.filter((r) => r.status === "Perawatan").length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 max-w-full">
       {/* Top Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold text-primary uppercase">Modul Operasional</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Operasional</span>
             <span className="text-slate-400">•</span>
-            <span className="text-[11px] text-slate-500 font-semibold">Kost Harmoni Residence</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">Kost Harmoni Residence</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Manajemen Data Kamar</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Kamar</h1>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 self-start sm:self-auto shadow-md"
+          className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md w-full sm:w-auto"
         >
           <span className="material-symbols-outlined text-[18px]">add_circle</span>
           <span>Tambah Kamar Baru</span>
@@ -83,60 +83,60 @@ export default function DataKamarPage() {
       </div>
 
       {/* Bento Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="skeu-card p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-xs text-slate-500 font-medium">Total Kamar</span>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{rooms.length} <span className="text-xs font-normal text-slate-500">Unit</span></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase truncate">Total Unit</span>
+          <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{rooms.length} <span className="text-xs font-normal text-slate-500">Unit</span></div>
         </div>
-        <div className="skeu-card p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-xs text-emerald-600 font-medium">Terisi</span>
-          <div className="text-2xl font-bold text-emerald-700 mt-2">{terisiCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold uppercase truncate">Terisi</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">{terisiCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
         </div>
-        <div className="skeu-card p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-xs text-blue-600 font-medium">Kosong (Tersedia)</span>
-          <div className="text-2xl font-bold text-blue-700 mt-2">{kosongCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-blue-600 font-semibold uppercase truncate">Tersedia</span>
+          <div className="text-xl sm:text-2xl font-black text-blue-700 mt-1">{kosongCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
         </div>
-        <div className="skeu-card p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-xs text-amber-600 font-medium">Dalam Perawatan</span>
-          <div className="text-2xl font-bold text-amber-700 mt-2">{perawatanCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-amber-600 font-semibold uppercase truncate">Perawatan</span>
+          <div className="text-xl sm:text-2xl font-black text-amber-700 mt-1">{perawatanCount} <span className="text-xs font-normal text-slate-500">Unit</span></div>
         </div>
-        <div className="skeu-card p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-xs text-primary font-medium">Tingkat Okupansi</span>
-          <div className="text-2xl font-bold text-primary mt-2">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between col-span-2 sm:col-span-1">
+          <span className="text-[10px] sm:text-xs text-primary font-semibold uppercase truncate">Okupansi</span>
+          <div className="text-xl sm:text-2xl font-black text-primary mt-1">
             {Math.round((terisiCount / rooms.length) * 100)}%
           </div>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/60 pb-3">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/60">
         {["Semua", "Terisi", "Kosong", "Perawatan"].map((cat) => (
           <button
             key={cat}
             onClick={() => setFilter(cat)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               filter === cat
                 ? "skeu-button text-white shadow-sm"
                 : "skeu-card text-slate-600 hover:text-slate-900"
             }`}
           >
-            {cat}
+            {cat} ({cat === "Semua" ? rooms.length : rooms.filter(r => r.status === cat).length})
           </button>
         ))}
       </div>
 
       {/* Room Grid Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
         {filteredRooms.map((room) => (
-          <div key={room.id} className="skeu-card p-5 rounded-2xl flex flex-col justify-between relative transition hover:-translate-y-1">
+          <div key={room.id} className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between transition hover:-translate-y-0.5">
             <div>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
-                  <h3 className="text-lg font-bold text-slate-900">{room.nomor}</h3>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900">{room.nomor}</h3>
                 </div>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     room.status === "Terisi"
                       ? "bg-emerald-100 text-emerald-800"
                       : room.status === "Kosong"
@@ -148,29 +148,29 @@ export default function DataKamarPage() {
                 </span>
               </div>
 
-              <div className="text-xs text-slate-500 mb-2">
-                Tipe: <span className="font-semibold text-slate-800">{room.tipe}</span>
+              <div className="text-xs text-slate-500 mb-1.5">
+                Tipe: <span className="font-bold text-slate-800">{room.tipe}</span>
               </div>
-              <div className="text-base font-bold text-primary mb-3">
+              <div className="text-base font-black text-primary mb-3">
                 Rp {room.harga.toLocaleString("id-ID")}{" "}
                 <span className="text-[10px] text-slate-400 font-normal">/ bln</span>
               </div>
 
               {room.penyewa ? (
                 <div className="skeu-inset p-2.5 rounded-xl mb-3 text-xs flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-slate-500">person</span>
-                  <span className="font-semibold text-slate-800 truncate">{room.penyewa}</span>
+                  <span className="material-symbols-outlined text-[16px] text-slate-500 shrink-0">person</span>
+                  <span className="font-bold text-slate-800 truncate">{room.penyewa}</span>
                 </div>
               ) : (
                 <div className="skeu-inset p-2.5 rounded-xl mb-3 text-xs text-slate-400 italic">
-                  Belum ada penyewa
+                  Belum ada penghuni
                 </div>
               )}
 
               {/* Fasilitas Pills */}
-              <div className="flex flex-wrap gap-1 mb-4">
+              <div className="flex flex-wrap gap-1 mb-3">
                 {room.fasilitas.map((f, i) => (
-                  <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">
+                  <span key={i} className="text-[9px] sm:text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">
                     {f}
                   </span>
                 ))}
@@ -178,8 +178,18 @@ export default function DataKamarPage() {
             </div>
 
             <div className="pt-3 border-t border-white/60 flex items-center justify-between text-xs">
-              <button className="text-slate-500 hover:text-slate-800 font-medium">Edit Data</button>
-              <button className="font-bold text-primary hover:underline">Kelola Kamar →</button>
+              <button
+                onClick={() => alert(`Edit informasi kamar ${room.nomor}`)}
+                className="text-slate-500 hover:text-slate-800 font-semibold"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => alert(`Kelola data sewa untuk kamar ${room.nomor}`)}
+                className="font-bold text-primary hover:underline"
+              >
+                Detail Kamar →
+              </button>
             </div>
           </div>
         ))}
@@ -188,9 +198,9 @@ export default function DataKamarPage() {
       {/* Modal Tambah Kamar */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="skeu-card p-6 rounded-2xl max-w-md w-full relative shadow-2xl">
+          <div className="skeu-card p-5 sm:p-6 rounded-2xl max-w-md w-full relative shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/60">
-              <h3 className="font-bold text-base text-slate-900">Tambah Kamar Baru</h3>
+              <h3 className="font-black text-base text-slate-900">Tambah Kamar Baru</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
@@ -225,7 +235,7 @@ export default function DataKamarPage() {
                   <select
                     value={newRoom.tipe}
                     onChange={(e) => setNewRoom({ ...newRoom, tipe: e.target.value as any })}
-                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
                   >
                     <option value="Standard">Standard</option>
                     <option value="Deluxe">Deluxe</option>
@@ -240,11 +250,11 @@ export default function DataKamarPage() {
                   step="50000"
                   value={newRoom.harga}
                   onChange={(e) => setNewRoom({ ...newRoom, harga: Number(e.target.value) })}
-                  className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                  className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
                 />
               </div>
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Fasilitas (Pisahkan dengan koma)</label>
+                <label className="font-bold text-slate-700 block mb-1">Fasilitas (Pisahkan koma)</label>
                 <input
                   type="text"
                   value={newRoom.fasilitas}
@@ -253,11 +263,11 @@ export default function DataKamarPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="skeu-button-secondary px-4 py-2 rounded-xl font-semibold"
+                  className="skeu-button-secondary px-4 py-2 rounded-xl font-bold"
                 >
                   Batal
                 </button>
@@ -275,4 +285,3 @@ export default function DataKamarPage() {
     </div>
   );
 }
-

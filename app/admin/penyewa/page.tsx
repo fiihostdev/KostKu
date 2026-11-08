@@ -62,21 +62,21 @@ export default function DataPenyewaPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 max-w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold text-primary uppercase">Modul Pengelola</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Pengelola</span>
             <span className="text-slate-400">•</span>
-            <span className="text-[11px] text-slate-500 font-semibold">Penyewa Kost</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">Penyewa Kost</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Manajemen Data Penyewa</h1>
-          <p className="text-xs text-slate-500 mt-1">Kelola data identitas, masa aktif kontrak, dan kontak WhatsApp penghuni kost.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Penyewa</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Kelola data penghuni kost, masa sewa, dan integrasi WhatsApp.</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 self-start sm:self-auto shadow-md"
+          className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md w-full sm:w-auto"
         >
           <span className="material-symbols-outlined text-[18px]">person_add</span>
           <span>Tambah Penyewa Baru</span>
@@ -84,49 +84,49 @@ export default function DataPenyewaPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="skeu-card p-4 rounded-xl">
-          <span className="text-xs text-slate-500 font-medium">Total Penyewa Aktif</span>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{tenants.length} Orang</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase truncate">Penyewa Aktif</span>
+          <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{tenants.length} Orang</div>
         </div>
-        <div className="skeu-card p-4 rounded-xl">
-          <span className="text-xs text-emerald-600 font-medium">Pembayaran Lunas</span>
-          <div className="text-2xl font-bold text-emerald-700 mt-1">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold uppercase truncate">Status Lunas</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">
             {tenants.filter((t) => t.statusBayar === "Lunas").length} Orang
           </div>
         </div>
-        <div className="skeu-card p-4 rounded-xl">
-          <span className="text-xs text-amber-600 font-medium">Jatuh Tempo (H-7)</span>
-          <div className="text-2xl font-bold text-amber-700 mt-1">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-amber-600 font-semibold uppercase truncate">Jatuh Tempo (H-7)</span>
+          <div className="text-xl sm:text-2xl font-black text-amber-700 mt-1">
             {tenants.filter((t) => t.statusBayar === "Jatuh Tempo").length} Orang
           </div>
         </div>
-        <div className="skeu-card p-4 rounded-xl">
-          <span className="text-xs text-red-600 font-medium">Tertunggak</span>
-          <div className="text-2xl font-bold text-red-700 mt-1">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-red-600 font-semibold uppercase truncate">Tertunggak</span>
+          <div className="text-xl sm:text-2xl font-black text-red-700 mt-1">
             {tenants.filter((t) => t.statusBayar === "Tertunggak").length} Orang
           </div>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="skeu-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="skeu-card p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative w-full md:w-80">
           <span className="material-symbols-outlined text-[18px] text-slate-400 absolute left-3 top-2.5">search</span>
           <input
             type="text"
-            placeholder="Cari nama, kamar, no hp..."
+            placeholder="Cari nama, kamar, no WhatsApp..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-xl skeu-inset text-xs text-slate-800 outline-none"
           />
         </div>
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {["Semua", "Lunas", "Jatuh Tempo", "Tertunggak"].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 filter === s
                   ? "skeu-button text-white shadow-sm"
                   : "skeu-button-secondary text-slate-600 hover:text-slate-900"
@@ -141,7 +141,7 @@ export default function DataPenyewaPage() {
       {/* Tenants Table */}
       <div className="skeu-card rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[620px]">
             <thead>
               <tr className="border-b border-white/60 bg-white/40 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-4">Nama Penyewa</th>
@@ -155,27 +155,27 @@ export default function DataPenyewaPage() {
             <tbody className="divide-y divide-white/40">
               {filteredTenants.map((t) => (
                 <tr key={t.id} className="hover:bg-white/50 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
                         {t.nama.substring(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <span className="font-bold text-slate-900 block">{t.nama}</span>
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 block truncate">{t.nama}</span>
                         {t.ktpVerified && (
-                          <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
-                            <span className="material-symbols-outlined text-[12px]">verified</span> KTP Terverifikasi
+                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[12px]">verified</span> Terverifikasi
                           </span>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-800">{t.kamar}</td>
-                  <td className="py-3.5 px-4 text-slate-600">{t.phone}</td>
-                  <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                  <td className="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">{t.kamar}</td>
+                  <td className="py-3 px-4 text-slate-600 whitespace-nowrap font-mono">{t.phone}</td>
+                  <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
                     {t.mulaiSewa} — {t.akhirSewa}
                   </td>
-                  <td className="py-3.5 px-4">
+                  <td className="py-3 px-4 whitespace-nowrap">
                     <span
                       className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
                         t.statusBayar === "Lunas"
@@ -188,18 +188,18 @@ export default function DataPenyewaPage() {
                       {t.statusBayar}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-right space-x-2">
+                  <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
                     <button
-                      onClick={() => alert(`Mengirim pesan WhatsApp ke ${t.phone}...`)}
+                      onClick={() => alert(`Membuka WhatsApp ke ${t.phone}...`)}
                       className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center"
-                      title="Kirim WhatsApp"
+                      title="Kirim Pesan WA"
                     >
                       <span className="material-symbols-outlined text-[16px]">chat</span>
                     </button>
                     <button
                       onClick={() => alert(`Buka data profil penyewa ${t.nama}`)}
                       className="p-1.5 rounded-lg skeu-card text-slate-600 hover:text-slate-900 inline-flex items-center"
-                      title="Lihat Detail"
+                      title="Lihat Profil"
                     >
                       <span className="material-symbols-outlined text-[16px]">visibility</span>
                     </button>
@@ -214,9 +214,9 @@ export default function DataPenyewaPage() {
       {/* Add Tenant Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="skeu-card p-6 rounded-2xl max-w-md w-full relative shadow-2xl">
+          <div className="skeu-card p-5 sm:p-6 rounded-2xl max-w-md w-full relative shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/60">
-              <h3 className="font-bold text-base text-slate-900">Tambah Data Penyewa Baru</h3>
+              <h3 className="font-black text-base text-slate-900">Tambah Data Penyewa Baru</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
@@ -259,7 +259,7 @@ export default function DataPenyewaPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Tanggal Mulai Sewa</label>
+                  <label className="font-bold text-slate-700 block mb-1">Mulai Sewa</label>
                   <input
                     type="text"
                     value={newTenant.mulaiSewa}
@@ -268,7 +268,7 @@ export default function DataPenyewaPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Tanggal Berakhir</label>
+                  <label className="font-bold text-slate-700 block mb-1">Selesai Sewa</label>
                   <input
                     type="text"
                     value={newTenant.akhirSewa}
@@ -278,11 +278,11 @@ export default function DataPenyewaPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="skeu-button-secondary px-4 py-2 rounded-xl font-semibold"
+                  className="skeu-button-secondary px-4 py-2 rounded-xl font-bold"
                 >
                   Batal
                 </button>
@@ -300,4 +300,3 @@ export default function DataPenyewaPage() {
     </div>
   );
 }
-
