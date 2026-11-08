@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {"colors": {"secondary-container": "#6cf8bb", "secondary-fixed-dim": "#4edea3", "surface": "#e4e7eb", "secondary": "#006c49", "surface-container": "#eceef0", "surface-bright": "#f7f9fb", "on-primary": "#ffffff", "on-secondary": "#ffffff", "tertiary-fixed": "#ffddb8", "on-primary-container": "#dad7ff", "tertiary-fixed-dim": "#ffb95f", "primary-container": "#4f46e5", "inverse-on-surface": "#eff1f3", "primary": "#3525cd", "on-tertiary-fixed": "#2a1700", "on-tertiary": "#ffffff", "error": "#ba1a1a", "on-error-container": "#93000a", "primary-fixed": "#e2dfff", "outline": "#777587", "on-primary-fixed-variant": "#3323cc", "on-surface-variant": "#464555", "on-surface": "#191c1e", "outline-variant": "#c7c4d8", "primary-fixed-dim": "#c3c0ff", "surface-container-low": "#f2f4f6", "on-secondary-container": "#00714d", "inverse-surface": "#2d3133", "error-container": "#ffdad6", "surface-container-highest": "#e0e3e5", "on-error": "#ffffff", "surface-dim": "#d8dadc", "tertiary": "#684000", "surface-container-lowest": "#ffffff", "surface-variant": "#e0e3e5", "tertiary-container": "#885500", "surface-container-high": "#e6e8ea", "background": "#d8dcde", "on-primary-fixed": "#0f0069", "inverse-primary": "#c3c0ff", "on-secondary-fixed-variant": "#005236", "secondary-fixed": "#6ffbbe", "on-secondary-fixed": "#002113", "on-background": "#191c1e", "on-tertiary-fixed-variant": "#653e00", "surface-tint": "#4d44e3", "on-tertiary-container": "#ffd4a4"}, "borderRadius": {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"}, "spacing": {"margin": "2rem", "space-xl": "2.5rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter": "1.5rem", "space-xs": "0.25rem", "space-lg": "1.5rem"}, "fontFamily": {"body-md": ["Inter"], "body-lg": ["Inter"], "label-md": ["Inter"], "label-sm": ["Inter"], "body-sm": ["Inter"], "headline-xl": ["Inter"], "headline-sm": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"]}, "fontSize": {"body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}], "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}], "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}], "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "700"}], "headline-sm": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.020em", "fontWeight": "600"}], "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600"}]}}}};</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/></head><body class="bg-[#d5d9de] font-body-md text-on-surface bg-gradient-to-b from-[#ebedf0] to-[#cbcfd4] min-h-screen"><header class="fixed top-0 w-full z-50 bg-[#f0f2f5]/90 backdrop-blur-xl border-b border-[#bdc3cd] shadow-[0_4px_12px_rgba(0,0,0,0.08)]"><div class="h-16 max-w-7xl mx-auto px-gutter flex items-center justify-between"><div class="flex items-center gap-space-md"><span class="text-headline-sm font-headline-sm text-primary tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">KOSTKU</span></div><nav class="hidden md:flex items-center gap-space-lg" data-active-classes="bg-primary-container text-on-primary-container font-label-md rounded-lg"><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="onboarding-step-1" href="#">Step 1</a><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="onboarding-step-2" href="#">Step 2</a><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="onboarding-step-3" href="#">Step 3</a></nav><div class="w-9 h-9 rounded-full bg-gradient-to-b from-[#e2e5ec] to-[#bec5ce] border border-[#9aa2b0] flex items-center justify-center shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_4px_rgba(0,0,0,0.15)]"><span class="material-symbols-outlined text-on-surface text-[18px] drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]">person</span></div></div></header><main class="w-full pt-16 min-h-[calc(100vh-4rem)]"><div class="flex flex-col w-full max-w-7xl mx-auto px-gutter py-space-xl">
+<!-- Progress Indicator Section -->
+<div class="flex flex-col items-center mb-space-xl">
+<div class="flex items-center gap-space-lg w-full max-w-3xl justify-between relative">
+<!-- Background Connecting Line -->
+<div class="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-1 bg-surface-container-highest z-0"></div>
+<!-- Step 1 (Completed) -->
+<div class="flex flex-col items-center relative z-10">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_4px_8px_rgba(0,0,0,0.3),inset_0_2px_4px_rgba(255,255,255,0.4)]">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="text-label-md text-on-surface-variant mt-2 font-label-md">Registrasi</span>
+</div>
+<!-- Step 2 (Active) -->
+<div class="flex flex-col items-center relative z-10">
+<div class="w-12 h-12 rounded-full bg-gradient-to-b from-primary-container to-primary text-on-primary flex items-center justify-center shadow-[0_6px_12px_rgba(0,0,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6)] ring-4 ring-primary/20">
+<span class="text-headline-sm font-headline-sm">2</span>
+</div>
+<span class="text-label-lg text-primary mt-2 font-label-lg font-bold">Pilih Paket</span>
+</div>
+<!-- Step 3 (Inactive) -->
+<div class="flex flex-col items-center relative z-10">
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shadow-[0_2px_4px_rgba(0,0,0,0.2),inset_0_1px_2px_rgba(255,255,255,0.1)]">
+<span class="text-label-md font-label-md">3</span>
+</div>
+<span class="text-label-md text-on-surface-variant mt-2 font-label-md">Subdomain</span>
+</div>
+<!-- Step 4 (Inactive) -->
+<div class="flex flex-col items-center relative z-10">
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shadow-[0_2px_4px_rgba(0,0,0,0.2),inset_0_1px_2px_rgba(255,255,255,0.1)]">
+<span class="text-label-md font-label-md">4</span>
+</div>
+<span class="text-label-md text-on-surface-variant mt-2 font-label-md">Selesai</span>
+</div>
+</div>
+</div>
+<!-- Header Section -->
+<div class="text-center max-w-2xl mx-auto mb-space-xl">
+<h1 class="text-headline-lg font-headline-lg text-on-surface mb-space-sm tracking-tight">Pilih Paket yang Sesuai untuk Bisnis Kost Anda</h1>
+<p class="text-body-lg text-on-surface-variant">Mulai dengan paket gratis atau tingkatkan kapan saja sesuai skala operasional Anda.</p>
+</div>
+<!-- Pricing Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg mb-space-xl items-stretch">
+<!-- STARTER CARD -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between shadow-[0_8px_16px_rgba(0,0,0,0.2),inset_0_1px_2px_rgba(255,255,255,0.05)] transition-transform duration-300 hover:-translate-y-1">
+<div>
+<div class="flex justify-between items-center mb-space-md">
+<span class="text-label-sm uppercase tracking-wider text-secondary font-label-sm">STARTER</span>
+<span class="material-symbols-outlined text-secondary">hotel</span>
+</div>
+<div class="mb-space-md">
+<span class="text-headline-lg font-headline-lg text-on-surface">Rp 99rb</span>
+<span class="text-body-sm text-on-surface-variant"> / bulan</span>
+</div>
+<p class="text-body-md text-on-surface-variant mb-space-lg">Cocok untuk pemula dengan 1 profil kos yang ingin memulai digitalisasi.</p>
+<ul class="flex flex-col gap-space-sm mb-space-lg">
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Maksimal 15 Kamar
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            1 Admin / Pengelola
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Website Subdomain
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Manajemen Kamar &amp; Penyewa
+          </li>
+</ul>
+</div>
+<button class="w-full py-3 px-space-md rounded-lg bg-surface-container-high text-on-surface font-label-md hover:bg-surface-container-highest transition-all shadow-[0_4px_8px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] active:translate-y-0.5">
+        Pilih Starter
+      </button>
+</div>
+<!-- BUSINESS CARD (HIGHLIGHTED) -->
+<div class="bg-surface-container-high rounded-xl p-space-lg flex flex-col justify-between shadow-[0_12px_24px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.15)] ring-2 ring-primary relative -mt-4 mb-4 md:-mt-4 md:mb-4">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-space-md py-1 rounded-full text-label-sm font-label-sm uppercase tracking-widest shadow-[0_2px_6px_rgba(0,0,0,0.2)]">
+        TERPOPULER
+      </div>
+<div>
+<div class="flex justify-between items-center mb-space-md mt-2">
+<span class="text-label-sm uppercase tracking-wider text-primary font-label-sm">BUSINESS</span>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">apartment</span>
+</div>
+<div class="mb-space-md">
+<span class="text-headline-lg font-headline-lg text-on-surface">Rp 249rb</span>
+<span class="text-body-sm text-on-surface-variant"> / bulan</span>
+</div>
+<p class="text-body-md text-on-surface-variant mb-space-lg">Solusi lengkap untuk pengusaha dengan beberapa properti kos aktif.</p>
+<ul class="flex flex-col gap-space-sm mb-space-lg">
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Maksimal 50 Kamar
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            3 Admin / Pengelola
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Website Subdomain Kustom
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Laporan Keuangan Otomatis
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Pengingat WhatsApp Otomatis
+          </li>
+</ul>
+</div>
+<button class="w-full py-3 px-space-md rounded-lg bg-gradient-to-b from-primary-container to-primary text-on-primary font-label-md hover:brightness-110 transition-all shadow-[0_6px_12px_rgba(0,0,0,0.3),inset_0_2px_2px_rgba(255,255,255,0.4)] active:shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)] active:translate-y-0.5">
+        Pilih Business
+      </button>
+</div>
+<!-- PRO CARD -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between shadow-[0_8px_16px_rgba(0,0,0,0.2),inset_0_1px_2px_rgba(255,255,255,0.05)] transition-transform duration-300 hover:-translate-y-1">
+<div>
+<div class="flex justify-between items-center mb-space-md">
+<span class="text-label-sm uppercase tracking-wider text-secondary font-label-sm">PRO</span>
+<span class="material-symbols-outlined text-secondary">domain</span>
+</div>
+<div class="mb-space-md">
+<span class="text-headline-lg font-headline-lg text-on-surface">Rp 599rb</span>
+<span class="text-body-sm text-on-surface-variant"> / bulan</span>
+</div>
+<p class="text-body-md text-on-surface-variant mb-space-lg">Untuk pengelola properti profesional dengan skala operasional besar.</p>
+<ul class="flex flex-col gap-space-sm mb-space-lg">
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Kamar Tanpa Batas (Unlimited)
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Multi-Lokasi / Cabang Kos
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Manajemen Peran Staff &amp; Hak Akses
+          </li>
+<li class="flex items-center gap-space-sm text-body-md text-on-surface">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+            Dukungan Prioritas 24/7
+          </li>
+</ul>
+</div>
+<button class="w-full py-3 px-space-md rounded-lg bg-surface-container-high text-on-surface font-label-md hover:bg-surface-container-highest transition-all shadow-[0_4px_8px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] active:translate-y-0.5">
+        Pilih Pro
+      </button>
+</div>
+</div>
+<!-- Bottom Navigation Buttons -->
+<div class="flex flex-col sm:flex-row justify-between items-center gap-space-md pt-space-md border-t border-surface-container-highest">
+<button class="w-full sm:w-auto px-space-lg py-3 rounded-lg bg-surface-container-high text-on-surface font-label-md flex items-center justify-center gap-space-sm shadow-[0_4px_8px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-surface-container-highest transition-all active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] active:translate-y-0.5">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+      Kembali ke Registrasi
+    </button>
+<button class="w-full sm:w-auto px-space-lg py-3 rounded-lg bg-gradient-to-b from-primary-container to-primary text-on-primary font-label-md flex items-center justify-center gap-space-sm shadow-[0_6px_12px_rgba(0,0,0,0.3),inset_0_2px_2px_rgba(255,255,255,0.4)] hover:brightness-110 transition-all active:shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)] active:translate-y-0.5">
+      Lanjut ke Konfigurasi Subdomain
+      <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div></main><footer class="w-full bg-[#d0d5dc] py-margin border-t border-[#b8c0cc] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"><div class="max-w-7xl mx-auto px-gutter text-center text-on-surface-variant text-body-sm drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]">Â© 2024 KOSTKU. All rights reserved.</div></footer></body></html>

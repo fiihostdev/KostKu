@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    overscroll-behavior: none;
+    background: #e6e9ec;
+    color: #191c1e;
+  }
+}
+
+/* Skeuomorphic Custom Utilities */
+.skeu-card {
+  background: linear-gradient(145deg, #ffffff, #d8dcde);
+  box-shadow: 8px 8px 16px #beccce, -8px -8px 16px #ffffff, inset 0 1px 0 rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+.skeu-card-dark {
+  background: linear-gradient(145deg, #3d3f45, #222428);
+  box-shadow: 8px 8px 16px #151719, -8px -8px 16px #373b41, inset 0 1px 0 rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.skeu-button {
+  background: linear-gradient(180deg, #4f46e5 0%, #3525cd 100%);
+  box-shadow: 0 4px 10px rgba(53, 37, 205, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 2px rgba(0, 0, 0, 0.3);
+  border: 1px solid #281ba8;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.skeu-button:hover {
+  background: linear-gradient(180deg, #5b52f0 0%, #3f2fe0 100%);
+  transform: translateY(-1px);
+}
+
+.skeu-button:active {
+  transform: translateY(1px);
+}
+
+.skeu-button-secondary {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e6e9 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -2px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #c4c9cd;
+  color: #191c1e;
+  transition: all 0.2s ease;
+}
+
+.skeu-button-secondary:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #d8dcde 100%);
+}
+
+.skeu-inset {
+  background: #edf1f4;
+  box-shadow: inset 3px 3px 6px #c5cbce, inset -3px -3px 6px #ffffff;
+}
+
+.skeu-pill {
+  background: linear-gradient(145deg, #ffffff, #e1e6e9);
+  box-shadow: 3px 3px 6px #cdd3d7, -3px -3px 6px #ffffff, inset 0 1px 0 rgba(255,255,255,0.8);
+}
+

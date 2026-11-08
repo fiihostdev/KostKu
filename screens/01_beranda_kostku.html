@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_standard" name="shell-type"/>
+<style>
+  @layer base { 
+    html, body { margin: 0; padding: 0; } 
+    body { overscroll-behavior: none; background: #e6e9ec; } 
+    main > :first-child { margin-top: 0 !important; } 
+    main > :last-child { margin-bottom: 0 !important; } 
+  } 
+  ::-webkit-scrollbar { display: none; }
+  
+  /* Skeuomorphic Custom Utilities */
+  .skeu-card {
+    background: linear-gradient(145deg, #ffffff, #d8dcde);
+    box-shadow: 8px 8px 16px #beccce, -8px -8px 16px #ffffff, inset 0 1px 0 rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+  .skeu-card-dark {
+    background: linear-gradient(145deg, #3d3f45, #222428);
+    box-shadow: 8px 8px 16px #151719, -8px -8px 16px #373b41, inset 0 1px 0 rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .skeu-button {
+    background: linear-gradient(180deg, #4f46e5 0%, #3525cd 100%);
+    box-shadow: 0 4px 10px rgba(53, 37, 205, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 2px rgba(0, 0, 0, 0.3);
+    border: 1px solid #281ba8;
+  }
+  .skeu-button:hover {
+    background: linear-gradient(180deg, #5b52f0 0%, #3f2fe0 100%);
+  }
+  .skeu-button-secondary {
+    background: linear-gradient(180deg, #ffffff 0%, #e2e6e9 100%);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -2px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #c4c9cd;
+  }
+  .skeu-inset {
+    background: #edf1f4;
+    box-shadow: inset 3px 3px 6px #c5cbce, inset -3px -3px 6px #ffffff;
+  }
+  .skeu-pill {
+    background: linear-gradient(145deg, #ffffff, #e1e6e9);
+    box-shadow: 3px 3px 6px #cdd3d7, -3px -3px 6px #ffffff, inset 0 1px 0 rgba(255,255,255,0.8);
+  }
+</style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = { 
+    darkMode: "class", 
+    theme: { 
+      extend: { 
+        "colors": { 
+          "secondary-container": "#6cf8bb", 
+          "secondary-fixed-dim": "#4edea3", 
+          "surface": "#e6e9ec", 
+          "secondary": "#006c49", 
+          "surface-container": "#d8dcde", 
+          "surface-bright": "#f7f9fb", 
+          "on-primary": "#ffffff", 
+          "on-secondary": "#ffffff", 
+          "tertiary-fixed": "#ffddb8", 
+          "on-primary-container": "#dad7ff", 
+          "tertiary-fixed-dim": "#ffb95f", 
+          "primary-container": "#4f46e5", 
+          "inverse-on-surface": "#eff1f3", 
+          "primary": "#3525cd", 
+          "on-tertiary-fixed": "#2a1700", 
+          "on-tertiary": "#ffffff", 
+          "error": "#ba1a1a", 
+          "on-error-container": "#93000a", 
+          "primary-fixed": "#e2dfff", 
+          "outline": "#777587", 
+          "on-primary-fixed-variant": "#3323cc", 
+          "on-surface-variant": "#464555", 
+          "on-surface": "#191c1e", 
+          "outline-variant": "#c7c4d8", 
+          "primary-fixed-dim": "#c3c0ff", 
+          "surface-container-low": "#dfe3e6", 
+          "on-secondary-container": "#00714d", 
+          "inverse-surface": "#2d3133", 
+          "error-container": "#ffdad6", 
+          "surface-container-highest": "#c5cbcd", 
+          "on-error": "#ffffff", 
+          "surface-dim": "#d2d6d8", 
+          "tertiary": "#684000", 
+          "surface-container-lowest": "#ffffff", 
+          "surface-variant": "#d5dadc", 
+          "tertiary-container": "#885500", 
+          "surface-container-high": "#d1d5d8", 
+          "background": "#e6e9ec", 
+          "on-primary-fixed": "#0f0069", 
+          "inverse-primary": "#c3c0ff", 
+          "on-secondary-fixed-variant": "#005236", 
+          "secondary-fixed": "#6ffbbe", 
+          "on-secondary-fixed": "#002113", 
+          "on-background": "#191c1e", 
+          "on-tertiary-fixed-variant": "#653e00", 
+          "surface-tint": "#4d44e3", 
+          "on-tertiary-container": "#ffd4a4" 
+        }, 
+        "borderRadius": { 
+          "DEFAULT": "0.375rem", 
+          "lg": "0.75rem", 
+          "xl": "1rem", 
+          "full": "9999px" 
+        }, 
+        "spacing": { 
+          "margin": "2rem", 
+          "space-xl": "2.5rem", 
+          "space-sm": "0.5rem", 
+          "space-md": "1rem", 
+          "gutter": "1.5rem", 
+          "space-xs": "0.25rem", 
+          "space-lg": "1.5rem" 
+        }, 
+        "fontFamily": { 
+          "body-md": ["Inter"], 
+          "body-lg": ["Inter"], 
+          "label-md": ["Inter"], 
+          "label-sm": ["Inter"], 
+          "body-sm": ["Inter"], 
+          "headline-xl": ["Inter"], 
+          "headline-sm": ["Inter"], 
+          "headline-lg": ["Inter"], 
+          "headline-md": ["Inter"] 
+        }, 
+        "fontSize": { 
+          "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], 
+          "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], 
+          "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }], 
+          "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }], 
+          "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }], 
+          "headline-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "700" }], 
+          "headline-sm": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], 
+          "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.020em", "fontWeight": "600" }], 
+          "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }] 
+        } 
+      } 
+    } 
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-surface font-body-md text-on-surface">
+<header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-b border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+<div class="h-20 max-w-7xl mx-auto px-gutter flex items-center justify-between">
+<a class="flex items-center gap-2 drop-shadow-sm" data-path="beranda" href="#">
+<span class="material-symbols-outlined text-primary text-[28px] drop-shadow">apartment</span>
+<span class="font-headline-md text-primary font-bold tracking-tight">KOSTKU</span>
+</a>
+<nav class="hidden lg:flex items-center gap-space-lg" data-active-classes="bg-primary-container text-on-primary-container font-bold">
+<a aria-current="page" class="transition-colors px-3 py-1.5 rounded-lg skeu-inset text-primary font-bold" data-path="beranda" href="#">Beranda</a>
+<a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="fitur" href="#">Fitur</a>
+<a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="cara-kerja" href="#">Cara Kerja</a>
+<a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="harga" href="#">Harga</a>
+<a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="faq" href="#">FAQ</a>
+<a class="text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="login" href="#">Login</a>
+</nav>
+<div class="flex items-center gap-space-md">
+<a class="skeu-button text-on-primary px-5 py-2.5 rounded-xl font-label-md transition-all flex items-center gap-2" data-path="daftar-sekarang" href="#">Daftar Sekarang</a>
+</div>
+</div>
+</header>
+<main class="w-full pt-20 bg-surface">
+<div class="flex flex-col w-full">
+<!-- Hero Section -->
+<section class="relative pt-16 pb-24 overflow-hidden bg-surface">
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-fixed/40 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="max-w-7xl mx-auto px-gutter relative z-10">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<!-- Hero Text -->
+<div class="lg:col-span-6 flex flex-col items-start gap-6">
+<div class="inline-flex items-center gap-2 skeu-pill px-4 py-1.5 rounded-full font-label-sm text-primary">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span>Platform Manajemen Kost #1 di Indonesia</span>
+</div>
+<h1 class="font-headline-xl text-on-surface tracking-tight text-left drop-shadow-sm">
+            Kelola Bisnis Kost Lebih Mudah, <span class="text-primary">Semuanya Dalam Satu Platform</span>
+</h1>
+<p class="font-body-lg text-on-surface-variant text-left leading-relaxed">
+            Buat website kost profesional, kelola kamar, pantau penyewa, dan terima reservasi secara online dengan mudah.
+          </p>
+<div class="flex flex-wrap items-center gap-4 pt-2">
+<a class="skeu-button text-on-primary px-8 py-4 rounded-xl font-label-md transition-all flex items-center gap-2" data-path="daftar-sekarang" href="#">
+<span>Mulai Sekarang</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</a>
+<a class="skeu-button-secondary text-on-surface px-8 py-4 rounded-xl font-label-md transition-all flex items-center gap-2" data-path="demo" href="#">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+<span>Lihat Demo</span>
+</a>
+</div>
+<!-- Social Proof avatars -->
+<div class="flex items-center gap-4 pt-6">
+<div class="flex -space-x-3">
+<div class="w-10 h-10 rounded-full skeu-card flex items-center justify-center font-label-sm text-primary font-bold shadow-sm">BS</div>
+<div class="w-10 h-10 rounded-full skeu-card flex items-center justify-center font-label-sm text-secondary font-bold shadow-sm">AR</div>
+<div class="w-10 h-10 rounded-full skeu-card flex items-center justify-center font-label-sm text-tertiary font-bold shadow-sm">DP</div>
+</div>
+<div>
+<div class="flex items-center gap-1 text-tertiary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-body-sm text-on-surface-variant">Digunakan oleh <strong class="text-on-surface">1,500+</strong> pemilik kost di seluruh Indonesia</p>
+</div>
+</div>
+</div>
+<!-- Hero Illustration / Dashboard Preview -->
+<div class="lg:col-span-6">
+<div class="relative mx-auto max-w-lg lg:max-w-none">
+<div class="skeu-card rounded-2xl p-4 shadow-[12px_12px_24px_#c2c7cb,-12px_-12px_24px_#ffffff]">
+<div class="flex items-center justify-between pb-4 mb-4 border-b border-outline-variant/30">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-error shadow-inner"></div>
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-inner"></div>
+<div class="w-3 h-3 rounded-full bg-secondary shadow-inner"></div>
+</div>
+<div class="text-body-sm text-on-surface-variant font-mono px-3 py-1 rounded skeu-inset">kostku.id/dashboard/melati</div>
+<div class="w-4"></div>
+</div>
+<!-- Mock Dashboard Content -->
+<div class="grid grid-cols-3 gap-3 mb-4">
+<div class="skeu-inset p-3 rounded-xl">
+<div class="text-label-sm text-on-surface-variant">Total Kamar</div>
+<div class="text-headline-sm text-on-surface">24 Unit</div>
+<div class="text-label-sm text-secondary flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> 100% Terisi
+                  </div>
+</div>
+<div class="skeu-inset p-3 rounded-xl">
+<div class="text-label-sm text-on-surface-variant">Pendapatan Bulan Ini</div>
+<div class="text-headline-sm text-on-surface">Rp 36 Jt</div>
+<div class="text-label-sm text-secondary flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Lunas
+                  </div>
+</div>
+<div class="skeu-inset p-3 rounded-xl">
+<div class="text-label-sm text-on-surface-variant">Calon Penyewa</div>
+<div class="text-headline-sm text-on-surface">8 Org</div>
+<div class="text-label-sm text-primary flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span> Pending
+                  </div>
+</div>
+</div>
+<div class="skeu-inset rounded-xl p-4">
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-md text-on-surface">Status Kamar Terbaru</span>
+<span class="text-label-sm text-primary">Lihat Semua</span>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between skeu-card p-2.5 rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg skeu-pill flex items-center justify-center text-primary font-bold text-body-sm">A1</div>
+<div>
+<div class="text-body-sm font-medium text-on-surface">Kamar Deluxe AC</div>
+<div class="text-label-sm text-on-surface-variant">Budi Santoso</div>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded-full text-label-sm bg-secondary-container text-on-secondary-container shadow-sm">Aktif</span>
+</div>
+<div class="flex items-center justify-between skeu-card p-2.5 rounded-lg">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg skeu-pill flex items-center justify-center text-on-surface-variant font-bold text-body-sm">A2</div>
+<div>
+<div class="text-body-sm font-medium text-on-surface">Kamar Standar</div>
+<div class="text-label-sm text-on-surface-variant">Tersedia</div>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded-full text-label-sm bg-tertiary-fixed text-on-tertiary-fixed shadow-sm">Kosong</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Keunggulan KOSTKU -->
+<section class="py-20 bg-surface-container-low border-y border-white/40">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4 drop-shadow-sm">Mengapa Memilih KOSTKU?</h2>
+<p class="font-body-lg text-on-surface-variant">Solusi cerdas untuk menghemat waktu, mencegah kebocoran kas, dan mengembangkan bisnis properti Anda dengan mudah.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="skeu-card p-8 rounded-xl transition-all">
+<div class="w-14 h-14 rounded-xl skeu-pill flex items-center justify-center text-primary mb-6 shadow-sm">
+<span class="material-symbols-outlined text-[28px]">bolt</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Otomatisasi Penuh</h3>
+<p class="font-body-md text-on-surface-variant">Tagihan sewa, pengingat jatuh tempo, dan pencatatan pembayaran terkirim otomatis via WhatsApp ke penyewa.</p>
+</div>
+<div class="skeu-card p-8 rounded-xl transition-all">
+<div class="w-14 h-14 rounded-xl skeu-pill flex items-center justify-center text-on-secondary-container mb-6 shadow-sm">
+<span class="material-symbols-outlined text-[28px]">shield</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Keuangan Transparan</h3>
+<p class="font-body-md text-on-surface-variant">Pantau arus kas masuk dan keluar secara real-time. Laporan keuangan bulanan tersusun otomatis tanpa repot.</p>
+</div>
+<div class="skeu-card p-8 rounded-xl transition-all">
+<div class="w-14 h-14 rounded-xl skeu-pill flex items-center justify-center text-on-tertiary-fixed mb-6 shadow-sm">
+<span class="material-symbols-outlined text-[28px]">devices</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Akses Multi-Perangkat</h3>
+<p class="font-body-md text-on-surface-variant">Kelola kost dari mana saja melalui smartphone, tablet, atau komputer dengan sinkronisasi awan secara instan.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Fitur Unggulan -->
+<section class="py-20 bg-surface">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4">Fitur Unggulan Untuk Bisnis Kost Anda</h2>
+<p class="font-body-lg text-on-surface-variant">Semua alat yang Anda butuhkan untuk menjadi pengusaha kost profesional.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="skeu-card p-6 rounded-xl flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 rounded-lg skeu-button text-on-primary flex items-center justify-center mb-4">
+<span class="material-symbols-outlined">web</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Website Kost Sendiri</h3>
+<p class="font-body-sm text-on-surface-variant">Buat halaman profil kost profesional dengan domain kustom untuk menarik calon penyewa lebih cepat.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-outline-variant/30 flex items-center text-primary font-label-md gap-1 cursor-pointer">
+<span>Pelajari selengkapnya</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+</div>
+<div class="skeu-card p-6 rounded-xl flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 rounded-lg skeu-button text-on-primary flex items-center justify-center mb-4">
+<span class="material-symbols-outlined">real_estate_agent</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Manajemen Kamar &amp; Penghuni</h3>
+<p class="font-body-sm text-on-surface-variant">Atur ketersediaan kamar, data diri penyewa, riwayat sewa, dan dokumen kontrak digital dalam satu tempat.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-outline-variant/30 flex items-center text-primary font-label-md gap-1 cursor-pointer">
+<span>Pelajari selengkapnya</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+</div>
+<div class="skeu-card p-6 rounded-xl flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 rounded-lg skeu-button text-on-primary flex items-center justify-center mb-4">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Catat &amp; Tagih Otomatis</h3>
+<p class="font-body-sm text-on-surface-variant">Kirim tagihan bulanan secara otomatis via WhatsApp lengkap dengan tautan pembayaran online.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-outline-variant/30 flex items-center text-primary font-label-md gap-1 cursor-pointer">
+<span>Pelajari selengkapnya</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+</div>
+<div class="skeu-card p-6 rounded-xl flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 rounded-lg skeu-button text-on-primary flex items-center justify-center mb-4">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Laporan &amp; Analitik</h3>
+<p class="font-body-sm text-on-surface-variant">Analisis performa okupansi kamar dan laporan laba rugi secara akurat untuk pengambilan keputusan bisnis.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-outline-variant/30 flex items-center text-primary font-label-md gap-1 cursor-pointer">
+<span>Pelajari selengkapnya</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Cara Kerja Platform -->
+<section class="py-20 bg-surface-container-low border-y border-white/40">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4">Cara Kerja KOSTKU</h2>
+<p class="font-body-lg text-on-surface-variant">Hanya butuh 3 langkah mudah untuk mendigitalkan dan mengoptimalkan bisnis kost Anda.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="skeu-card p-8 rounded-xl relative overflow-hidden">
+<div class="text-primary-fixed font-headline-xl absolute top-4 right-6 opacity-30 select-none">01</div>
+<div class="w-12 h-12 rounded-xl skeu-button text-on-primary flex items-center justify-center font-headline-sm mb-6 shadow-md">1</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Daftar &amp; Input Properti</h3>
+<p class="font-body-md text-on-surface-variant">Buat akun KOSTKU, masukkan informasi detail bangunan kost, fasilitas, dan jumlah kamar yang tersedia.</p>
+</div>
+<div class="skeu-card p-8 rounded-xl relative overflow-hidden">
+<div class="text-primary-fixed font-headline-xl absolute top-4 right-6 opacity-30 select-none">02</div>
+<div class="w-12 h-12 rounded-xl skeu-button text-on-primary flex items-center justify-center font-headline-sm mb-6 shadow-md">2</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Undang Penyewa &amp; Atur Kamar</h3>
+<p class="font-body-md text-on-surface-variant">Masukkan data penyewa ke dalam sistem atau bagikan tautan website kost agar calon penyewa bisa reservasi mandiri.</p>
+</div>
+<div class="skeu-card p-8 rounded-xl relative overflow-hidden">
+<div class="text-primary-fixed font-headline-xl absolute top-4 right-6 opacity-30 select-none">03</div>
+<div class="w-12 h-12 rounded-xl skeu-button text-on-primary flex items-center justify-center font-headline-sm mb-6 shadow-md">3</div>
+<h3 class="font-headline-sm text-on-surface mb-2">Pantau &amp; Nikmati Hasilnya</h3>
+<p class="font-body-md text-on-surface-variant">Tagihan otomatis berjalan setiap bulan, keuangan tercatat rapi, dan Anda tinggal memantau dari dashboard.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Preview Dashboard Section -->
+<section class="py-20 bg-surface overflow-hidden">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<div class="lg:col-span-5 flex flex-col gap-6">
+<div class="inline-flex items-center gap-2 skeu-pill text-on-secondary-container px-3 py-1 rounded-full font-label-sm w-fit shadow-sm">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+<span>Antarmuka Intuitif</span>
+</div>
+<h2 class="font-headline-lg text-on-surface">Dashboard Modern yang Dirancang untuk Efisiensi</h2>
+<p class="font-body-lg text-on-surface-variant">Semua informasi penting mulai dari status kamar, pemasukan, hingga keluhan penyewa dapat diakses dalam satu layar tanpa ribet.</p>
+<ul class="space-y-3 font-body-md text-on-surface">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary drop-shadow">check_circle</span>
+<span>Notifikasi otomatis tagihan via WhatsApp</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary drop-shadow">check_circle</span>
+<span>Manajemen komplain dan perbaikan fasilitas</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary drop-shadow">check_circle</span>
+<span>Pencatatan meteran listrik per kamar</span>
+</li>
+</ul>
+</div>
+<div class="lg:col-span-7">
+<div class="skeu-card p-4 rounded-2xl shadow-xl">
+<div class="skeu-inset rounded-xl p-6">
+<div class="flex items-center justify-between mb-6">
+<div>
+<h4 class="font-headline-sm text-on-surface">Grafik Pendapatan &amp; Okupansi</h4>
+<p class="text-body-sm text-on-surface-variant">Tahun 2024</p>
+</div>
+<div class="skeu-pill px-3 py-1.5 rounded-lg text-label-sm text-on-surface">Bulanan</div>
+</div>
+<!-- Mock bar chart representation -->
+<div class="h-64 flex items-end gap-3 pt-6 pb-2 px-2 border-b border-outline-variant/30">
+<div class="flex-1 skeu-pill rounded-t-lg h-[40%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary-fixed font-bold shadow-sm">Jan</div>
+<div class="flex-1 skeu-pill rounded-t-lg h-[55%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary-fixed font-bold shadow-sm">Feb</div>
+<div class="flex-1 skeu-pill rounded-t-lg h-[70%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary-fixed font-bold shadow-sm">Mar</div>
+<div class="flex-1 skeu-pill rounded-t-lg h-[65%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary-fixed font-bold shadow-sm">Apr</div>
+<div class="flex-1 skeu-button rounded-t-lg h-[90%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary font-bold shadow-md">Mei</div>
+<div class="flex-1 skeu-pill rounded-t-lg h-[80%] flex flex-col justify-end items-center pb-2 text-[10px] text-on-primary-fixed font-bold shadow-sm">Jun</div>
+</div>
+<div class="flex items-center justify-between pt-4">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full skeu-button"></div>
+<span class="text-body-sm text-on-surface-variant">Pendapatan Bersih</span>
+</div>
+<span class="font-headline-sm text-on-surface">Rp 214.500.000</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Paket Berlangganan -->
+<section class="py-20 bg-surface-container-low border-y border-white/40">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4">Pilihan Paket Berlangganan</h2>
+<p class="font-body-lg text-on-surface-variant">Pilih paket yang sesuai dengan skala bisnis kost Anda. Mulai gratis atau tingkatkan kapan saja.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Starter Plan -->
+<div class="skeu-card p-8 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="inline-block px-3 py-1 rounded-full skeu-inset text-on-surface-variant text-label-sm mb-4">Starter</div>
+<h3 class="font-headline-md text-on-surface mb-2">Kost Pemula</h3>
+<p class="text-body-sm text-on-surface-variant mb-6">Cocok untuk pemilik 1 bangunan kost dengan kapasitas terbatas.</p>
+<div class="flex items-baseline gap-1 mb-6">
+<span class="font-headline-xl text-on-surface">Rp 99rb</span>
+<span class="text-body-sm text-on-surface-variant">/ bulan</span>
+</div>
+<ul class="space-y-3 font-body-sm text-on-surface mb-8">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Maksimal 15 Kamar</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Manajemen Penyewa Dasar</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Pencatatan Keuangan Manual</span>
+</li>
+<li class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[18px]">close</span>
+<span>Website Kost Kustom</span>
+</li>
+</ul>
+</div>
+<a class="w-full py-3 skeu-button-secondary text-on-surface text-center rounded-xl font-label-md transition-all block" href="#">Pilih Starter</a>
+</div>
+<!-- Business Plan (Featured) -->
+<div class="skeu-button text-on-primary p-8 rounded-xl shadow-2xl flex flex-col justify-between relative ring-4 ring-primary/20">
+<div class="absolute -top-3 right-8 skeu-pill text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-bold shadow-md">TERPOPULER</div>
+<div>
+<div class="inline-block px-3 py-1 rounded-full bg-primary-container text-on-primary-container text-label-sm mb-4">Business</div>
+<h3 class="font-headline-md text-on-primary mb-2">Kost Berkembang</h3>
+<p class="text-body-sm text-on-primary/80 mb-6">Solusi lengkap untuk pengusaha dengan beberapa properti.</p>
+<div class="flex items-baseline gap-1 mb-6">
+<span class="font-headline-xl text-on-primary">Rp 249rb</span>
+<span class="text-body-sm text-on-primary/80">/ bulan</span>
+</div>
+<ul class="space-y-3 font-body-sm text-on-primary mb-8">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-container text-[18px]">check</span>
+<span>Maksimal 50 Kamar</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-container text-[18px]">check</span>
+<span>Website Kost Profesional</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-container text-[18px]">check</span>
+<span>Pengingat WhatsApp Otomatis</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-container text-[18px]">check</span>
+<span>Laporan Keuangan Otomatis</span>
+</li>
+</ul>
+</div>
+<a class="w-full py-3 skeu-pill text-on-secondary-container text-center rounded-xl font-label-md hover:opacity-90 transition-opacity block font-bold shadow-md" href="#">Pilih Business</a>
+</div>
+<!-- Pro Plan -->
+<div class="skeu-card p-8 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="inline-block px-3 py-1 rounded-full skeu-inset text-on-surface-variant text-label-sm mb-4">Pro</div>
+<h3 class="font-headline-md text-on-surface mb-2">Enterprise / Multi Kost</h3>
+<p class="text-body-sm text-on-surface-variant mb-6">Untuk pengelola properti profesional dengan banyak cabang kost.</p>
+<div class="flex items-baseline gap-1 mb-6">
+<span class="font-headline-xl text-on-surface">Rp 599rb</span>
+<span class="text-body-sm text-on-surface-variant">/ bulan</span>
+</div>
+<ul class="space-y-3 font-body-sm text-on-surface mb-8">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Kamar Tanpa Batas</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Multi-Lokasi / Multi-Cabang</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Akses Staf &amp; Manajemen Peran</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+<span>Dukungan Prioritas 24/7</span>
+</li>
+</ul>
+</div>
+<a class="w-full py-3 skeu-button-secondary text-on-surface text-center rounded-xl font-label-md transition-all block" href="#">Pilih Pro</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimoni Pelanggan -->
+<section class="py-20 bg-surface">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4">Apa Kata Pemilik Kost?</h2>
+<p class="font-body-lg text-on-surface-variant">Kisah sukses para mitra yang telah mentransformasi bisnis kos bersama KOSTKU.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="skeu-card p-8 rounded-xl flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-4">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-on-surface mb-6">"Dulu repot banget nagih sewa manual satu-satu lewat WhatsApp. Sejak pakai KOSTKU, pengingat tagihan jalan sendiri dan tidak ada lagi penyewa yang telat bayar."</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full skeu-pill text-primary font-bold flex items-center justify-center shadow-sm">IH</div>
+<div>
+<div class="font-label-md text-on-surface">Ibu Haryati</div>
+<div class="text-body-sm text-on-surface-variant">Pemilik Kost Melati, Yogyakarta</div>
+</div>
+</div>
+</div>
+<div class="skeu-card p-8 rounded-xl flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-4">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-on-surface mb-6">"Website kost dari KOSTKU sangat membantu promosi. Calon penyewa bisa langsung lihat kamar kosong dan booking online. Sangat praktis!"</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full skeu-pill text-on-secondary-container font-bold flex items-center justify-center shadow-sm">BP</div>
+<div>
+<div class="font-label-md text-on-surface">Bapak Prasetyo</div>
+<div class="text-body-sm text-on-surface-variant">Pengelola Griya Eksekutif, Bandung</div>
+</div>
+</div>
+</div>
+<div class="skeu-card p-8 rounded-xl flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-1 text-tertiary mb-4">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md text-on-surface mb-6">"Laporan keuangannya sangat detail. Saya bisa tahu persis untung rugi tiap bulan tanpa harus pusing rekap manual pakai buku catatan lagi."</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full skeu-pill text-on-tertiary-fixed font-bold flex items-center justify-center shadow-sm">RA</div>
+<div>
+<div class="font-label-md text-on-surface">Rian Ardiansyah</div>
+<div class="text-body-sm text-on-surface-variant">Owner Kost 88, Jakarta</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ Section -->
+<section class="py-20 bg-surface-container-low border-y border-white/40">
+<div class="max-w-4xl mx-auto px-gutter">
+<div class="text-center mb-16">
+<h2 class="font-headline-lg text-on-surface mb-4">Pertanyaan yang Sering Diajukan</h2>
+<p class="font-body-lg text-on-surface-variant">Temukan jawaban seputar layanan dan penggunaan aplikasi KOSTKU.</p>
+</div>
+<div class="space-y-4">
+<div class="skeu-card p-6 rounded-xl shadow-sm">
+<h3 class="font-headline-sm text-on-surface mb-2">Apakah saya bisa mencoba KOSTKU secara gratis?</h3>
+<p class="font-body-md text-on-surface-variant">Ya, Anda dapat mendaftar dan mencoba fitur dasar manajemen kost secara gratis sebelum memutuskan beralih ke paket berbayar.</p>
+</div>
+<div class="skeu-card p-6 rounded-xl shadow-sm">
+<h3 class="font-headline-sm text-on-surface mb-2">Bagaimana cara penyewa membayar sewa kost?</h3>
+<p class="font-body-md text-on-surface-variant">Penyewa dapat melakukan pembayaran melalui transfer bank, e-wallet, atau QRIS yang terintegrasi langsung dengan sistem pembayaran otomatis KOSTKU.</p>
+</div>
+<div class="skeu-card p-6 rounded-xl shadow-sm">
+<h3 class="font-headline-sm text-on-surface mb-2">Apakah data properti saya aman di KOSTKU?</h3>
+<p class="font-body-md text-on-surface-variant">Sangat aman. Kami menggunakan enkripsi standar industri dan pencadangan data rutin di server awan yang handal dan terlindungi.</p>
+</div>
+<div class="skeu-card p-6 rounded-xl shadow-sm">
+<h3 class="font-headline-sm text-on-surface mb-2">Apakah saya memerlukan keahlian khusus untuk membuat website?</h3>
+<p class="font-body-md text-on-surface-variant">Tidak sama sekali. Website profil kost Anda akan dibuat secara otomatis begitu Anda mengisi informasi properti di dalam sistem.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Banner Section -->
+<section class="py-20 bg-surface">
+<div class="max-w-7xl mx-auto px-gutter">
+<div class="skeu-button text-on-primary rounded-2xl p-10 md:p-16 text-center relative overflow-hidden shadow-2xl">
+<div class="absolute -right-20 -bottom-20 w-80 h-80 bg-primary-container rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+<div class="relative z-10 max-w-2xl mx-auto">
+<h2 class="font-headline-lg text-on-primary mb-4 drop-shadow">Siap Mengubah Cara Anda Mengelola Bisnis Kost?</h2>
+<p class="font-body-lg text-on-primary/90 mb-8">Bergabunglah dengan ribuan pemilik kost lainnya dan rasakan kemudahan pengelolaan properti modern hari ini.</p>
+<div class="flex flex-wrap justify-center gap-4">
+<a class="skeu-pill text-on-secondary-container px-8 py-4 rounded-xl font-label-md hover:opacity-90 transition-opacity shadow-lg font-bold" data-path="daftar-sekarang" href="#">Daftar Gratis Sekarang</a>
+<a class="skeu-button-secondary text-on-surface px-8 py-4 rounded-xl font-label-md hover:bg-surface-container-highest transition-colors shadow-md font-bold" data-path="kontak" href="#">Hubungi Tim Sales</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div></main>
+<footer class="w-full bg-surface-container-low py-space-xl border-t border-white/60">
+<div class="max-w-7xl mx-auto px-gutter grid grid-cols-1 md:grid-cols-4 gap-space-xl">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[24px] drop-shadow-sm">apartment</span>
+<span class="font-headline-sm text-primary font-bold">KOSTKU</span>
+</div>
+<p class="text-body-sm text-on-surface-variant">Platform manajemen kos dan properti modern untuk kemudahan bisnis Anda.</p>
+</div>
+<div>
+<h4 class="font-label-md text-on-surface mb-space-sm">Navigasi</h4>
+<ul class="flex flex-col gap-space-xs text-body-sm text-on-surface-variant">
+<li><a class="hover:text-on-surface" href="#">Beranda</a></li>
+<li><a class="hover:text-on-surface" href="#">Fitur</a></li>
+<li><a class="hover:text-on-surface" href="#">Harga</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-md text-on-surface mb-space-sm">Legal</h4>
+<ul class="flex flex-col gap-space-xs text-body-sm text-on-surface-variant">
+<li><a class="hover:text-on-surface" href="#">Kebijakan Privasi</a></li>
+<li><a class="hover:text-on-surface" href="#">Syarat &amp; Ketentuan</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-md text-on-surface mb-space-sm">Kontak</h4>
+<p class="text-body-sm text-on-surface-variant">support@kostku.id</p>
+<p class="text-body-sm text-on-surface-variant">+62 812-3456-7890</p>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-gutter mt-space-xl pt-space-md border-t border-outline-variant/30 text-center text-on-surface-variant text-body-sm">Â© 2024 KOSTKU. Hak Cipta Dilindungi.</div>
+</footer>
+</body></html>

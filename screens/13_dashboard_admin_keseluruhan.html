@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {"colors": {"on-background": "#e5e2e1", "tertiary-container": "#7eb5ff", "on-secondary-fixed-variant": "#474747", "inverse-primary": "#735c00", "surface-bright": "#393939", "background": "#131313", "outline": "#99907c", "surface": "#131313", "surface-container-highest": "#353535", "on-tertiary-fixed": "#001c39", "tertiary": "#b1d0ff", "secondary-fixed-dim": "#c8c6c5", "primary-fixed": "#ffe088", "on-primary-fixed": "#241a00", "on-error": "#690005", "surface-container-lowest": "#0e0e0e", "outline-variant": "#4d4635", "surface-dim": "#131313", "error-container": "#93000a", "surface-tint": "#e9c349", "on-primary": "#3c2f00", "surface-container-high": "#2a2a2a", "on-surface": "#e5e2e1", "secondary": "#c8c6c5", "secondary-container": "#474747", "on-secondary-fixed": "#1b1c1c", "on-secondary-container": "#b6b5b4", "on-primary-container": "#554300", "primary": "#f2ca50", "primary-fixed-dim": "#e9c349", "inverse-on-surface": "#313030", "tertiary-fixed-dim": "#a4c9ff", "on-tertiary-container": "#004680", "surface-variant": "#353535", "tertiary-fixed": "#d4e3ff", "secondary-fixed": "#e4e2e1", "on-tertiary-fixed-variant": "#004883", "surface-container-low": "#1c1b1b", "inverse-surface": "#e5e2e1", "error": "#ffb4ab", "on-error-container": "#ffdad6", "on-primary-fixed-variant": "#574500", "surface-container": "#20201f", "on-secondary": "#303030", "on-tertiary": "#00315d", "on-surface-variant": "#d0c5af", "primary-container": "#d4af37"}, "borderRadius": {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"}, "spacing": {"gutter": "1.5rem", "space-sm": "0.75rem", "space-xs": "0.375rem", "margin": "2rem", "space-xl": "3rem", "space-lg": "2rem", "space-md": "1.25rem"}, "fontFamily": {"headline-sm": ["Inter"], "label-sm": ["JetBrains Mono"], "label-lg": ["JetBrains Mono"], "headline-lg": ["Inter"], "body-lg": ["Inter"], "label-md": ["JetBrains Mono"], "body-sm": ["Inter"], "headline-md": ["Inter"], "body-md": ["Inter"]}, "fontSize": {"headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "label-sm": ["9px", {"lineHeight": "12px", "letterSpacing": "0.1em", "fontWeight": "600"}], "label-lg": ["13px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}], "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "label-md": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "500"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]}}}};</script><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/></head><body class="bg-surface font-body text-on-surface"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col pt-space-md pb-space-lg shadow-[2px_0_12px_rgba(0,0,0,0.5)]"><div class="px-space-gutter mb-space-md flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_2px_4px_rgba(0,0,0,0.4)]"><span class="material-symbols-outlined text-on-primary text-[20px]">dns</span></div><span class="font-headline-md text-primary tracking-wider">KOSTKU</span></div><nav class="flex-1 px-space-sm space-y-space-xs overflow-y-auto" data-active-classes="bg-primary-container text-on-primary-container font-bold shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]"><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="dashboard" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">dashboard</span><span class="font-body-md">Dashboard</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="data-kost" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">apartment</span><span class="font-body-md">Data Kost</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="kamar" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">meeting_room</span><span class="font-body-md">Kamar</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="penyewa" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">group</span><span class="font-body-md">Penyewa</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="booking" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">book_online</span><span class="font-body-md">Booking</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="tagihan" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">receipt_long</span><span class="font-body-md">Tagihan</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="laporan" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">bar_chart</span><span class="font-body-md">Laporan</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="website-saya" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">globe</span><span class="font-body-md">Website Saya</span></a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="pengaturan" href="#"><span class="material-symbols-outlined mr-3 text-[20px]">settings</span><span class="font-body-md">Pengaturan</span></a></nav></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/90 backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.6)] z-40 flex items-center justify-between px-space-gutter"><div class="flex items-center gap-space-sm bg-surface-container px-space-sm py-1.5 rounded-lg shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border border-outline-variant/30"><span class="material-symbols-outlined text-primary text-[18px]">swap_horiz</span><span class="font-label-lg text-on-surface">Kost Melati Residence (Blok A)</span><span class="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span></div><div class="flex items-center gap-space-sm"><button class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all"><span class="material-symbols-outlined text-[20px]">notifications</span></button><div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer"><span class="material-symbols-outlined text-on-primary text-[20px]">person</span></div></div></header><main class="relative pt-16 bg-surface min-h-screen px-space-gutter py-space-lg"><div class="flex flex-col w-full pb-16">
+<!-- Top Bar & Quick Actions -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-sm text-primary uppercase">Master Command Center</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-sm text-on-surface-variant">Live Sync Active</span>
+</div>
+<h1 class="font-headline-lg text-on-surface">MASTER OVERVIEW &amp; DASHBOARD KESELURUHAN</h1>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-space-sm py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg flex items-center gap-2 shadow-[0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)] transition-all">
+<span class="material-symbols-outlined text-primary text-[18px]">refresh</span>
+<span>Refresh Data</span>
+</button>
+<button class="px-space-md py-2 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-lg flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_4px_8px_rgba(0,0,0,0.4)] transition-all">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Export Laporan Global</span>
+</button>
+</div>
+</div>
+<!-- Macro KPI Cards (Skeuomorphic) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-gutter mb-space-lg">
+<!-- Card 1 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-[0_8px_16px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-all"></div>
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-sm text-on-surface-variant">TOTAL UNIT &amp; OKUPANSI</span>
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+<span class="material-symbols-outlined text-[18px]">apartment</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-headline-lg text-on-surface">120</span>
+<span class="font-body-sm text-on-surface-variant">Kamar (3 Cabang)</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-outline-variant/10">
+<span class="px-1.5 py-0.5 rounded bg-primary-container text-on-primary-container font-label-sm">92%</span>
+<span class="font-body-sm text-on-surface-variant">Okupansi Keseluruhan</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-[0_8px_16px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-all"></div>
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-sm text-on-surface-variant">PENDAPATAN KONSOLIDASI</span>
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+<span class="material-symbols-outlined text-[18px]">payments</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-headline-lg text-primary">Rp 185,4jt</span>
+<span class="font-body-sm text-on-surface-variant">Bulan Ini</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-outline-variant/10">
+<span class="text-tertiary font-label-sm flex items-center">
+<span class="material-symbols-outlined text-[14px] mr-0.5">trending_up</span> +12.4%
+        </span>
+<span class="font-body-sm text-on-surface-variant">vs bulan lalu</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-[0_8px_16px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-all"></div>
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-sm text-on-surface-variant">PENGHUNI &amp; LEADS</span>
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+<span class="material-symbols-outlined text-[18px]">group</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-headline-lg text-on-surface">110</span>
+<span class="font-body-sm text-on-surface-variant">Penghuni Aktif</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-outline-variant/10">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm">18 Leads</span>
+<span class="font-body-sm text-on-surface-variant">Booking Pending</span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="p-space-md rounded-xl bg-surface-container shadow-[0_8px_16px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-error/5 rounded-full blur-2xl group-hover:bg-error/10 transition-all"></div>
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-sm text-on-surface-variant">TOTAL TUNGGAKAN</span>
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-error shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-headline-lg text-error">Rp 4,2jt</span>
+<span class="font-body-sm text-on-surface-variant">3 Kamar</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-outline-variant/10">
+<span class="text-error font-label-sm">Perlu Follow-up</span>
+<span class="font-body-sm text-on-surface-variant">Segera</span>
+</div>
+</div>
+</div>
+<!-- Multi-Property Overview & Cabang Kost -->
+<div class="mb-space-lg">
+<div class="flex items-center justify-between mb-space-sm">
+<h2 class="font-headline-md text-on-surface">Cabang Kost &amp; Properti Aktif</h2>
+<button class="font-label-lg text-primary hover:underline flex items-center gap-1">
+<span>Kelola Semua Properti</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-gutter">
+<!-- Property 1 -->
+<div class="rounded-xl bg-surface-container p-space-md shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col justify-between">
+<div>
+<div class="h-36 rounded-lg bg-cover bg-center mb-space-sm shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)] relative overflow-hidden" data-alt="Modern multi-story luxury boarding house building facade with warm golden interior lighting, contemporary architecture, and lush indoor tropical plants in Jakarta." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAFhi30vAZO2Mcr3FMwMcJDG2NX-KCvlnedvGFA_ZnoeN91uxd6Er0msJJ-SQfNLy6mKA9WkOeYSljsVIUN5PqrKH1rVj9rhzgG1AgVfwLHKJSRYsN81C810oVPKYYspl6Ef7COm8BHGblgdUZG4QmHLyoikySawQ9Vsx7OsJ3k17o28vme76Vqnar8t97jr-xxXwSoahFlTJ8AwWPej5DS7QkuY1HW_fZ47Fo1h6-h')">
+<div class="absolute top-2 right-2 px-2 py-1 rounded bg-surface/80 backdrop-blur-md font-label-sm text-primary shadow-sm">
+              Blok A â€¢ 95% Terisi
+            </div>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-1">Kost Melati Residence</h3>
+<p class="font-body-sm text-on-surface-variant mb-4">Jl. Melati No. 12, Setiabudi, Jakarta Selatan</p>
+<div class="space-y-2 mb-space-md">
+<div class="flex justify-between font-body-sm">
+<span class="text-on-surface-variant">Kamar Terisi:</span>
+<span class="text-on-surface font-semibold">48 / 50 Kamar</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)] overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 96%;"></div>
+</div>
+<div class="flex justify-between font-body-sm pt-1">
+<span class="text-on-surface-variant">Pendapatan Bulan Ini:</span>
+<span class="text-primary font-semibold">Rp 82.500.000</span>
+</div>
+</div>
+</div>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-surface-container-high text-on-surface font-label-lg shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all">
+          Buka Cabang Ini
+        </button>
+</div>
+<!-- Property 2 -->
+<div class="rounded-xl bg-surface-container p-space-md shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col justify-between">
+<div>
+<div class="h-36 rounded-lg bg-cover bg-center mb-space-sm shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)] relative overflow-hidden" data-alt="Minimalist urban student housing exterior with dark metal panels, large glass windows, and architectural warm LED outdoor lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCf816FR9DoNF6YdH0NGrYev3KPsTx__sxkFziYmkW39INTgv-KS_-Oq23zOxmas7viLoisy1ayiZPoIRfw4HvbSt3hEl4ozhn8UevE8zRDFWKsEiXlV7Wm_1AMFV6JMrOhFt2TeZH5VnZPvMYtCFuz0f6Bh0_ja6ucG84HYFTiNAklix2KMAsLtem6Jhs9Gud7VVPH5oIRD2jmWXkN-i5_ve0sfOONWAhStmlHE_CQ')">
+<div class="absolute top-2 right-2 px-2 py-1 rounded bg-surface/80 backdrop-blur-md font-label-sm text-primary shadow-sm">
+              Blok B â€¢ 88% Terisi
+            </div>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-1">Kost Flamboyan</h3>
+<p class="font-body-sm text-on-surface-variant mb-4">Jl. Flamboyan Raya No. 5, Depok</p>
+<div class="space-y-2 mb-space-md">
+<div class="flex justify-between font-body-sm">
+<span class="text-on-surface-variant">Kamar Terisi:</span>
+<span class="text-on-surface font-semibold">35 / 40 Kamar</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)] overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 88%;"></div>
+</div>
+<div class="flex justify-between font-body-sm pt-1">
+<span class="text-on-surface-variant">Pendapatan Bulan Ini:</span>
+<span class="text-primary font-semibold">Rp 62.100.000</span>
+</div>
+</div>
+</div>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-surface-container-high text-on-surface font-label-lg shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all">
+          Buka Cabang Ini
+        </button>
+</div>
+<!-- Property 3 -->
+<div class="rounded-xl bg-surface-container p-space-md shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col justify-between">
+<div>
+<div class="h-36 rounded-lg bg-cover bg-center mb-space-sm shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)] relative overflow-hidden" data-alt="Exclusive premium executive co-living space facade with dark aesthetic, integrated warm lighting strips, and polished concrete finishes." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC-Z3dJWfCc5c5EZbKCHTrwWAES90wpGenOLrzphHD4wTiFqzZekAlHd7FPlRgpk41eeJzMNMz0ElGelfkfX3yY8cMh2t4qUCqufXmdFAMKgt5h4kmUfrLR0HBBStAkKTIWycCWgJcJFADHVpdG-Gbftr9ul7dzSOuFZEULXH0KmnkMp-2QBpYnTPehEDlxPSHcfb8paaDWRIKBf-UvE62Q6eezdVmjbvsIKfaTZc0x')">
+<div class="absolute top-2 right-2 px-2 py-1 rounded bg-surface/80 backdrop-blur-md font-label-sm text-primary shadow-sm">
+              Blok C â€¢ 90% Terisi
+            </div>
+</div>
+<h3 class="font-headline-sm text-on-surface mb-1">Kost Grand Annex</h3>
+<p class="font-body-sm text-on-surface-variant mb-4">Jl. Prof. Dr. Satrio No. 18, Kuningan</p>
+<div class="space-y-2 mb-space-md">
+<div class="flex justify-between font-body-sm">
+<span class="text-on-surface-variant">Kamar Terisi:</span>
+<span class="text-on-surface font-semibold">27 / 30 Kamar</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)] overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 90%;"></div>
+</div>
+<div class="flex justify-between font-body-sm pt-1">
+<span class="text-on-surface-variant">Pendapatan Bulan Ini:</span>
+<span class="text-primary font-semibold">Rp 40.800.000</span>
+</div>
+</div>
+</div>
+<button class="w-full py-2 rounded-lg bg-surface hover:bg-surface-container-high text-on-surface font-label-lg shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all">
+          Buka Cabang Ini
+        </button>
+</div>
+</div>
+</div>
+<!-- Charts & Activity Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-gutter">
+<!-- Financial Consolidated Chart (2 cols) -->
+<div class="lg:col-span-2 rounded-xl bg-surface-container p-space-md shadow-[0_8px_20px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<div>
+<h2 class="font-headline-md text-on-surface">Arus Kas Konsolidasi YTD</h2>
+<p class="font-body-sm text-on-surface-variant">Perbandingan pendapatan seluruh cabang 6 bulan terakhir</p>
+</div>
+<div class="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-lg shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<span class="font-label-md text-on-surface">Total Pendapatan (IDR)</span>
+</div>
+</div>
+<!-- Simulated Bar Chart Well -->
+<div class="h-64 rounded-lg bg-surface shadow-[inset_0_4px_12px_rgba(0,0,0,0.9)] p-4 flex items-end justify-between gap-4 mt-4">
+<!-- Month Bar -->
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-150 transition-opacity">142jt</span>
+<div class="w-full bg-gradient-to-t from-primary/60 to-primary rounded-t-md shadow-[0_0_12px_rgba(242,202,80,0.2)] transition-all duration-300 group-hover:brightness-125" style="height: 65%;"></div>
+<span class="font-label-sm text-on-surface-variant">Nov</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">155jt</span>
+<div class="w-full bg-gradient-to-t from-primary/60 to-primary rounded-t-md shadow-[0_0_12px_rgba(242,202,80,0.2)] transition-all duration-300 group-hover:brightness-125" style="height: 72%;"></div>
+<span class="font-label-sm text-on-surface-variant">Des</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">160jt</span>
+<div class="w-full bg-gradient-to-t from-primary/60 to-primary rounded-t-md shadow-[0_0_12px_rgba(242,202,80,0.2)] transition-all duration-300 group-hover:brightness-125" style="height: 75%;"></div>
+<span class="font-label-sm text-on-surface-variant">Jan</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">171jt</span>
+<div class="w-full bg-gradient-to-t from-primary/60 to-primary rounded-t-md shadow-[0_0_12px_rgba(242,202,80,0.2)] transition-all duration-300 group-hover:brightness-125" style="height: 82%;"></div>
+<span class="font-label-sm text-on-surface-variant">Feb</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">178jt</span>
+<div class="w-full bg-gradient-to-t from-primary/60 to-primary rounded-t-md shadow-[0_0_12px_rgba(242,202,80,0.2)] transition-all duration-300 group-hover:brightness-125" style="height: 88%;"></div>
+<span class="font-label-sm text-on-surface-variant">Mar</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+<span class="font-label-sm text-primary font-bold">185.4jt</span>
+<div class="w-full bg-gradient-to-t from-primary to-primary-fixed rounded-t-md shadow-[0_0_16px_rgba(242,202,80,0.4)] transition-all duration-300 group-hover:brightness-125" style="height: 96%;"></div>
+<span class="font-label-sm text-primary font-bold">Apr</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-4 pt-3 border-t border-outline-variant/10 text-body-sm text-on-surface-variant">
+<span>Target Kuartal II: Rp 550.000.000</span>
+<span class="text-tertiary">Pencapaian: 104% dari target</span>
+</div>
+</div>
+<!-- Recent System Activity Feed (1 col) -->
+<div class="rounded-xl bg-surface-container p-space-md shadow-[0_8px_20px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<h2 class="font-headline-md text-on-surface">Aktivitas Real-Time</h2>
+<span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+</div>
+<!-- Activity Feed List -->
+<div class="space-y-3">
+<div class="p-2.5 rounded-lg bg-surface shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center text-on-primary-container shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-on-surface truncate">Pembayaran Masuk</span>
+<span class="font-label-sm text-on-surface-variant">2m lalu</span>
+</div>
+<p class="font-body-sm text-on-surface-variant truncate">Rp 2.500.000 via Midtrans (Kamar 204 Melati)</p>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-surface shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center text-primary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">key</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-on-surface truncate">Check-in Penyewa Baru</span>
+<span class="font-label-sm text-on-surface-variant">15m lalu</span>
+</div>
+<p class="font-body-sm text-on-surface-variant truncate">Budi Santoso - Kamar 102 (Flamboyan)</p>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-surface shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-error-container flex items-center justify-center text-on-error-container shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">build</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-on-surface truncate">Tiket Pemeliharaan</span>
+<span class="font-label-sm text-on-surface-variant">1h lalu</span>
+</div>
+<p class="font-body-sm text-on-surface-variant truncate">AC Bocor - Kamar 305 (Grand Annex)</p>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-surface shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center text-on-primary-container shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">book_online</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-on-surface truncate">Booking Baru</span>
+<span class="font-label-sm text-on-surface-variant">3h lalu</span>
+</div>
+<p class="font-body-sm text-on-surface-variant truncate">Siti Rahma - DP Rp 500rb (Melati)</p>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full mt-4 py-2 rounded-lg bg-surface hover:bg-surface-container-high text-on-surface font-label-lg shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all">
+        Lihat Semua Log Aktivitas
+      </button>
+</div>
+</div>
+</div></main></div></body></html>
