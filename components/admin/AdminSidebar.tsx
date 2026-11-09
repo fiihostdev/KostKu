@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase-browser";
+import { useRouter } from "next/navigation";
 
 const menuItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "dashboard" },
@@ -20,6 +22,14 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <>
@@ -115,9 +125,16 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             href="/"
             className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 py-1 font-semibold transition-colors"
           >
-            <span className="material-symbols-outlined text-[16px]">logout</span>
-            <span>Kembali ke Beranda</span>
+            <span className="material-symbols-outlined text-[16px]">home</span>
+            <span>Beranda</span>
           </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-700 py-1 font-semibold transition-colors w-full mt-1"
+          >
+            <span className="material-symbols-outlined text-[16px]">logout</span>
+            <span>Keluar (Logout)</span>
+          </button>
         </div>
       </aside>
     </>

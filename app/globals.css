@@ -66,3 +66,45 @@
   box-shadow: 3px 3px 6px #cdd3d7, -3px -3px 6px #ffffff, inset 0 1px 0 rgba(255,255,255,0.8);
 }
 
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out both;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.25s ease-out both;
+}
+
+
+/* Fix input text clipping when using icon inside input */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+textarea {
+  min-height: 0;
+  line-height: 1.5;
+}
+
+/* Ensure icon doesn't overlap text in inputs */
+.input-with-icon {
+  padding-left: 2.5rem !important;
+}

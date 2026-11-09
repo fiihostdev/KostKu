@@ -2,27 +2,40 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useKost } from "@/lib/store";
 
 export default function WebsiteSayaPage() {
-  const [subdomain, setSubdomain] = useState("harmoni");
-  const [namaKost, setNamaKost] = useState("Kost Harmoni Residence");
-  const [tagline, setTagline] = useState("Hunian Eksklusif, Nyaman & Strategis Dekat Kampus dan Perkantoran");
-  const [alamat, setAlamat] = useState("Jl. Kemang Raya No. 18, Jakarta Selatan");
-  const [kontakWa, setKontakWa] = useState("0812-3456-7890");
+  const { profile, setProfile, rooms } = useKost();
+
+  const [subdomain, setSubdomain] = useState(profile.subdomain);
+  const [namaKost, setNamaKost] = useState(profile.nama);
+  const [tagline, setTagline] = useState(profile.tagline);
+  const [alamat, setAlamat] = useState(profile.alamat);
+  const [kontakWa, setKontakWa] = useState(profile.telepon);
   const [showSavedToast, setShowSavedToast] = useState(false);
 
   const handleSave = () => {
+    setProfile({
+      ...profile,
+      subdomain,
+      nama: namaKost,
+      tagline,
+      alamat,
+      telepon: kontakWa,
+    });
     setShowSavedToast(true);
     setTimeout(() => setShowSavedToast(false), 3000);
   };
+
+  const sampleAvailableRoom = rooms.find((r) => r.status === "Kosong") || rooms[0];
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
       {/* Toast */}
       {showSavedToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold animate-fadeInUp">
           <span className="material-symbols-outlined text-[18px]">check_circle</span>
-          <span>Pengaturan Website Kost berhasil diperbarui!</span>
+          <span>Pengaturan Website Kost berhasil diperbarui dan disimpan!</span>
         </div>
       )}
 
@@ -38,7 +51,7 @@ export default function WebsiteSayaPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/"
+            href={`/kost/${subdomain}`}
             target="_blank"
             className="skeu-button-secondary text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm flex-1 sm:flex-none"
           >
@@ -101,7 +114,7 @@ export default function WebsiteSayaPage() {
               <input
                 type="text"
                 value={subdomain}
-                onChange={(e) => setSubdomain(e.target.value)}
+                onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                 className="p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none w-36 sm:w-48 font-mono font-bold text-xs"
               />
               <span className="p-2.5 bg-slate-200 text-slate-600 rounded-r-xl font-mono text-xs border-l border-slate-300">
@@ -175,7 +188,7 @@ export default function WebsiteSayaPage() {
             {/* Mobile frame */}
             <div className="skeu-card p-4 rounded-3xl border-4 border-slate-300 max-w-[270px] mx-auto shadow-inner">
               <div className="w-14 h-2.5 bg-slate-300 rounded-full mx-auto mb-3"></div>
-              
+
               <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
                 <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2 font-bold">
                   <span className="material-symbols-outlined text-[20px]">apartment</span>
@@ -187,11 +200,19 @@ export default function WebsiteSayaPage() {
                   <span className="truncate">{alamat}</span>
                 </div>
 
-                <div className="mt-3 p-2 bg-slate-50 rounded-xl border border-slate-100 text-left">
-                  <span className="text-[8px] font-bold text-emerald-600 block uppercase">Kamar Tersedia</span>
-                  <p className="text-[11px] font-bold text-slate-800">Deluxe Room A-02</p>
-                  <p className="text-[10px] font-bold text-primary mt-0.5">Rp 1.500.000 / bln</p>
-                </div>
+                {sampleAvailableRoom && (
+                  <div className="mt-3 p-2 bg-slate-50 rounded-xl border border-slate-100 text-left">
+                    <span className="text-[8px] font-bold text-emerald-600 block uppercase">
+                      {sampleAvailableRoom.status === "Kosong" ? "Kamar Tersedia" : "Contoh Tipe Kamar"}
+                    </span>
+                    <p className="text-[11px] font-bold text-slate-800">
+                      {sampleAvailableRoom.tipe} {sampleAvailableRoom.nomor}
+                    </p>
+                    <p className="text-[10px] font-bold text-primary mt-0.5">
+                      Rp {sampleAvailableRoom.harga.toLocaleString("id-ID")} / bln
+                    </p>
+                  </div>
+                )}
 
                 <a
                   href={`https://wa.me/${kontakWa.replace(/[^0-9]/g, "")}`}
@@ -205,7 +226,7 @@ export default function WebsiteSayaPage() {
           </div>
 
           <div className="text-center pt-3 text-[11px] text-slate-500">
-            Perubahan nama dan kontak langsung tersinkronisasi ke subdomain Anda.
+            Perubahan nama dan kontak langsung tersinkronisasi dan tersimpan ke memori kost Anda.
           </div>
         </div>
       </div>

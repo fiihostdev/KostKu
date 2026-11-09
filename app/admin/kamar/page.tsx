@@ -1,32 +1,11 @@
 "use client";
 
 import { useState } from "react";
-
-interface Room {
-  id: string;
-  nomor: string;
-  lantai: number;
-  tipe: "Standard" | "Deluxe" | "VIP";
-  harga: number;
-  status: "Terisi" | "Kosong" | "Perawatan";
-  penyewa?: string;
-  fasilitas: string[];
-}
-
-const initialRooms: Room[] = [
-  { id: "1", nomor: "A-01", lantai: 1, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Dimas Anggara", fasilitas: ["AC", "K. Mandi Dalam", "WiFi", "Kasur Queen"] },
-  { id: "2", nomor: "A-02", lantai: 1, tipe: "Standard", harga: 1500000, status: "Kosong", fasilitas: ["Kipas", "K. Mandi Luar", "WiFi", "Kasur Single"] },
-  { id: "3", nomor: "A-03", lantai: 1, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Andi Pratama", fasilitas: ["AC", "K. Mandi Dalam", "WiFi"] },
-  { id: "4", nomor: "A-04", lantai: 1, tipe: "VIP", harga: 2500000, status: "Terisi", penyewa: "Rian Hidayat", fasilitas: ["AC", "Water Heater", "TV", "Balkon"] },
-  { id: "5", nomor: "B-01", lantai: 2, tipe: "Standard", harga: 1500000, status: "Terisi", penyewa: "Fajar Nugraha", fasilitas: ["AC", "K. Mandi Dalam"] },
-  { id: "6", nomor: "B-02", lantai: 2, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Budi Santoso", fasilitas: ["AC", "K. Mandi Dalam", "WiFi"] },
-  { id: "7", nomor: "B-03", lantai: 2, tipe: "Standard", harga: 1500000, status: "Perawatan", fasilitas: ["AC", "K. Mandi Dalam", "Cat Ulang"] },
-  { id: "8", nomor: "B-04", lantai: 2, tipe: "VIP", harga: 2600000, status: "Terisi", penyewa: "Siti Rahmawati", fasilitas: ["AC", "Kulkas Mini", "Water Heater", "TV"] },
-];
+import { useKost } from "@/lib/store";
 
 export default function DataKamarPage() {
+  const { rooms, addRoom, deleteRoom, profile, loading } = useKost();
   const [filter, setFilter] = useState<string>("Semua");
-  const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRoom, setNewRoom] = useState({
     nomor: "",
@@ -43,16 +22,14 @@ export default function DataKamarPage() {
 
   const handleAddRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    const created: Room = {
-      id: Date.now().toString(),
+    addRoom({
       nomor: newRoom.nomor,
       lantai: Number(newRoom.lantai),
       tipe: newRoom.tipe,
       harga: Number(newRoom.harga),
       status: "Kosong",
       fasilitas: newRoom.fasilitas.split(",").map((s) => s.trim()),
-    };
-    setRooms([created, ...rooms]);
+    });
     setShowAddModal(false);
     setNewRoom({ nomor: "", lantai: 1, tipe: "Standard", harga: 1500000, fasilitas: "AC, WiFi, Kasur" });
   };
@@ -60,16 +37,23 @@ export default function DataKamarPage() {
   const terisiCount = rooms.filter((r) => r.status === "Terisi").length;
   const kosongCount = rooms.filter((r) => r.status === "Kosong").length;
   const perawatanCount = rooms.filter((r) => r.status === "Perawatan").length;
+  const okupansi = rooms.length > 0 ? Math.round((terisiCount / rooms.length) * 100) : 0;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+          <span className="material-symbols-outlined text-[16px] animate-spin text-primary">sync</span>
+          <span>Memuat data kamar dari database...</span>
+        </div>
+      )}
       {/* Top Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Operasional</span>
             <span className="text-slate-400">•</span>
-            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">Kost Harmoni Residence</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">{profile.nama}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Kamar</h1>
         </div>
@@ -102,9 +86,7 @@ export default function DataKamarPage() {
         </div>
         <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between col-span-2 sm:col-span-1">
           <span className="text-[10px] sm:text-xs text-primary font-semibold uppercase truncate">Okupansi</span>
-          <div className="text-xl sm:text-2xl font-black text-primary mt-1">
-            {Math.round((terisiCount / rooms.length) * 100)}%
-          </div>
+          <div className="text-xl sm:text-2xl font-black text-primary mt-1">{okupansi}%</div>
         </div>
       </div>
 
@@ -127,7 +109,11 @@ export default function DataKamarPage() {
 
       {/* Room Grid Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-        {filteredRooms.map((room) => (
+        {filteredRooms.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-slate-400 text-sm">
+            Tidak ada kamar dengan filter ini.
+          </div>
+        ) : filteredRooms.map((room) => (
           <div key={room.id} className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between transition hover:-translate-y-0.5">
             <div>
               <div className="flex items-start justify-between mb-3">
@@ -135,15 +121,13 @@ export default function DataKamarPage() {
                   <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
                   <h3 className="text-base sm:text-lg font-black text-slate-900">{room.nomor}</h3>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    room.status === "Terisi"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : room.status === "Kosong"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-amber-100 text-amber-800"
-                  }`}
-                >
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  room.status === "Terisi"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : room.status === "Kosong"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}>
                   {room.status}
                 </span>
               </div>
@@ -179,17 +163,19 @@ export default function DataKamarPage() {
 
             <div className="pt-3 border-t border-white/60 flex items-center justify-between text-xs">
               <button
-                onClick={() => alert(`Edit informasi kamar ${room.nomor}`)}
-                className="text-slate-500 hover:text-slate-800 font-semibold"
+                onClick={() => {
+                  if (confirm(`Hapus kamar ${room.nomor}? Tindakan ini tidak dapat dibatalkan.`)) {
+                    deleteRoom(room.id);
+                  }
+                }}
+                className="text-red-500 hover:text-red-700 font-semibold flex items-center gap-1"
               >
-                Edit
+                <span className="material-symbols-outlined text-[14px]">delete</span>
+                Hapus
               </button>
-              <button
-                onClick={() => alert(`Kelola data sewa untuk kamar ${room.nomor}`)}
-                className="font-bold text-primary hover:underline"
-              >
-                Detail Kamar →
-              </button>
+              <span className="font-mono text-slate-400 text-[10px]">
+                ID: {room.nomor}
+              </span>
             </div>
           </div>
         ))}
@@ -234,7 +220,7 @@ export default function DataKamarPage() {
                   <label className="font-bold text-slate-700 block mb-1">Tipe Kamar</label>
                   <select
                     value={newRoom.tipe}
-                    onChange={(e) => setNewRoom({ ...newRoom, tipe: e.target.value as any })}
+                    onChange={(e) => setNewRoom({ ...newRoom, tipe: e.target.value as "Standard" | "Deluxe" | "VIP" })}
                     className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
                   >
                     <option value="Standard">Standard</option>

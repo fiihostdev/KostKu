@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useKost } from "@/lib/store";
 
 export default function LaporanKeuanganPage() {
+  const { stats, cashFlows, loading } = useKost();
   const [periode, setPeriode] = useState("November 2026");
 
-  const cashFlows = [
-    { tgl: "07 Nov 2026", ket: "Pembayaran Sewa Kamar A-01 (Dimas Anggara)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 1800000, saldo: 34850000 },
-    { tgl: "06 Nov 2026", ket: "Pembayaran Sewa Kamar B-04 (Siti Rahmawati)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 2200000, saldo: 33050000 },
-    { tgl: "04 Nov 2026", ket: "Tagihan Listrik PLN & Air PAM Kost", kat: "Utilitas", tipe: "Keluar", nominal: 2450000, saldo: 30850000 },
-    { tgl: "03 Nov 2026", ket: "Langganan Internet IndiHome Biz 100 Mbps", kat: "Internet", tipe: "Keluar", nominal: 750000, saldo: 33300000 },
-    { tgl: "02 Nov 2026", ket: "Service Rutin AC 4 Unit Lantai 1", kat: "Perawatan", tipe: "Keluar", nominal: 600000, saldo: 34050000 },
-    { tgl: "01 Nov 2026", ket: "Pembayaran Sewa Kamar VIP-01 (Jessica Mila)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 3500000, saldo: 34650000 },
-  ];
+  // Filter cashFlows
+  const totalMasuk = cashFlows.filter((c) => c.tipe === "Masuk").reduce((sum, c) => sum + c.nominal, 0);
+  const totalKeluar = cashFlows.filter((c) => c.tipe === "Keluar").reduce((sum, c) => sum + c.nominal, 0);
+  const labaBersih = totalMasuk - totalKeluar;
+  const margin = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
@@ -53,24 +52,34 @@ export default function LaporanKeuanganPage() {
       {/* Main Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase truncate">Pemasukan Kotor</span>
-          <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">Rp 39.6 Jt</div>
-          <span className="text-[10px] text-emerald-700 font-bold mt-2 block">+14% vs bulan lalu</span>
+          <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase truncate">Pemasukan Kas</span>
+          <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+            Rp {(totalMasuk / 1000000).toFixed(2)} Jt
+          </div>
+          <span className="text-[10px] text-emerald-700 font-bold mt-2 block">
+            {cashFlows.filter((c) => c.tipe === "Masuk").length} transaksi
+          </span>
         </div>
         <div className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
           <span className="text-[10px] sm:text-xs text-red-600 font-semibold uppercase truncate">Pengeluaran Operasional</span>
-          <div className="text-xl sm:text-2xl font-black text-red-700 mt-1">Rp 4.75 Jt</div>
-          <span className="text-[10px] text-slate-500 mt-2 block truncate">Listrik, WiFi & Service</span>
+          <div className="text-xl sm:text-2xl font-black text-red-700 mt-1">
+            Rp {(totalKeluar / 1000000).toFixed(2)} Jt
+          </div>
+          <span className="text-[10px] text-slate-500 mt-2 block truncate">Utilitas, WiFi & Service</span>
         </div>
         <div className="skeu-card p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/30 flex flex-col justify-between">
           <span className="text-[10px] sm:text-xs text-emerald-700 font-bold uppercase truncate">Laba Bersih (Net)</span>
-          <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">Rp 34.85 Jt</div>
-          <span className="text-[10px] text-emerald-800 font-bold mt-2 block">Margin: 88.0%</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">
+            Rp {(labaBersih / 1000000).toFixed(2)} Jt
+          </div>
+          <span className="text-[10px] text-emerald-800 font-bold mt-2 block">Margin: {margin}%</span>
         </div>
         <div className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-primary font-semibold uppercase truncate">Proyeksi Bulan Depan</span>
-          <div className="text-xl sm:text-2xl font-black text-primary mt-1">Rp 41.2 Jt</div>
-          <span className="text-[10px] text-slate-500 mt-2 block truncate">Kontrak aktif</span>
+          <span className="text-[10px] sm:text-xs text-primary font-semibold uppercase truncate">Potensi Tagihan</span>
+          <div className="text-xl sm:text-2xl font-black text-primary mt-1">
+            Rp {(stats.tagihanTertunda / 1000000).toFixed(2)} Jt
+          </div>
+          <span className="text-[10px] text-slate-500 mt-2 block truncate">Tagihan belum tertagih</span>
         </div>
       </div>
 
@@ -80,7 +89,7 @@ export default function LaporanKeuanganPage() {
         <div className="lg:col-span-8 skeu-card p-5 sm:p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/60">
             <h2 className="font-bold text-slate-900 text-sm sm:text-base">Buku Kas & Mutasi Real-time</h2>
-            <span className="text-xs text-slate-500 font-medium">6 Transaksi Terakhir</span>
+            <span className="text-xs text-slate-500 font-medium">{cashFlows.length} Transaksi Terakhir</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -95,8 +104,12 @@ export default function LaporanKeuanganPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {cashFlows.map((c, i) => (
-                  <tr key={i} className="hover:bg-white/40">
+                {cashFlows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">Belum ada mutasi kas</td>
+                  </tr>
+                ) : cashFlows.map((c) => (
+                  <tr key={c.id} className="hover:bg-white/40">
                     <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">{c.tgl}</td>
                     <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">{c.ket}</td>
                     <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
@@ -121,56 +134,54 @@ export default function LaporanKeuanganPage() {
         <div className="lg:col-span-4 skeu-card p-5 sm:p-6 rounded-2xl flex flex-col justify-between">
           <div>
             <h2 className="font-bold text-slate-900 text-sm sm:text-base mb-4 pb-3 border-b border-white/60">
-              Rincian Pengeluaran
+              Rincian Pengeluaran Operasional
             </h2>
 
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-700">Listrik PLN & Air PAM</span>
-                  <span className="font-bold text-slate-900">Rp 2.45 Jt (51%)</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full w-[51%]"></div>
-                </div>
-              </div>
+              {(() => {
+                // Aggregate expenses by category dynamically from cashFlows
+                const expenseCategories: Record<string, number> = {};
+                cashFlows
+                  .filter((c) => c.tipe === "Keluar")
+                  .forEach((c) => {
+                    expenseCategories[c.kat] = (expenseCategories[c.kat] || 0) + c.nominal;
+                  });
 
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-700">Gaji Penjaga & Kebersihan</span>
-                  <span className="font-bold text-slate-900">Rp 1.50 Jt (31%)</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full w-[31%]"></div>
-                </div>
-              </div>
+                const categories = Object.entries(expenseCategories);
+                const totalExpenses = categories.reduce((s, [, v]) => s + v, 0);
 
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-700">Internet WiFi IndiHome</span>
-                  <span className="font-bold text-slate-900">Rp 750 Rb (15%)</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-indigo-500 h-full w-[15%]"></div>
-                </div>
-              </div>
+                if (categories.length === 0) {
+                  return (
+                    <p className="text-xs text-slate-400 italic">Belum ada data pengeluaran.</p>
+                  );
+                }
 
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-700">Service Rutin AC & Perawatan</span>
-                  <span className="font-bold text-slate-900">Rp 600 Rb (12%)</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-purple-500 h-full w-[12%]"></div>
-                </div>
-              </div>
+                const colors = ["bg-amber-500", "bg-blue-500", "bg-indigo-500", "bg-purple-500", "bg-red-500", "bg-teal-500"];
+
+                return categories.map(([kat, nominal], i) => {
+                  const pct = totalExpenses > 0 ? Math.round((nominal / totalExpenses) * 100) : 0;
+                  return (
+                    <div key={kat}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold text-slate-700 truncate mr-2">{kat}</span>
+                        <span className="font-bold text-slate-900 shrink-0">
+                          Rp {nominal.toLocaleString("id-ID")} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                        <div className={`${colors[i % colors.length]} h-full rounded-full`} style={{ width: `${pct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 
           <div className="skeu-inset p-3.5 rounded-xl mt-6">
-            <span className="text-xs font-bold text-slate-800 block mb-1">💡 Tips Hemat Operasional:</span>
+            <span className="text-xs font-bold text-slate-800 block mb-1">💡 Tips Analitik Otomatis:</span>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Biaya listrik turun 4% setelah pemasangan smart card switch di kamar lantai 2.
+              Arus kas otomatis diperbarui setiap kali Anda menekan tombol &apos;Bayar&apos; pada invoice tagihan penyewa.
             </p>
           </div>
         </div>

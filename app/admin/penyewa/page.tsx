@@ -1,39 +1,22 @@
 "use client";
 
 import { useState } from "react";
-
-interface Tenant {
-  id: string;
-  nama: string;
-  phone: string;
-  kamar: string;
-  mulaiSewa: string;
-  akhirSewa: string;
-  statusBayar: "Lunas" | "Jatuh Tempo" | "Tertunggak";
-  ktpVerified: boolean;
-}
-
-const initialTenants: Tenant[] = [
-  { id: "1", nama: "Dimas Anggara", phone: "0812-3456-7890", kamar: "Kamar A-01", mulaiSewa: "01 Jan 2026", akhirSewa: "31 Des 2026", statusBayar: "Lunas", ktpVerified: true },
-  { id: "2", nama: "Andi Pratama", phone: "0813-9876-5432", kamar: "Kamar A-03", mulaiSewa: "15 Feb 2026", akhirSewa: "14 Feb 2027", statusBayar: "Lunas", ktpVerified: true },
-  { id: "3", nama: "Rian Hidayat", phone: "0821-1122-3344", kamar: "Kamar A-04", mulaiSewa: "01 Mar 2026", akhirSewa: "01 Mar 2027", statusBayar: "Jatuh Tempo", ktpVerified: true },
-  { id: "4", nama: "Fajar Nugraha", phone: "0857-4433-2211", kamar: "Kamar B-01", mulaiSewa: "10 Jun 2026", akhirSewa: "10 Des 2026", statusBayar: "Tertunggak", ktpVerified: false },
-  { id: "5", nama: "Budi Santoso", phone: "0819-7788-9900", kamar: "Kamar B-02", mulaiSewa: "01 Jul 2026", akhirSewa: "31 Jul 2027", statusBayar: "Lunas", ktpVerified: true },
-  { id: "6", nama: "Siti Rahmawati", phone: "0878-5566-7788", kamar: "Kamar B-04", mulaiSewa: "01 Mei 2026", akhirSewa: "30 Apr 2027", statusBayar: "Lunas", ktpVerified: true },
-];
+import { useKost } from "@/lib/store";
 
 export default function DataPenyewaPage() {
+  const { tenants, addTenant, rooms, loading } = useKost();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Semua");
-  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTenant, setNewTenant] = useState({
     nama: "",
     phone: "",
-    kamar: "Kamar A-02",
-    mulaiSewa: "01 Des 2026",
-    akhirSewa: "01 Des 2027",
+    kamar: "",
+    mulaiSewa: "",
+    akhirSewa: "",
   });
+
+  const availableRooms = rooms.filter((r) => r.status === "Kosong");
 
   const filteredTenants = tenants.filter((t) => {
     const matchSearch =
@@ -46,177 +29,160 @@ export default function DataPenyewaPage() {
 
   const handleAddTenant = (e: React.FormEvent) => {
     e.preventDefault();
-    const created: Tenant = {
-      id: Date.now().toString(),
+    addTenant({
       nama: newTenant.nama,
       phone: newTenant.phone,
-      kamar: newTenant.kamar,
+      kamar: newTenant.kamar ? `Kamar ${newTenant.kamar}` : "Kamar Baru",
       mulaiSewa: newTenant.mulaiSewa,
       akhirSewa: newTenant.akhirSewa,
       statusBayar: "Lunas",
-      ktpVerified: true,
-    };
-    setTenants([created, ...tenants]);
+      ktpVerified: false,
+    });
     setShowAddModal(false);
-    setNewTenant({ nama: "", phone: "", kamar: "Kamar A-02", mulaiSewa: "01 Des 2026", akhirSewa: "01 Des 2027" });
+    setNewTenant({ nama: "", phone: "", kamar: "", mulaiSewa: "", akhirSewa: "" });
   };
+
+  const lunasCount = tenants.filter((t) => t.statusBayar === "Lunas").length;
+  const jatuhTempoCount = tenants.filter((t) => t.statusBayar === "Jatuh Tempo").length;
+  const tertunggakCount = tenants.filter((t) => t.statusBayar === "Tertunggak").length;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+          <span className="material-symbols-outlined text-[16px] animate-spin text-primary">sync</span>
+          <span>Memuat data penyewa dari database...</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Pengelola</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold">Penyewa Kost</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Penyewa</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Penyewa</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Kelola data penghuni kost, masa sewa, dan integrasi WhatsApp.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">Data Penyewa Aktif</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Kelola informasi penyewa, kontrak sewa, dan status pembayaran.</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md w-full sm:w-auto"
         >
           <span className="material-symbols-outlined text-[18px]">person_add</span>
-          <span>Tambah Penyewa Baru</span>
+          <span>Tambah Penyewa</span>
         </button>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase truncate">Penyewa Aktif</span>
-          <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{tenants.length} Orang</div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="skeu-card p-3 sm:p-4 rounded-xl">
+          <span className="text-[10px] text-slate-500 font-semibold uppercase">Total Penyewa</span>
+          <div className="text-xl font-black text-slate-900 mt-1">{tenants.length}</div>
         </div>
-        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold uppercase truncate">Status Lunas</span>
-          <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">
-            {tenants.filter((t) => t.statusBayar === "Lunas").length} Orang
-          </div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl">
+          <span className="text-[10px] text-emerald-600 font-semibold uppercase">Lunas</span>
+          <div className="text-xl font-black text-emerald-700 mt-1">{lunasCount}</div>
         </div>
-        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-amber-600 font-semibold uppercase truncate">Jatuh Tempo (H-7)</span>
-          <div className="text-xl sm:text-2xl font-black text-amber-700 mt-1">
-            {tenants.filter((t) => t.statusBayar === "Jatuh Tempo").length} Orang
-          </div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl">
+          <span className="text-[10px] text-amber-600 font-semibold uppercase">Jatuh Tempo</span>
+          <div className="text-xl font-black text-amber-700 mt-1">{jatuhTempoCount}</div>
         </div>
-        <div className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs text-red-600 font-semibold uppercase truncate">Tertunggak</span>
-          <div className="text-xl sm:text-2xl font-black text-red-700 mt-1">
-            {tenants.filter((t) => t.statusBayar === "Tertunggak").length} Orang
-          </div>
+        <div className="skeu-card p-3 sm:p-4 rounded-xl">
+          <span className="text-[10px] text-red-600 font-semibold uppercase">Tertunggak</span>
+          <div className="text-xl font-black text-red-700 mt-1">{tertunggakCount}</div>
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="skeu-card p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="relative w-full md:w-80">
-          <span className="material-symbols-outlined text-[18px] text-slate-400 absolute left-3 top-2.5">search</span>
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
           <input
             type="text"
-            placeholder="Cari nama, kamar, no WhatsApp..."
+            placeholder="Cari nama, kamar, atau nomor HP..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl skeu-inset text-xs text-slate-800 outline-none"
+            className="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl skeu-inset text-slate-800 outline-none"
           />
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {["Semua", "Lunas", "Jatuh Tempo", "Tertunggak"].map((s) => (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {["Semua", "Lunas", "Jatuh Tempo", "Tertunggak"].map((tab) => (
             <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                filter === s
-                  ? "skeu-button text-white shadow-sm"
-                  : "skeu-button-secondary text-slate-600 hover:text-slate-900"
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                filter === tab ? "skeu-button shadow-sm" : "skeu-card text-slate-600 hover:text-slate-900"
               }`}
             >
-              {s}
+              {tab}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Tenants Table */}
-      <div className="skeu-card rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[620px]">
-            <thead>
-              <tr className="border-b border-white/60 bg-white/40 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4">Nama Penyewa</th>
-                <th className="py-3 px-4">Kamar</th>
-                <th className="py-3 px-4">No. WhatsApp</th>
-                <th className="py-3 px-4">Periode Kontrak</th>
-                <th className="py-3 px-4">Status Tagihan</th>
-                <th className="py-3 px-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/40">
-              {filteredTenants.map((t) => (
-                <tr key={t.id} className="hover:bg-white/50 transition-colors">
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
-                        {t.nama.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-bold text-slate-900 block truncate">{t.nama}</span>
-                        {t.ktpVerified && (
-                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                            <span className="material-symbols-outlined text-[12px]">verified</span> Terverifikasi
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">{t.kamar}</td>
-                  <td className="py-3 px-4 text-slate-600 whitespace-nowrap font-mono">{t.phone}</td>
-                  <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
-                    {t.mulaiSewa} — {t.akhirSewa}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                        t.statusBayar === "Lunas"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : t.statusBayar === "Jatuh Tempo"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {t.statusBayar}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
-                    <button
-                      onClick={() => alert(`Membuka WhatsApp ke ${t.phone}...`)}
-                      className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center"
-                      title="Kirim Pesan WA"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">chat</span>
-                    </button>
-                    <button
-                      onClick={() => alert(`Buka data profil penyewa ${t.nama}`)}
-                      className="p-1.5 rounded-lg skeu-card text-slate-600 hover:text-slate-900 inline-flex items-center"
-                      title="Lihat Profil"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">visibility</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Tenant Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredTenants.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-slate-400 text-sm">
+            {search ? "Penyewa tidak ditemukan." : "Belum ada data penyewa."}
+          </div>
+        ) : filteredTenants.map((t) => (
+          <div key={t.id} className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3 transition hover:-translate-y-0.5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-[20px]">person</span>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-black text-sm text-slate-900 truncate">{t.nama}</h3>
+                  <p className="text-[11px] text-slate-500 truncate">{t.kamar}</p>
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                t.statusBayar === "Lunas" ? "bg-emerald-100 text-emerald-800" :
+                t.statusBayar === "Jatuh Tempo" ? "bg-amber-100 text-amber-800" :
+                "bg-red-100 text-red-800"
+              }`}>
+                {t.statusBayar}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="skeu-inset p-2 rounded-lg">
+                <span className="text-slate-400 block text-[10px]">Mulai Sewa</span>
+                <span className="font-bold text-slate-800">{t.mulaiSewa}</span>
+              </div>
+              <div className="skeu-inset p-2 rounded-lg">
+                <span className="text-slate-400 block text-[10px]">Akhir Sewa</span>
+                <span className="font-bold text-slate-800">{t.akhirSewa}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-white/60">
+              <a
+                href={`https://wa.me/${t.phone.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 skeu-button-secondary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 text-emerald-800"
+              >
+                <span className="material-symbols-outlined text-[15px] text-emerald-600">chat</span>
+                WhatsApp
+              </a>
+              <div className={`flex items-center gap-1 text-[10px] font-bold ${t.ktpVerified ? "text-emerald-600" : "text-amber-600"}`}>
+                <span className="material-symbols-outlined text-[14px]">{t.ktpVerified ? "verified" : "pending"}</span>
+                <span>{t.ktpVerified ? "KTP Verified" : "KTP Pending"}</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Add Tenant Modal */}
+      {/* Modal Tambah Penyewa */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="skeu-card p-5 sm:p-6 rounded-2xl max-w-md w-full relative shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/60">
-              <h3 className="font-black text-base text-slate-900">Tambah Data Penyewa Baru</h3>
+              <h3 className="font-black text-base text-slate-900">Tambah Penyewa Baru</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
@@ -228,49 +194,61 @@ export default function DataPenyewaPage() {
                 <input
                   required
                   type="text"
-                  placeholder="Nama sesuai KTP"
+                  placeholder="Nama penyewa"
                   value={newTenant.nama}
                   onChange={(e) => setNewTenant({ ...newTenant, nama: e.target.value })}
                   className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">No. WhatsApp</label>
-                  <input
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">No. WhatsApp</label>
+                <input
+                  required
+                  type="tel"
+                  placeholder="081234567890"
+                  value={newTenant.phone}
+                  onChange={(e) => setNewTenant({ ...newTenant, phone: e.target.value })}
+                  className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Pilih Kamar</label>
+                {availableRooms.length > 0 ? (
+                  <select
                     required
-                    type="text"
-                    placeholder="08123456789"
-                    value={newTenant.phone}
-                    onChange={(e) => setNewTenant({ ...newTenant, phone: e.target.value })}
-                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Pilih Kamar</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Kamar A-02"
                     value={newTenant.kamar}
                     onChange={(e) => setNewTenant({ ...newTenant, kamar: e.target.value })}
-                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
-                  />
-                </div>
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
+                  >
+                    <option value="">-- Pilih Kamar Tersedia --</option>
+                    {availableRooms.map((r) => (
+                      <option key={r.id} value={r.nomor}>
+                        {r.nomor} - {r.tipe} (Rp {r.harga.toLocaleString("id-ID")}/bln)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-2.5 rounded-xl skeu-inset text-amber-700 text-xs font-bold">
+                    ⚠️ Semua kamar terisi. Silakan tambah kamar kosong baru terlebih dahulu.
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Mulai Sewa</label>
+                  <label className="font-bold text-slate-700 block mb-1">Tanggal Mulai</label>
                   <input
-                    type="text"
+                    required
+                    type="date"
                     value={newTenant.mulaiSewa}
                     onChange={(e) => setNewTenant({ ...newTenant, mulaiSewa: e.target.value })}
                     className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Selesai Sewa</label>
+                  <label className="font-bold text-slate-700 block mb-1">Tanggal Akhir</label>
                   <input
-                    type="text"
+                    required
+                    type="date"
                     value={newTenant.akhirSewa}
                     onChange={(e) => setNewTenant({ ...newTenant, akhirSewa: e.target.value })}
                     className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
@@ -279,17 +257,10 @@ export default function DataPenyewaPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="skeu-button-secondary px-4 py-2 rounded-xl font-bold"
-                >
+                <button type="button" onClick={() => setShowAddModal(false)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold">
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  className="skeu-button px-5 py-2 rounded-xl font-bold shadow-md"
-                >
+                <button type="submit" className="skeu-button px-5 py-2 rounded-xl font-bold shadow-md" disabled={availableRooms.length === 0}>
                   Simpan Penyewa
                 </button>
               </div>

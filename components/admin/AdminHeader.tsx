@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useKost } from "@/lib/store";
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void;
@@ -9,6 +10,11 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const [currentKost, setCurrentKost] = useState("Kost Harmoni Residence");
+  const { stats, profile } = useKost();
+
+  const pendingCount = stats.tagihanTertunda > 0
+    ? Math.round(stats.tagihanTertunda / 100000) // rough pending invoices estimate
+    : 0;
 
   return (
     <header className="h-16 bg-surface/90 backdrop-blur-md border-b border-white/60 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -30,14 +36,14 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
             onChange={(e) => setCurrentKost(e.target.value)}
             className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer truncate max-w-[140px] sm:max-w-none"
           >
-            <option value="Kost Harmoni Residence">Kost Harmoni Residence</option>
+            <option value="Kost Harmoni Residence">{profile.nama}</option>
             <option value="Kost Melati Indah (Bandung)">Kost Melati Indah (Bandung)</option>
             <option value="Kost Graha Mahasiswa (Yogya)">Kost Graha Mahasiswa (Yogya)</option>
           </select>
         </div>
 
         <span className="text-[10px] sm:text-[11px] text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded-full border border-emerald-200 hidden md:inline-block shrink-0">
-          Okupansi 91.6% (22/24)
+          Okupansi {stats.okupansi}% ({stats.kamarTerisi}/{stats.totalKamar})
         </span>
       </div>
 
@@ -54,11 +60,18 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
         {/* Notification Bell */}
         <button
           title="Notifikasi"
-          onClick={() => alert("Ada 2 tagihan sewa jatuh tempo besok.")}
+          onClick={() => {
+            const pending = stats.tagihanTertunda > 0
+              ? `Ada tagihan tertunda senilai Rp ${stats.tagihanTertunda.toLocaleString("id-ID")}.`
+              : "Semua tagihan sudah lunas! Tidak ada notifikasi baru.";
+            alert(pending);
+          }}
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl skeu-card flex items-center justify-center text-slate-600 hover:text-slate-950 relative"
         >
           <span className="material-symbols-outlined text-[18px] sm:text-[20px]">notifications</span>
-          <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5"></span>
+          {stats.tagihanTertunda > 0 && (
+            <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5"></span>
+          )}
         </button>
 
         {/* Quick Add Button */}

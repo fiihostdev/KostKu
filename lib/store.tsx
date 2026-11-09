@@ -1,6 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createClient } from "./supabase-browser";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface Room {
   id: string;
@@ -57,17 +60,19 @@ export interface KostProfile {
 }
 
 interface KostContextType {
+  kostId: string | null;
   profile: KostProfile;
-  setProfile: (p: KostProfile) => void;
+  setProfile: (p: KostProfile) => Promise<void>;
   rooms: Room[];
-  addRoom: (r: Omit<Room, "id">) => void;
-  deleteRoom: (id: string) => void;
+  addRoom: (r: Omit<Room, "id">) => Promise<void>;
+  deleteRoom: (id: string) => Promise<void>;
   tenants: Tenant[];
-  addTenant: (t: Omit<Tenant, "id">) => void;
+  addTenant: (t: Omit<Tenant, "id">) => Promise<void>;
   invoices: Invoice[];
-  addInvoice: (inv: Omit<Invoice, "id" | "noInvoice">) => void;
-  payInvoice: (id: string) => void;
+  addInvoice: (inv: Omit<Invoice, "id" | "noInvoice">) => Promise<void>;
+  payInvoice: (id: string) => Promise<void>;
   cashFlows: CashFlow[];
+  loading: boolean;
   stats: {
     totalKamar: number;
     kamarTerisi: number;
@@ -79,197 +84,378 @@ interface KostContextType {
   };
 }
 
+// ─── Default fallback (tampil sebelum data Supabase dimuat) ──────────────────
+
 const defaultProfile: KostProfile = {
-  nama: "Kost Harmoni Residence",
-  subdomain: "harmoni",
-  tagline: "Hunian Eksklusif, Bersih, dan Strategis Dekat Kawasan Kampus & Bisnis",
-  alamat: "Jl. Kemang Raya No. 18, Jakarta Selatan",
-  telepon: "0812-3456-7890",
+  nama: "Kost Saya",
+  subdomain: "kostsaya",
+  tagline: "Hunian nyaman dan strategis",
+  alamat: "Alamat kost Anda",
+  telepon: "",
   paket: "Pro Plan",
   bankPenerima: "BCA",
-  noRekening: "8820-192-331",
+  noRekening: "",
 };
 
-const defaultRooms: Room[] = [
-  { id: "1", nomor: "A-01", lantai: 1, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Dimas Anggara", fasilitas: ["AC", "K. Mandi Dalam", "WiFi", "Kasur Queen"] },
-  { id: "2", nomor: "A-02", lantai: 1, tipe: "Standard", harga: 1500000, status: "Kosong", fasilitas: ["Kipas", "K. Mandi Luar", "WiFi", "Kasur Single"] },
-  { id: "3", nomor: "A-03", lantai: 1, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Andi Pratama", fasilitas: ["AC", "K. Mandi Dalam", "WiFi"] },
-  { id: "4", nomor: "A-04", lantai: 1, tipe: "VIP", harga: 2500000, status: "Terisi", penyewa: "Rian Hidayat", fasilitas: ["AC", "Water Heater", "TV", "Balkon"] },
-  { id: "5", nomor: "B-01", lantai: 2, tipe: "Standard", harga: 1500000, status: "Terisi", penyewa: "Fajar Nugraha", fasilitas: ["AC", "K. Mandi Dalam"] },
-  { id: "6", nomor: "B-02", lantai: 2, tipe: "Deluxe", harga: 1800000, status: "Terisi", penyewa: "Budi Santoso", fasilitas: ["AC", "K. Mandi Dalam", "WiFi"] },
-  { id: "7", nomor: "B-03", lantai: 2, tipe: "Standard", harga: 1500000, status: "Perawatan", fasilitas: ["AC", "K. Mandi Dalam", "Pengecatan Ulang"] },
-  { id: "8", nomor: "B-04", lantai: 2, tipe: "VIP", harga: 2600000, status: "Terisi", penyewa: "Siti Rahmawati", fasilitas: ["AC", "Kulkas Mini", "Water Heater", "TV"] },
-];
-
-const defaultTenants: Tenant[] = [
-  { id: "1", nama: "Dimas Anggara", phone: "0812-3456-7890", kamar: "Kamar A-01", mulaiSewa: "01 Jan 2026", akhirSewa: "31 Des 2026", statusBayar: "Lunas", ktpVerified: true },
-  { id: "2", nama: "Andi Pratama", phone: "0813-9876-5432", kamar: "Kamar A-03", mulaiSewa: "15 Feb 2026", akhirSewa: "14 Feb 2027", statusBayar: "Lunas", ktpVerified: true },
-  { id: "3", nama: "Rian Hidayat", phone: "0821-1122-3344", kamar: "Kamar A-04", mulaiSewa: "01 Mar 2026", akhirSewa: "01 Mar 2027", statusBayar: "Jatuh Tempo", ktpVerified: true },
-  { id: "4", nama: "Fajar Nugraha", phone: "0857-4433-2211", kamar: "Kamar B-01", mulaiSewa: "10 Jun 2026", akhirSewa: "10 Des 2026", statusBayar: "Tertunggak", ktpVerified: false },
-  { id: "5", nama: "Budi Santoso", phone: "0819-7788-9900", kamar: "Kamar B-02", mulaiSewa: "01 Jul 2026", akhirSewa: "31 Jul 2027", statusBayar: "Lunas", ktpVerified: true },
-  { id: "6", nama: "Siti Rahmawati", phone: "0878-5566-7788", kamar: "Kamar B-04", mulaiSewa: "01 Mei 2026", akhirSewa: "30 Apr 2027", statusBayar: "Lunas", ktpVerified: true },
-];
-
-const defaultInvoices: Invoice[] = [
-  { id: "1", noInvoice: "INV/2026/11/001", penyewa: "Dimas Anggara", kamar: "Kamar A-01", nominal: 1800000, jatuhTempo: "05 Nov 2026", metode: "Midtrans (QRIS)", status: "Lunas" },
-  { id: "2", noInvoice: "INV/2026/11/002", penyewa: "Andi Pratama", kamar: "Kamar A-03", nominal: 1800000, jatuhTempo: "05 Nov 2026", metode: "Midtrans (BCA VA)", status: "Lunas" },
-  { id: "3", noInvoice: "INV/2026/11/003", penyewa: "Rian Hidayat", kamar: "Kamar A-04", nominal: 2500000, jatuhTempo: "10 Nov 2026", metode: "Transfer Manual", status: "Menunggu" },
-  { id: "4", noInvoice: "INV/2026/11/004", penyewa: "Fajar Nugraha", kamar: "Kamar B-01", nominal: 1500000, jatuhTempo: "01 Nov 2026", metode: "Midtrans Link", status: "Jatuh Tempo" },
-  { id: "5", noInvoice: "INV/2026/11/005", penyewa: "Budi Santoso", kamar: "Kamar B-02", nominal: 1800000, jatuhTempo: "05 Nov 2026", metode: "Tunai", status: "Lunas" },
-  { id: "6", noInvoice: "INV/2026/11/006", penyewa: "Siti Rahmawati", kamar: "Kamar B-04", nominal: 2600000, jatuhTempo: "05 Nov 2026", metode: "Midtrans (GoPay)", status: "Lunas" },
-];
-
-const defaultCashFlows: CashFlow[] = [
-  { id: "1", tgl: "07 Nov 2026", ket: "Pembayaran Sewa Kamar A-01 (Dimas Anggara)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 1800000, saldo: 34850000 },
-  { id: "2", tgl: "06 Nov 2026", ket: "Pembayaran Sewa Kamar B-04 (Siti Rahmawati)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 2200000, saldo: 33050000 },
-  { id: "3", tgl: "04 Nov 2026", ket: "Tagihan Listrik PLN & Air PAM Kost", kat: "Utilitas", tipe: "Keluar", nominal: 2450000, saldo: 30850000 },
-  { id: "4", tgl: "03 Nov 2026", ket: "Langganan Internet IndiHome Biz 100 Mbps", kat: "Internet", tipe: "Keluar", nominal: 750000, saldo: 33300000 },
-  { id: "5", tgl: "02 Nov 2026", ket: "Service Rutin AC 4 Unit Lantai 1", kat: "Perawatan", tipe: "Keluar", nominal: 600000, saldo: 34050000 },
-  { id: "6", tgl: "01 Nov 2026", ket: "Pembayaran Sewa Kamar VIP-01 (Jessica Mila)", kat: "Pendapatan Sewa", tipe: "Masuk", nominal: 3500000, saldo: 34650000 },
-];
+// ─── Context ─────────────────────────────────────────────────────────────────
 
 const KostContext = createContext<KostContextType | undefined>(undefined);
 
+// ─── Helper: map Supabase row → app types ────────────────────────────────────
+
+function mapRoom(r: Record<string, unknown>): Room {
+  return {
+    id: r.id as string,
+    nomor: r.nomor as string,
+    lantai: r.lantai as number,
+    tipe: r.tipe as Room["tipe"],
+    harga: Number(r.harga),
+    status: r.status as Room["status"],
+    penyewa: (r.penyewa as string) || undefined,
+    fasilitas: (r.fasilitas as string[]) || [],
+  };
+}
+
+function mapTenant(t: Record<string, unknown>): Tenant {
+  return {
+    id: t.id as string,
+    nama: t.nama as string,
+    phone: t.phone as string,
+    kamar: t.kamar as string,
+    mulaiSewa: t.mulai_sewa as string,
+    akhirSewa: t.akhir_sewa as string,
+    statusBayar: t.status_bayar as Tenant["statusBayar"],
+    ktpVerified: Boolean(t.ktp_verified),
+  };
+}
+
+function mapInvoice(i: Record<string, unknown>): Invoice {
+  return {
+    id: i.id as string,
+    noInvoice: i.no_invoice as string,
+    penyewa: i.penyewa as string,
+    kamar: i.kamar as string,
+    nominal: Number(i.nominal),
+    jatuhTempo: i.jatuh_tempo as string,
+    metode: (i.metode as string) || "Midtrans Payment Gateway",
+    status: i.status as Invoice["status"],
+  };
+}
+
+function mapCashFlow(c: Record<string, unknown>): CashFlow {
+  return {
+    id: c.id as string,
+    tgl: c.tgl as string,
+    ket: c.ket as string,
+    kat: c.kat as string,
+    tipe: c.tipe as CashFlow["tipe"],
+    nominal: Number(c.nominal),
+    saldo: Number(c.saldo),
+  };
+}
+
+// ─── Provider ────────────────────────────────────────────────────────────────
+
 export function KostProvider({ children }: { children: React.ReactNode }) {
+  const supabase = createClient();
+
+  const [kostId, setKostId] = useState<string | null>(null);
   const [profile, setProfileState] = useState<KostProfile>(defaultProfile);
-  const [rooms, setRooms] = useState<Room[]>(defaultRooms);
-  const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
-  const [invoices, setInvoices] = useState<Invoice[]>(defaultInvoices);
-  const [cashFlows, setCashFlows] = useState<CashFlow[]>(defaultCashFlows);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [cashFlows, setCashFlows] = useState<CashFlow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Initialize from LocalStorage if available
-  useEffect(() => {
+  // ── Load semua data milik user yang login ──────────────────────────────────
+  const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const savedProfile = localStorage.getItem("kostku_profile");
-      if (savedProfile) setProfileState(JSON.parse(savedProfile));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-      const savedRooms = localStorage.getItem("kostku_rooms");
-      if (savedRooms) setRooms(JSON.parse(savedRooms));
+      // 1. Ambil profil kost
+      const { data: profileData } = await supabase
+        .from("kost_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
 
-      const savedTenants = localStorage.getItem("kostku_tenants");
-      if (savedTenants) setTenants(JSON.parse(savedTenants));
+      if (!profileData) {
+        setLoading(false);
+        return;
+      }
 
-      const savedInvoices = localStorage.getItem("kostku_invoices");
-      if (savedInvoices) setInvoices(JSON.parse(savedInvoices));
-    } catch {
-      // Ignore on server
+      const kId = profileData.id as string;
+      setKostId(kId);
+      setProfileState({
+        nama: profileData.nama,
+        subdomain: profileData.subdomain,
+        tagline: profileData.tagline || "",
+        alamat: profileData.alamat || "",
+        telepon: profileData.telepon || "",
+        paket: profileData.paket || "Pro Plan",
+        bankPenerima: profileData.bank_penerima || "BCA",
+        noRekening: profileData.no_rekening || "",
+      });
+
+      // 2. Ambil kamar
+      const { data: roomsData } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("kost_id", kId)
+        .order("nomor", { ascending: true });
+      setRooms((roomsData || []).map(mapRoom));
+
+      // 3. Ambil penyewa
+      const { data: tenantsData } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("kost_id", kId)
+        .order("created_at", { ascending: false });
+      setTenants((tenantsData || []).map(mapTenant));
+
+      // 4. Ambil invoice
+      const { data: invoicesData } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("kost_id", kId)
+        .order("created_at", { ascending: false });
+      setInvoices((invoicesData || []).map(mapInvoice));
+
+      // 5. Ambil arus kas
+      const { data: cashData } = await supabase
+        .from("cash_flows")
+        .select("*")
+        .eq("kost_id", kId)
+        .order("created_at", { ascending: false });
+      setCashFlows((cashData || []).map(mapCashFlow));
+
+    } catch (err) {
+      console.error("[KostProvider] loadData error:", err);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [supabase]);
 
-  const setProfile = (newProfile: KostProfile) => {
+  // Load saat mount + saat auth state berubah
+  useEffect(() => {
+    loadData();
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        loadData();
+      }
+      if (event === "SIGNED_OUT") {
+        setKostId(null);
+        setProfileState(defaultProfile);
+        setRooms([]);
+        setTenants([]);
+        setInvoices([]);
+        setCashFlows([]);
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [loadData, supabase.auth]);
+
+  // ── Realtime subscriptions ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!kostId) return;
+
+    const channel = supabase
+      .channel(`kost_${kostId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `kost_id=eq.${kostId}` },
+        () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenants", filter: `kost_id=eq.${kostId}` },
+        () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `kost_id=eq.${kostId}` },
+        () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_flows", filter: `kost_id=eq.${kostId}` },
+        () => loadData())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [kostId, supabase, loadData]);
+
+  // ── setProfile → upsert ke Supabase ───────────────────────────────────────
+  const setProfile = async (newProfile: KostProfile) => {
     setProfileState(newProfile);
-    try {
-      localStorage.setItem("kostku_profile", JSON.stringify(newProfile));
-    } catch {}
+    if (!kostId) return;
+    await supabase
+      .from("kost_profiles")
+      .update({
+        nama: newProfile.nama,
+        subdomain: newProfile.subdomain,
+        tagline: newProfile.tagline,
+        alamat: newProfile.alamat,
+        telepon: newProfile.telepon,
+        paket: newProfile.paket,
+        bank_penerima: newProfile.bankPenerima,
+        no_rekening: newProfile.noRekening,
+      })
+      .eq("id", kostId);
   };
 
-  const addRoom = (roomData: Omit<Room, "id">) => {
-    const newRoom: Room = {
-      ...roomData,
-      id: Date.now().toString(),
-    };
-    const updated = [newRoom, ...rooms];
-    setRooms(updated);
-    try {
-      localStorage.setItem("kostku_rooms", JSON.stringify(updated));
-    } catch {}
+  // ── addRoom ────────────────────────────────────────────────────────────────
+  const addRoom = async (roomData: Omit<Room, "id">) => {
+    if (!kostId) return;
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({
+        kost_id: kostId,
+        nomor: roomData.nomor,
+        lantai: roomData.lantai,
+        tipe: roomData.tipe,
+        harga: roomData.harga,
+        status: roomData.status,
+        penyewa: roomData.penyewa || null,
+        fasilitas: roomData.fasilitas,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setRooms((prev) => [mapRoom(data as Record<string, unknown>), ...prev]);
+    }
   };
 
-  const deleteRoom = (id: string) => {
-    const updated = rooms.filter((r) => r.id !== id);
-    setRooms(updated);
-    try {
-      localStorage.setItem("kostku_rooms", JSON.stringify(updated));
-    } catch {}
+  // ── deleteRoom ─────────────────────────────────────────────────────────────
+  const deleteRoom = async (id: string) => {
+    const { error } = await supabase.from("rooms").delete().eq("id", id);
+    if (!error) {
+      setRooms((prev) => prev.filter((r) => r.id !== id));
+    }
   };
 
-  const addTenant = (tenantData: Omit<Tenant, "id">) => {
-    const newTenant: Tenant = {
-      ...tenantData,
-      id: Date.now().toString(),
-    };
-    const updatedTenants = [newTenant, ...tenants];
-    setTenants(updatedTenants);
+  // ── addTenant ──────────────────────────────────────────────────────────────
+  const addTenant = async (tenantData: Omit<Tenant, "id">) => {
+    if (!kostId) return;
+    const { data, error } = await supabase
+      .from("tenants")
+      .insert({
+        kost_id: kostId,
+        nama: tenantData.nama,
+        phone: tenantData.phone,
+        kamar: tenantData.kamar,
+        mulai_sewa: tenantData.mulaiSewa,
+        akhir_sewa: tenantData.akhirSewa,
+        status_bayar: tenantData.statusBayar,
+        ktp_verified: tenantData.ktpVerified,
+      })
+      .select()
+      .single();
 
-    // Also mark room as occupied if matches room number
-    const updatedRooms = rooms.map((r) => {
-      if (tenantData.kamar.includes(r.nomor) || r.nomor === tenantData.kamar) {
-        return { ...r, status: "Terisi" as const, penyewa: tenantData.nama };
+    if (!error && data) {
+      setTenants((prev) => [mapTenant(data as Record<string, unknown>), ...prev]);
+
+      // Update status kamar → Terisi
+      const roomNomor = tenantData.kamar.replace(/^kamar\s*/i, "").trim();
+      const room = rooms.find(
+        (r) => r.nomor.toLowerCase() === roomNomor.toLowerCase()
+      );
+      if (room) {
+        await supabase
+          .from("rooms")
+          .update({ status: "Terisi", penyewa: tenantData.nama })
+          .eq("id", room.id);
+        setRooms((prev) =>
+          prev.map((r) =>
+            r.id === room.id ? { ...r, status: "Terisi", penyewa: tenantData.nama } : r
+          )
+        );
       }
-      return r;
-    });
-    setRooms(updatedRooms);
-
-    try {
-      localStorage.setItem("kostku_tenants", JSON.stringify(updatedTenants));
-      localStorage.setItem("kostku_rooms", JSON.stringify(updatedRooms));
-    } catch {}
+    }
   };
 
-  const addInvoice = (invData: Omit<Invoice, "id" | "noInvoice">) => {
-    const count = invoices.length + 1;
-    const newInv: Invoice = {
-      ...invData,
-      id: Date.now().toString(),
-      noInvoice: `INV/2026/11/00${count}`,
-    };
-    const updatedInvoices = [newInv, ...invoices];
-    setInvoices(updatedInvoices);
-    try {
-      localStorage.setItem("kostku_invoices", JSON.stringify(updatedInvoices));
-    } catch {}
+  // ── addInvoice ─────────────────────────────────────────────────────────────
+  const addInvoice = async (invData: Omit<Invoice, "id" | "noInvoice">) => {
+    if (!kostId) return;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const seq = String(invoices.length + 1).padStart(3, "0");
+    const noInvoice = `INV/${year}/${month}/${seq}`;
+
+    const { data, error } = await supabase
+      .from("invoices")
+      .insert({
+        kost_id: kostId,
+        no_invoice: noInvoice,
+        penyewa: invData.penyewa,
+        kamar: invData.kamar,
+        nominal: invData.nominal,
+        jatuh_tempo: invData.jatuhTempo,
+        metode: invData.metode,
+        status: invData.status,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setInvoices((prev) => [mapInvoice(data as Record<string, unknown>), ...prev]);
+    }
   };
 
-  const payInvoice = (id: string) => {
-    let paidAmount = 0;
-    let invDesc = "";
-    const updated = invoices.map((inv) => {
-      if (inv.id === id) {
-        paidAmount = inv.nominal;
-        invDesc = `Pembayaran ${inv.kamar} (${inv.penyewa})`;
-        return { ...inv, status: "Lunas" as const };
-      }
-      return inv;
-    });
-    setInvoices(updated);
+  // ── payInvoice ─────────────────────────────────────────────────────────────
+  const payInvoice = async (id: string) => {
+    const inv = invoices.find((i) => i.id === id);
+    if (!inv || !kostId) return;
 
-    if (paidAmount > 0) {
-      const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 30000000;
-      const newCashFlow: CashFlow = {
-        id: Date.now().toString(),
-        tgl: "Hari Ini",
-        ket: invDesc,
+    // Update invoice → Lunas
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: "Lunas", paid_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) return;
+
+    setInvoices((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, status: "Lunas" as const } : i))
+    );
+
+    // Tambah entri arus kas
+    const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 0;
+    const tgl = new Date().toLocaleDateString("id-ID", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+    const { data: cfData } = await supabase
+      .from("cash_flows")
+      .insert({
+        kost_id: kostId,
+        tgl,
+        ket: `Pembayaran ${inv.kamar} (${inv.penyewa})`,
         kat: "Pendapatan Sewa",
         tipe: "Masuk",
-        nominal: paidAmount,
-        saldo: currentSaldo + paidAmount,
-      };
-      setCashFlows([newCashFlow, ...cashFlows]);
-    }
+        nominal: inv.nominal,
+        saldo: currentSaldo + inv.nominal,
+      })
+      .select()
+      .single();
 
-    try {
-      localStorage.setItem("kostku_invoices", JSON.stringify(updated));
-    } catch {}
+    if (cfData) {
+      setCashFlows((prev) => [mapCashFlow(cfData as Record<string, unknown>), ...prev]);
+    }
   };
 
-  // Derived stats
+  // ── Derived stats ──────────────────────────────────────────────────────────
   const totalKamar = rooms.length;
   const kamarTerisi = rooms.filter((r) => r.status === "Terisi").length;
   const kamarKosong = rooms.filter((r) => r.status === "Kosong").length;
   const kamarPerawatan = rooms.filter((r) => r.status === "Perawatan").length;
   const okupansi = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
-
   const pendapatanBulanIni = invoices
-    .filter((inv) => inv.status === "Lunas")
-    .reduce((sum, inv) => sum + inv.nominal, 0);
-
+    .filter((i) => i.status === "Lunas")
+    .reduce((s, i) => s + i.nominal, 0);
   const tagihanTertunda = invoices
-    .filter((inv) => inv.status !== "Lunas")
-    .reduce((sum, inv) => sum + inv.nominal, 0);
+    .filter((i) => i.status !== "Lunas")
+    .reduce((s, i) => s + i.nominal, 0);
 
   return (
     <KostContext.Provider
       value={{
+        kostId,
         profile,
         setProfile,
         rooms,
@@ -281,6 +467,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         addInvoice,
         payInvoice,
         cashFlows,
+        loading,
         stats: {
           totalKamar,
           kamarTerisi,
@@ -299,8 +486,6 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
 
 export function useKost() {
   const context = useContext(KostContext);
-  if (!context) {
-    throw new Error("useKost must be used within a KostProvider");
-  }
+  if (!context) throw new Error("useKost must be used within a KostProvider");
   return context;
 }

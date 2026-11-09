@@ -43,11 +43,11 @@ export default function Home() {
                       <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </Link>
                     <Link
-                      href="/admin/dashboard"
+                      href="/login"
                       className="skeu-button-secondary text-slate-800 px-6 py-3.5 sm:py-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm hover:bg-white active:scale-[0.98]"
                     >
-                      <span className="material-symbols-outlined text-[20px] text-primary">dashboard</span>
-                      <span>Demo Panel Admin</span>
+                      <span className="material-symbols-outlined text-[20px] text-primary">login</span>
+                      <span>Masuk ke Dashboard</span>
                     </Link>
                   </div>
 
