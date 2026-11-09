@@ -1,7 +1,7 @@
-"use client";
-
-import { useState, useEffect } from "react";
+// Server Component — fetch di server, bukan di browser
+// Tidak ada CORS issue, tidak ada loading state, langsung render
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
 interface Room {
   id: string;
@@ -22,171 +22,75 @@ interface KostProfile {
   telepon: string;
 }
 
-// Konstanta Supabase — diambil saat module load, bukan saat render
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "fiihost.my.id";
-
-/** Fetch data kost langsung via Supabase REST API — tanpa SDK, tanpa dependency */
-async function fetchKostData(
-  subdomain: string,
-  signal: AbortSignal
-): Promise<{ profile: KostProfile | null; rooms: Room[] }> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("Supabase env vars tidak tersedia");
-  }
-
-  const headers = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-
-  // Query kost_profiles
-  const profileRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/kost_profiles?subdomain=eq.${encodeURIComponent(subdomain)}&select=id,nama,subdomain,tagline,alamat,telepon&limit=1`,
-    { headers, signal }
-  );
-
-  if (!profileRes.ok) {
-    throw new Error(`Profile fetch failed: ${profileRes.status}`);
-  }
-
-  const profiles: KostProfile[] = await profileRes.json();
-  if (!profiles || profiles.length === 0) {
-    return { profile: null, rooms: [] };
-  }
-
-  const profile = profiles[0];
-
-  // Query rooms
-  const roomsRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/rooms?kost_id=eq.${profile.id}&select=id,nomor,lantai,tipe,harga,status,fasilitas&order=nomor.asc`,
-    { headers, signal }
-  );
-
-  const rooms: Room[] = roomsRes.ok ? await roomsRes.json() : [];
-
-  return { profile, rooms };
+// Supabase server-side client (env vars tersedia di server tanpa masalah)
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
-export default function PublicKostPage({
+async function getKostData(subdomain: string): Promise<{
+  profile: KostProfile | null;
+  rooms: Room[];
+}> {
+  const supabase = getSupabase();
+  if (!supabase) return { profile: null, rooms: [] };
+
+  const { data: profiles } = await supabase
+    .from("kost_profiles")
+    .select("id, nama, subdomain, tagline, alamat, telepon")
+    .eq("subdomain", subdomain)
+    .limit(1);
+
+  if (!profiles || profiles.length === 0) return { profile: null, rooms: [] };
+
+  const profile = profiles[0] as KostProfile;
+
+  const { data: roomsData } = await supabase
+    .from("rooms")
+    .select("id, nomor, lantai, tipe, harga, status, fasilitas")
+    .eq("kost_id", profile.id)
+    .order("nomor", { ascending: true });
+
+  return { profile, rooms: (roomsData || []) as Room[] };
+}
+
+// Komponen booking button — harus client karena ada window.open
+import BookingButton from "./BookingButton";
+
+export default async function PublicKostPage({
   params,
 }: {
   params: { subdomain: string };
 }) {
-  const [profile, setProfile] = useState<KostProfile | null>(null);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "fiihost.my.id";
+  const subdomain = params.subdomain;
 
-  useEffect(() => {
-    // AbortController untuk timeout 10 detik
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const { profile, rooms } = await getKostData(subdomain);
 
-    async function load() {
-      try {
-        // Deteksi subdomain: dari hostname (akses via subdomain.fiihost.my.id)
-        // atau dari params (akses via fiihost.my.id/kost/[subdomain])
-        let subdomain = params.subdomain || "";
-
-        if (typeof window !== "undefined") {
-          const hostname = window.location.hostname;
-          if (hostname !== APP_DOMAIN && hostname !== `www.${APP_DOMAIN}` && hostname.endsWith(`.${APP_DOMAIN}`)) {
-            subdomain = hostname.slice(0, hostname.length - APP_DOMAIN.length - 1);
-          }
-        }
-
-        if (!subdomain) {
-          setError("Subdomain tidak ditemukan");
-          return;
-        }
-
-        const { profile: p, rooms: r } = await fetchKostData(subdomain, controller.signal);
-
-        if (!p) {
-          setError("not_found");
-          return;
-        }
-
-        setProfile(p);
-        setRooms(r);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") {
-          setError("timeout");
-        } else {
-          setError("not_found");
-        }
-      } finally {
-        clearTimeout(timeoutId);
-        setLoading(false);
-      }
-    }
-
-    load();
-
-    return () => {
-      controller.abort();
-      clearTimeout(timeoutId);
-    };
-  }, [params.subdomain]);
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <span className="material-symbols-outlined text-primary text-[48px] animate-spin block">sync</span>
-          <p className="text-xs text-slate-500 font-medium">Memuat halaman kost...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error / Not Found state
-  if (error || !profile) {
+  // Not found
+  if (!profile) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center p-4">
         <div className="skeu-card p-8 rounded-2xl text-center max-w-md space-y-4">
-          <span className="material-symbols-outlined text-slate-300 text-[56px] block">
-            {error === "timeout" ? "wifi_off" : "search_off"}
-          </span>
-          <h1 className="text-xl font-black text-slate-900">
-            {error === "timeout" ? "Koneksi Lambat" : "Halaman Tidak Ditemukan"}
-          </h1>
+          <span className="material-symbols-outlined text-slate-300 text-[56px] block">search_off</span>
+          <h1 className="text-xl font-black text-slate-900">Halaman Tidak Ditemukan</h1>
           <p className="text-xs text-slate-500">
-            {error === "timeout"
-              ? "Gagal memuat data. Periksa koneksi internet Anda."
-              : "Kost tidak terdaftar di platform KOSTKU."}
+            Subdomain <strong>{subdomain}.{APP_DOMAIN}</strong> tidak terdaftar di platform KOSTKU.
           </p>
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="skeu-button-secondary text-xs font-bold px-4 py-2 rounded-xl"
-            >
-              Coba Lagi
-            </button>
-            <Link href="/" className="skeu-button text-xs font-bold px-5 py-2 rounded-xl inline-flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">home</span>
-              Beranda
-            </Link>
-          </div>
+          <Link href="/" className="skeu-button text-xs font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-1.5 shadow-md">
+            <span className="material-symbols-outlined text-[16px]">home</span>
+            Kembali ke Beranda
+          </Link>
         </div>
       </div>
     );
   }
 
   const availableRooms = rooms.filter((r) => r.status === "Kosong");
-
-  const handleBooking = (roomNomor: string, tipe: string, harga: number) => {
-    const text = encodeURIComponent(
-      `Halo pengelola ${profile.nama}, saya tertarik untuk booking kamar ${roomNomor} (${tipe}) seharga Rp ${harga.toLocaleString("id-ID")}/bulan dari ${profile.subdomain}.${APP_DOMAIN}. Apakah masih tersedia?`
-    );
-    const phone = (profile.telepon || "").replace(/[^0-9]/g, "").replace(/^0/, "62");
-    window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
-  };
+  const minPrice = rooms.length > 0 ? Math.min(...rooms.map((r) => r.harga)) : 0;
+  const waPhone = (profile.telepon || "").replace(/[^0-9]/g, "").replace(/^0/, "62");
 
   return (
     <div className="min-h-screen bg-surface font-sans text-slate-800 pb-16">
@@ -195,7 +99,9 @@ export default function PublicKostPage({
         <div className="flex items-center max-w-7xl mx-auto w-full justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-            <span className="truncate">Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform</span>
+            <span className="truncate">
+              Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform
+            </span>
           </div>
           <Link href="/login" className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
             Panel Pemilik →
@@ -211,7 +117,9 @@ export default function PublicKostPage({
               <span className="material-symbols-outlined text-[24px]">apartment</span>
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-tight truncate">{profile.nama}</h1>
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-tight truncate">
+                {profile.nama}
+              </h1>
               {profile.alamat && (
                 <p className="text-[11px] text-slate-500 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px] shrink-0">location_on</span>
@@ -220,9 +128,9 @@ export default function PublicKostPage({
               )}
             </div>
           </div>
-          {profile.telepon && (
+          {waPhone && (
             <a
-              href={`https://wa.me/${profile.telepon.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
+              href={`https://wa.me/${waPhone}`}
               target="_blank"
               rel="noopener noreferrer"
               className="skeu-button text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shrink-0"
@@ -252,9 +160,9 @@ export default function PublicKostPage({
               <a href="#kamar" className="skeu-button text-white px-6 py-3 rounded-xl font-bold text-xs shadow-md">
                 Lihat Kamar Tersedia ({availableRooms.length})
               </a>
-              {profile.telepon && (
+              {waPhone && (
                 <a
-                  href={`https://wa.me/${profile.telepon.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
+                  href={`https://wa.me/${waPhone}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="skeu-button-secondary text-slate-800 px-5 py-3 rounded-xl font-bold text-xs"
@@ -281,8 +189,8 @@ export default function PublicKostPage({
                 <div className="p-3 rounded-xl skeu-inset">
                   <span className="text-[10px] text-slate-500 font-bold block uppercase">Tarif Mulai</span>
                   <span className="text-sm font-black text-primary">
-                    {rooms.length > 0
-                      ? `Rp ${Math.min(...rooms.map((r) => r.harga)).toLocaleString("id-ID")}/bln`
+                    {minPrice > 0
+                      ? `Rp ${minPrice.toLocaleString("id-ID")}/bln`
                       : "Hubungi kami"}
                   </span>
                 </div>
@@ -324,7 +232,7 @@ export default function PublicKostPage({
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Katalog Kamar</span>
               <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">Pilih Kamar Idaman Anda</h3>
-              <p className="text-xs text-slate-500 mt-1">Data kamar terhubung langsung secara realtime.</p>
+              <p className="text-xs text-slate-500 mt-1">Data kamar diperbarui langsung dari pengelola.</p>
             </div>
             <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full self-start sm:self-auto shrink-0">
               ● {availableRooms.length} Kamar Siap Huni
@@ -340,10 +248,13 @@ export default function PublicKostPage({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {rooms.map((room) => {
                 const isAvailable = room.status === "Kosong";
+                const bookingText = `Halo pengelola ${profile.nama}, saya tertarik booking kamar ${room.nomor} (${room.tipe}) seharga Rp ${room.harga.toLocaleString("id-ID")}/bulan dari ${profile.subdomain}.${APP_DOMAIN}. Apakah masih tersedia?`;
                 return (
                   <div
                     key={room.id}
-                    className={`skeu-card p-5 rounded-2xl flex flex-col justify-between transition-all ${isAvailable ? "hover:-translate-y-1 border-2 border-emerald-500/20" : "opacity-75"}`}
+                    className={`skeu-card p-5 rounded-2xl flex flex-col justify-between transition-all ${
+                      isAvailable ? "hover:-translate-y-1 border-2 border-emerald-500/20" : "opacity-75"
+                    }`}
                   >
                     <div>
                       <div className="flex items-start justify-between mb-3">
@@ -351,7 +262,9 @@ export default function PublicKostPage({
                           <span className="text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
                           <h4 className="text-lg font-black text-slate-900">{room.nomor}</h4>
                         </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isAvailable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          isAvailable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
+                        }`}>
                           {isAvailable ? "Tersedia" : "Terisi"}
                         </span>
                       </div>
@@ -364,21 +277,23 @@ export default function PublicKostPage({
                       </div>
                       <div className="flex flex-wrap gap-1 mb-4">
                         {(room.fasilitas || []).map((f: string, i: number) => (
-                          <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">{f}</span>
+                          <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">
+                            {f}
+                          </span>
                         ))}
                       </div>
                     </div>
                     <div className="pt-3 border-t border-white/60">
-                      {isAvailable ? (
-                        <button
-                          onClick={() => handleBooking(room.nomor, room.tipe, room.harga)}
-                          className="skeu-button text-white text-xs font-bold py-2.5 w-full rounded-xl flex items-center justify-center gap-1.5 shadow-md"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">chat</span>
-                          Booking via WhatsApp
-                        </button>
+                      {isAvailable && waPhone ? (
+                        <BookingButton
+                          waPhone={waPhone}
+                          message={bookingText}
+                        />
                       ) : (
-                        <button disabled className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed">
+                        <button
+                          disabled
+                          className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed"
+                        >
                           Kamar Telah Terisi
                         </button>
                       )}
