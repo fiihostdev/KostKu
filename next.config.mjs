@@ -9,18 +9,21 @@ const nextConfig = {
       },
     ],
   },
-  // Support wildcard subdomain routing
+  // Support wildcard subdomain routing untuk kost publik
+  // kostholland.fiihost.my.id → /kost/kostholland
+  // fiihost.my.id sendiri TIDAK di-rewrite (halaman utama tetap normal)
   async rewrites() {
     return {
       beforeFiles: [
-        // Route subdomain requests ke /kost/[subdomain]
-        // kostholland.fiihost.my.id → /kost/kostholland
         {
           source: '/:path*',
           has: [
             {
               type: 'host',
-              value: '(?<subdomain>.+)\\.fiihost\\.my\\.id',
+              // Hanya match subdomain yang bukan www dan bukan apex domain
+              // Match: kostholland.fiihost.my.id
+              // TIDAK match: fiihost.my.id atau www.fiihost.my.id
+              value: '^(?!www\\.)(?<subdomain>[a-z0-9-]+)\\.fiihost\\.my\\.id$',
             },
           ],
           destination: '/kost/:subdomain/:path*',
