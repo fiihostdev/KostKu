@@ -78,6 +78,16 @@ function requireSecret(req, res, next) {
 // ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Root — Coolify health check default ke /
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    service: "KOSTKU WA Bot",
+    version: "2.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // 1. Health check — dipanggil Coolify & Vercel untuk cek status bot
 app.get("/health", (req, res) => {
   res.json({
