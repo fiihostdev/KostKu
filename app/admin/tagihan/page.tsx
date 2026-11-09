@@ -61,16 +61,52 @@ export default function TagihanPage() {
     setShowMidtrans(false);
   };
 
-  const handleBroadcastWA = () => {
+  const handleBroadcastWA = async () => {
     const unpaid = invoices.filter((i) => i.status !== "Lunas");
     if (unpaid.length === 0) {
       alert("Semua tagihan sudah lunas! Tidak ada tagihan tertunda.");
       return;
     }
-    const msg = encodeURIComponent(
-      `🏠 *Pengingat Tagihan Sewa KOSTKU*\n\nYth. Penyewa,\n\nMohon segera menyelesaikan pembayaran tagihan sewa kos Anda sebelum tanggal jatuh tempo.\n\nTerima kasih atas kerjasamanya! 🙏`
+
+    const confirm = window.confirm(
+      `Kirim pengingat tagihan ke ${unpaid.length} penyewa via WhatsApp?`
     );
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
+    if (!confirm) return;
+
+    let successCount = 0;
+    for (const inv of unpaid) {
+      const tenant = tenants.find((t) => t.nama === inv.penyewa);
+      if (!tenant?.phone) continue;
+
+      const message =
+        `🏠 *Pengingat Tagihan Sewa*\n\n` +
+        `Halo *${inv.penyewa}*,\n\n` +
+        `Tagihan sewa *${inv.kamar}* sebesar *Rp ${inv.nominal.toLocaleString("id-ID")}* ` +
+        `jatuh tempo pada ${inv.jatuhTempo}.\n\n` +
+        `No. Invoice: \`${inv.noInvoice}\`\n\n` +
+        `Mohon segera melakukan pembayaran. Terima kasih! 🙏`;
+
+      try {
+        const res = await fetch("/api/notify/send-wa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: tenant.phone,
+            name: inv.penyewa,
+            message,
+            invoiceId: inv.id,
+          }),
+        });
+        if (res.ok) successCount++;
+      } catch {
+        // fallback: buka WhatsApp web manual
+        const cleanPhone = tenant.phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, "_blank");
+        successCount++;
+      }
+    }
+
+    alert(`✅ Pengingat berhasil dikirim ke ${successCount} penyewa.`);
   };
 
   const pendapatanLunas = invoices.filter((i) => i.status === "Lunas").reduce((s, i) => s + i.nominal, 0);
@@ -218,16 +254,38 @@ export default function TagihanPage() {
                       </span>
                     )}
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const tenant = tenants.find((t) => t.nama === inv.penyewa);
                         const phone = tenant?.phone || "";
                         const cleanPhone = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
-                        const msg = encodeURIComponent(
-                          `Halo ${inv.penyewa}, ini rincian tagihan sewa ${inv.kamar} (${inv.noInvoice}) sebesar Rp ${inv.nominal.toLocaleString(
-                            "id-ID"
-                          )} dengan jatuh tempo ${inv.jatuhTempo}. Mohon melakukan pembayaran. Terima kasih 🙏`
+                        const message =
+                          `Halo ${inv.penyewa}, ini rincian tagihan sewa ${inv.kamar} ` +
+                          `(${inv.noInvoice}) sebesar Rp ${inv.nominal.toLocaleString("id-ID")} ` +
+                          `dengan jatuh tempo ${inv.jatuhTempo}. Mohon melakukan pembayaran. Terima kasih 🙏`;
+
+                        // Coba kirim via bot dulu
+                        try {
+                          const res = await fetch("/api/notify/send-wa", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              phone,
+                              name: inv.penyewa,
+                              message,
+                              invoiceId: inv.id,
+                            }),
+                          });
+                          if (res.ok) {
+                            alert(`✅ Tagihan berhasil dikirim ke ${inv.penyewa} via WhatsApp!`);
+                            return;
+                          }
+                        } catch {}
+
+                        // Fallback: buka WhatsApp Web
+                        window.open(
+                          `https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`,
+                          "_blank"
                         );
-                        window.open(`https://wa.me/${cleanPhone || "62"}?text=${msg}`, "_blank");
                       }}
                       className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center"
                       title="Kirim Tagihan via WhatsApp"
