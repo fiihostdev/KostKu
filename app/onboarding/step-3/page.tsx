@@ -114,7 +114,7 @@ function Step3Content() {
                 className="w-full p-2.5 sm:p-3 rounded-l-xl skeu-inset text-slate-900 outline-none font-mono text-xs sm:text-sm font-bold min-w-0"
               />
               <span className="p-2.5 sm:p-3 bg-slate-200 text-slate-700 rounded-r-xl font-mono text-xs sm:text-sm font-bold border-l border-slate-300 shrink-0">
-                .kostku.id
+                .fiihost.my.id
               </span>
             </div>
 
@@ -129,7 +129,7 @@ function Step3Content() {
               {!isChecking && isAvailable === true && subdomain.length >= 3 && (
                 <p className="text-emerald-700 text-[11px] font-bold flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                  <span><strong>{subdomain}.kostku.id</strong> tersedia!</span>
+                  <span><strong>{subdomain}.fiihost.my.id</strong> tersedia!</span>
                 </p>
               )}
               {!isChecking && isAvailable === false && (
@@ -153,7 +153,7 @@ function Step3Content() {
             </span>
             <div className="flex items-center gap-2 text-primary font-mono font-bold text-xs sm:text-sm break-all">
               <span className="material-symbols-outlined text-[18px] shrink-0">lock</span>
-              <span>https://{subdomain || "namakost"}.kostku.id</span>
+              <span>https://{subdomain || "namakost"}.fiihost.my.id</span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-500 mt-2">
               SSL gratis otomatis. Bisa diakses penyewa kapan saja.

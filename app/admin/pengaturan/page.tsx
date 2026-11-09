@@ -410,7 +410,7 @@ export default function PengaturanPage() {
                 </div>
                 <div className="skeu-inset p-3 rounded-xl">
                   <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">Subdomain Aktif</span>
-                  <span className="font-mono font-bold text-slate-800">{profile.subdomain}.kostku.id</span>
+                  <span className="font-mono font-bold text-slate-800">{profile.subdomain}.fiihost.my.id</span>
                 </div>
                 <div className="skeu-inset p-3 rounded-xl">
                   <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">SSL & Keamanan</span>

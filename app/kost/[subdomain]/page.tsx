@@ -80,7 +80,7 @@ export default function PublicKostPage({
           <span className="material-symbols-outlined text-slate-300 text-[56px] block">search_off</span>
           <h1 className="text-xl font-black text-slate-900">Halaman Tidak Ditemukan</h1>
           <p className="text-xs text-slate-500">
-            Subdomain <strong>{params.subdomain}.kostku.id</strong> tidak terdaftar.
+            Subdomain <strong>{params.subdomain}.fiihost.my.id</strong> tidak terdaftar.
           </p>
           <Link href="/" className="skeu-button text-xs font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-1.5 shadow-md">
             <span className="material-symbols-outlined text-[16px]">home</span>
@@ -95,7 +95,7 @@ export default function PublicKostPage({
 
   const handleBooking = (roomNomor: string, tipe: string, harga: number) => {
     const text = encodeURIComponent(
-      `Halo pengelola ${profile.nama}, saya tertarik untuk survei / booking kamar ${roomNomor} (${tipe}) seharga Rp ${harga.toLocaleString("id-ID")}/bulan yang saya lihat di ${profile.subdomain}.kostku.id. Apakah masih tersedia?`
+      `Halo pengelola ${profile.nama}, saya tertarik untuk survei / booking kamar ${roomNomor} (${tipe}) seharga Rp ${harga.toLocaleString("id-ID")}/bulan yang saya lihat di ${profile.subdomain}.fiihost.my.id. Apakah masih tersedia?`
     );
     const phone = profile.telepon.replace(/[^0-9]/g, "").replace(/^0/, "62");
     window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
@@ -108,7 +108,7 @@ export default function PublicKostPage({
         <div className="flex items-center max-w-7xl mx-auto w-full justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Website Resmi <strong>{profile.subdomain}.kostku.id</strong> · Didukung KOSTKU Platform</span>
+            <span>Website Resmi <strong>{profile.subdomain}.fiihost.my.id</strong> · Didukung KOSTKU Platform</span>
           </div>
           <Link href="/admin/dashboard" className="text-emerald-400 hover:underline font-bold text-[10px]">
             Panel Pemilik →

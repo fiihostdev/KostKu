@@ -245,7 +245,7 @@ export default function SuperadminDashboardPage() {
                     <div className="min-w-0 pr-2">
                       <h3 className="font-bold text-slate-900 text-base truncate">{b.nama}</h3>
                       <p className="text-xs text-primary font-mono font-bold">
-                        {b.subdomain}.kostku.id
+                        {b.subdomain}.fiihost.my.id
                       </p>
                       <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
                         <span className="material-symbols-outlined text-[13px] shrink-0">location_on</span>

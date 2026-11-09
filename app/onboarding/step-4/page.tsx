@@ -77,7 +77,7 @@ function Step4Content() {
           <span className="material-symbols-outlined text-primary text-[48px] animate-spin block">sync</span>
           <h2 className="font-black text-slate-900 text-lg">Mengaktifkan Akun...</h2>
           <p className="text-xs text-slate-500">
-            Menyiapkan dashboard dan subdomain <strong>{subdomain}.kostku.id</strong> untuk Anda.
+            Menyiapkan dashboard dan subdomain <strong>{subdomain}.fiihost.my.id</strong> untuk Anda.
           </p>
         </div>
       </div>
@@ -131,7 +131,7 @@ function Step4Content() {
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Subdomain:</span>
-            <span className="font-mono font-bold text-primary">{subdomain}.kostku.id</span>
+            <span className="font-mono font-bold text-primary">{subdomain}.fiihost.my.id</span>
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Biaya Setup & SSL:</span>
