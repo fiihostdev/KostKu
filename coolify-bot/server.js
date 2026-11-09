@@ -1,41 +1,163 @@
 process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION:", err.message);
-  console.error(err.stack);
-  // Jangan exit agar bisa baca log
+  console.error("UNCAUGHT:", err.message, err.stack);
 });
-
 process.on("unhandledRejection", (reason) => {
   console.error("UNHANDLED REJECTION:", reason);
 });
 
-console.log("Node version:", process.version);
-console.log("Starting requires...");
+const express = require("express");
+const cron = require("node-cron");
+const { createClient } = require("@supabase/supabase-js");
 
-let express, cron, supabaseJs;
+const app = express();
+app.use(express.json());
 
-try { express = require("express"); console.log("express: OK"); }
-catch(e) { console.error("express FAILED:", e.message); }
-
-try { cron = require("node-cron"); console.log("node-cron: OK"); }
-catch(e) { console.error("node-cron FAILED:", e.message); }
-
-try { supabaseJs = require("@supabase/supabase-js"); console.log("@supabase/supabase-js: OK"); }
-catch(e) { console.error("@supabase/supabase-js FAILED:", e.message); }
-
-const http = require("http");
-const PORT = process.env.PORT || 4000;
-
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({
-    status: "debug",
-    express: !!express,
-    cron: !!cron,
-    supabase: !!supabaseJs,
-    node: process.version,
-  }));
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Bot-Secret");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Debug server running on port ${PORT}`);
+const PORT = process.env.PORT || 4000;
+const BOT_API_SECRET = process.env.BOT_API_SECRET || "kostku_wa_secret_2026_fiihost";
+
+// Supabase (lazy init)
+let supabase = null;
+try {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log("Supabase: connected");
+  }
+} catch (e) {
+  console.error("Supabase init error:", e.message);
+}
+
+function sanitizePhone(phone) {
+  let n = (phone || "").replace(/[^0-9]/g, "");
+  if (n.startsWith("0")) n = "62" + n.slice(1);
+  return n;
+}
+
+async function sendWA(phone, message) {
+  const cleanPhone = sanitizePhone(phone);
+  const waUrl = process.env.WA_GATEWAY_URL;
+  const waToken = process.env.WA_GATEWAY_TOKEN;
+
+  if (waUrl && waToken) {
+    try {
+      const resp = await fetch(waUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": waToken },
+        body: JSON.stringify({ target: cleanPhone, message }),
+      });
+      const data = await resp.json();
+      console.log(`WA sent to ${cleanPhone}`);
+      return { success: true, data };
+    } catch (err) {
+      console.error(`WA failed to ${cleanPhone}:`, err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  console.log(`[SIM WA] -> ${cleanPhone}: ${message.slice(0, 80)}`);
+  return { success: true, simulated: true };
+}
+
+function auth(req, res, next) {
+  const token = (req.headers["authorization"] || "").replace("Bearer ", "");
+  if (token !== BOT_API_SECRET) return res.status(401).json({ error: "Unauthorized" });
+  next();
+}
+
+// Routes
+app.get("/", (req, res) => res.json({
+  status: "online",
+  service: "KOSTKU WA Bot",
+  version: "2.1.0",
+  supabase: !!supabase,
+  wa_gateway: !!(process.env.WA_GATEWAY_URL),
+  node: process.version,
+  timestamp: new Date().toISOString(),
+}));
+
+app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+app.post("/api/send-notification", auth, async (req, res) => {
+  const { phone, name, message, invoiceId, kostId } = req.body || {};
+  if (!phone || !message) return res.status(400).json({ error: "phone & message required" });
+
+  const result = await sendWA(phone, message);
+
+  if (supabase) {
+    supabase.from("notification_queue").insert({
+      kost_id: kostId || null,
+      recipient_phone: phone,
+      recipient_name: name || "Penyewa",
+      message_text: message,
+      invoice_id: invoiceId || null,
+      status: result.success ? "SENT" : "FAILED",
+      sent_at: result.success ? new Date().toISOString() : null,
+      error_message: result.error || null,
+    }).catch((e) => console.error("DB log error:", e.message));
+  }
+
+  res.json(result);
+});
+
+app.post("/api/broadcast", auth, async (req, res) => {
+  const { kostId, message } = req.body || {};
+  if (!kostId || !message) return res.status(400).json({ error: "kostId & message required" });
+  if (!supabase) return res.status(503).json({ error: "Supabase not configured" });
+
+  const { data: tenants } = await supabase.from("tenants").select("nama, phone").eq("kost_id", kostId);
+  const results = [];
+  for (const t of (tenants || [])) {
+    const r = await sendWA(t.phone, message.replace("{nama}", t.nama));
+    results.push({ nama: t.nama, ...r });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  res.json({ success: true, sent: results.length, results });
+});
+
+// CRON: Reminder tagihan jatuh tempo pukul 08:00 WIB (01:00 UTC)
+cron.schedule("0 1 * * *", async () => {
+  if (!supabase) return;
+  console.log("[CRON] Checking overdue invoices...");
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("*, kost_profiles!inner(nama, telepon)")
+    .eq("status", "Menunggu")
+    .lte("jatuh_tempo", today)
+    .catch(() => ({ data: [] }));
+
+  for (const inv of (invoices || [])) {
+    const { data: tenant } = await supabase.from("tenants")
+      .select("phone").eq("nama", inv.penyewa).eq("kost_id", inv.kost_id)
+      .single().catch(() => ({ data: null }));
+
+    if (!tenant?.phone) continue;
+
+    const msg =
+      `🏠 *Pengingat Tagihan - ${inv.kost_profiles?.nama || "KOSTKU"}*\n\n` +
+      `Halo *${inv.penyewa}*, tagihan ${inv.kamar} sebesar *Rp ${Number(inv.nominal).toLocaleString("id-ID")}* ` +
+      `jatuh tempo ${inv.jatuh_tempo}.\n\nNo: \`${inv.no_invoice}\`\n\nMohon segera bayar. 🙏`;
+
+    await sendWA(tenant.phone, msg);
+    await supabase.from("invoices").update({ status: "Jatuh Tempo" }).eq("id", inv.id).catch(() => {});
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  console.log(`[CRON] Done. ${(invoices || []).length} processed.`);
+});
+
+// Start
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("================================================");
+  console.log(`KOSTKU WA Bot running on port ${PORT}`);
+  console.log(`Supabase: ${supabase ? "connected" : "simulation"}`);
+  console.log(`WA Gateway: ${process.env.WA_GATEWAY_URL ? "configured" : "simulation"}`);
+  console.log("================================================");
 });
