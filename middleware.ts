@@ -2,47 +2,68 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const APP_DOMAIN = "fiihost.my.id";
+const APP_URL = "https://fiihost.my.id";
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const pathname = request.nextUrl.pathname;
 
-  // ── Subdomain routing ────────────────────────────────────────────────────
-  // homedesk.fiihost.my.id → rewrite ke /kost/homedesk (hanya non-static paths)
-  const isApexDomain = hostname === APP_DOMAIN || hostname === `www.${APP_DOMAIN}`;
+  // ── Subdomain routing ─────────────────────────────────────────────────────
+  const isApexDomain =
+    hostname === APP_DOMAIN ||
+    hostname === `www.${APP_DOMAIN}` ||
+    hostname.endsWith(".vercel.app");
+
   const isSubdomain =
     !isApexDomain &&
     hostname.endsWith(`.${APP_DOMAIN}`) &&
     !hostname.startsWith("www.");
 
   if (isSubdomain) {
-    // Jangan rewrite static assets dan API routes
-    const isStaticAsset =
-      pathname.startsWith("/_next/") ||
-      pathname.startsWith("/api/") ||
-      pathname.includes(".") || // file dengan extension (favicon.ico, dll)
-      pathname === "/";
+    const subdomain = hostname.slice(0, hostname.length - APP_DOMAIN.length - 1);
 
-    if (!isStaticAsset || pathname === "/") {
-      // Ekstrak subdomain: homedesk.fiihost.my.id → homedesk
-      const subdomain = hostname.slice(0, hostname.length - APP_DOMAIN.length - 1);
-
-      if (subdomain && subdomain !== "www") {
-        // Rewrite ke /kost/[subdomain][path]
-        const newPath = pathname === "/" ? `/kost/${subdomain}` : `/kost/${subdomain}${pathname}`;
-        const url = request.nextUrl.clone();
-        url.pathname = newPath;
-        return NextResponse.rewrite(url);
-      }
+    if (!subdomain || subdomain === "www") {
+      return NextResponse.next();
     }
 
-    // Static assets: lewatkan apa adanya
-    return NextResponse.next();
+    // Static assets — JANGAN di-rewrite, biarkan apa adanya
+    const isStaticPath =
+      pathname.startsWith("/_next/") ||
+      pathname.startsWith("/api/") ||
+      pathname === "/favicon.ico" ||
+      /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|map)$/.test(pathname);
+
+    if (isStaticPath) {
+      return NextResponse.next();
+    }
+
+    // Halaman admin/login/onboarding — redirect ke domain utama
+    const isMainAppPath =
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/onboarding") ||
+      pathname.startsWith("/superadmin") ||
+      pathname.startsWith("/auth");
+
+    if (isMainAppPath) {
+      return NextResponse.redirect(`${APP_URL}${pathname}`);
+    }
+
+    // Root path "/" — rewrite ke halaman kost publik
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/kost/${subdomain}`;
+      return NextResponse.rewrite(url);
+    }
+
+    // Path lain di subdomain — rewrite ke /kost/[subdomain]/[path]
+    const url = request.nextUrl.clone();
+    url.pathname = `/kost/${subdomain}${pathname}`;
+    return NextResponse.rewrite(url);
   }
 
-  // ── Auth protection untuk non-subdomain routes ───────────────────────────
+  // ── Auth protection (hanya untuk apex domain) ────────────────────────────
 
-  // Guard: jika env vars tidak di-set, lewati auth check
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next();
   }
@@ -72,17 +93,13 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isSuperadminDashboard = pathname.startsWith("/superadmin/dashboard");
-  const isSuperadminLogin = pathname === "/superadmin/login";
-
-  if (isAdminRoute && !user) {
+  if (pathname.startsWith("/admin") && !user) {
     const url = new URL("/login", request.url);
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (isSuperadminDashboard) {
+  if (pathname.startsWith("/superadmin/dashboard")) {
     if (!user) {
       return NextResponse.redirect(new URL("/superadmin/login", request.url));
     }
@@ -96,7 +113,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isSuperadminLogin && user) {
+  if (pathname === "/superadmin/login" && user) {
     const { data: profile } = await supabase
       .from("kost_profiles")
       .select("role")

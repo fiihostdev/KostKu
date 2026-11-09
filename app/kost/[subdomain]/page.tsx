@@ -103,7 +103,7 @@ export default async function PublicKostPage({
               Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform
             </span>
           </div>
-          <Link href="/login" className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
+          <Link href={`${process.env.NEXT_PUBLIC_APP_URL || "https://fiihost.my.id"}/login`} className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
             Panel Pemilik →
           </Link>
         </div>
