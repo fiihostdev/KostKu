@@ -1,19 +1,31 @@
 FROM node:20-alpine
 
+# Install deps untuk Baileys (crypto, native modules)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev
+
 WORKDIR /app
 
-# Copy semua files dari coolify-bot directory
-COPY package.json package-lock.json* ./
+COPY package.json ./
 
-# Install dependencies
+# Install semua dependencies
 RUN npm install
 
-# Copy source
 COPY server.js ./
 
-# Verify installation
-RUN node -e "require('express'); require('node-cron'); require('@supabase/supabase-js'); console.log('All deps OK');"
+# Direktori untuk menyimpan session WA (persisten via Coolify volume)
+RUN mkdir -p /app/wa_auth
 
 EXPOSE 4000
+
+ENV PORT=4000
+ENV NODE_ENV=production
+ENV AUTH_DIR=/app/wa_auth
 
 CMD ["node", "server.js"]

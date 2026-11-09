@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useKost } from "@/lib/store";
+import WABotTab from "@/components/admin/WABotTab";
 
 export default function PengaturanPage() {
   const { profile, setProfile } = useKost();
@@ -429,121 +430,15 @@ export default function PengaturanPage() {
 
       {/* ── TAB: NOTIFIKASI WHATSAPP ── */}
       {activeTab === "whatsapp" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 skeu-card p-5 sm:p-6 rounded-2xl space-y-4 text-xs">
-            <h2 className="font-bold text-slate-900 text-sm pb-3 border-b border-white/60">
-              Pengaturan Bot Notifikasi WhatsApp
-            </h2>
-
-            {/* Toggle WA Bot */}
-            <div className="flex items-center justify-between p-3 rounded-xl skeu-inset">
-              <div>
-                <span className="font-bold text-slate-800 block">Aktifkan Notifikasi WhatsApp Otomatis</span>
-                <span className="text-[10px] text-slate-500">Kirim pengingat tagihan otomatis ke nomor penyewa</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setWaBotEnabled(!waBotEnabled)}
-                className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${waBotEnabled ? "bg-emerald-500" : "bg-slate-300"}`}
-              >
-                <span className={`w-5 h-5 rounded-full bg-white shadow-md absolute top-0.5 transition-all ${waBotEnabled ? "right-0.5" : "left-0.5"}`}></span>
-              </button>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Nomor WhatsApp Pengirim Bot</label>
-              <input
-                type="text"
-                placeholder="628xxxxxxxxxx"
-                value={waNumber}
-                onChange={(e) => setWaNumber(e.target.value.replace(/\D/g, ""))}
-                className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono"
-              />
-              <p className="text-[10px] text-slate-500 mt-1">Format internasional tanpa tanda + (contoh: 6281234567890)</p>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Kirim Pengingat H-{waReminderDays} Sebelum Jatuh Tempo</label>
-              <div className="flex items-center gap-3">
-                {[1, 3, 5, 7].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setWaReminderDays(d)}
-                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${waReminderDays === d ? "skeu-button text-white shadow-sm" : "skeu-card text-slate-600"}`}
-                  >
-                    H-{d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Template Pesan WhatsApp</label>
-              <textarea
-                rows={4}
-                value={waTemplate}
-                onChange={(e) => setWaTemplate(e.target.value)}
-                className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none leading-relaxed font-mono text-[11px]"
-              />
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {["{nama_penyewa}", "{kamar}", "{nominal}", "{tanggal}", "{no_invoice}"].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setWaTemplate((t) => t + " " + v)}
-                    className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold hover:bg-primary/20"
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-500 mt-1">Klik variabel di atas untuk menyisipkan ke template pesan.</p>
-            </div>
-
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-              <p className="text-[11px] font-bold text-emerald-800 mb-1">Preview Pesan (Simulasi):</p>
-              <p className="text-xs text-slate-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
-                {waTemplate
-                  .replace("{nama_penyewa}", "Dimas Anggara")
-                  .replace("{kamar}", "Kamar A-01")
-                  .replace("{nominal}", "Rp 1.800.000")
-                  .replace("{tanggal}", "05 Des 2026")
-                  .replace("{no_invoice}", "INV/2026/12/001")}
-              </p>
-            </div>
-          </div>
-
-          <div className="lg:col-span-4 skeu-card p-5 sm:p-6 rounded-2xl flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm mb-3 pb-3 border-b border-white/60 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-emerald-600">chat</span>
-                Cara Kerja WA Bot
-              </h3>
-              <div className="space-y-3 text-xs text-slate-600">
-                <div className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
-                  <span>Sistem otomatis deteksi tagihan mendekati jatuh tempo setiap hari pukul 08.00.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
-                  <span>Pesan dikirim ke nomor WhatsApp penyewa terdaftar beserta link pembayaran Midtrans.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
-                  <span>Status invoice otomatis berubah ke <strong>Lunas</strong> setelah pembayaran dikonfirmasi webhook.</span>
-                </div>
-              </div>
-            </div>
-            <div className="skeu-inset p-3 rounded-xl mt-4">
-              <span className="text-[10px] font-bold text-slate-500 block uppercase mb-1">Status Bot WA</span>
-              <span className={`font-bold text-sm flex items-center gap-1.5 ${waBotEnabled ? "text-emerald-700" : "text-slate-400"}`}>
-                <span className={`w-2.5 h-2.5 rounded-full ${waBotEnabled ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`}></span>
-                {waBotEnabled ? "Bot Aktif & Berjalan" : "Bot Dinonaktifkan"}
-              </span>
-            </div>
-          </div>
-        </div>
+        <WABotTab
+          waTemplate={waTemplate}
+          setWaTemplate={setWaTemplate}
+          waReminderDays={waReminderDays}
+          setWaReminderDays={setWaReminderDays}
+          waBotEnabled={waBotEnabled}
+          setWaBotEnabled={setWaBotEnabled}
+          onSave={handleSaveWA}
+        />
       )}
 
       {/* ── TAB: KEAMANAN & BACKUP ── */}

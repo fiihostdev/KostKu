@@ -1,7 +1,7 @@
 {
-  "name": "kostku-bot-service",
-  "version": "2.0.0",
-  "description": "WhatsApp & Notification Dispatcher for KOSTKU SaaS via Coolify",
+  "name": "kostku-wa-bot",
+  "version": "3.0.0",
+  "description": "KOSTKU WhatsApp Bot - Self-hosted dengan Baileys (tanpa WA Gateway berbayar)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,9 +9,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "axios": "^1.7.0",
+    "@whiskeysockets/baileys": "^6.7.9",
     "express": "^4.19.2",
     "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
     "ws": "^8.18.0"
   }
 }
