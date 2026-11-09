@@ -36,10 +36,28 @@ export default function PublicKostPage({
 
   useEffect(() => {
     async function loadKost() {
+      // Deteksi subdomain dari hostname (misal: homedesk.fiihost.my.id → homedesk)
+      // atau dari params jika akses via /kost/[subdomain]
+      let subdomain = params.subdomain;
+
+      if (typeof window !== "undefined") {
+        const hostname = window.location.hostname;
+        const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || "fiihost.my.id";
+        // Jika diakses via subdomain.fiihost.my.id
+        if (hostname.endsWith(`.${appDomain}`)) {
+          subdomain = hostname.replace(`.${appDomain}`, "");
+        }
+      }
+
+      if (!subdomain) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       const { data: profileData } = await supabase
         .from("kost_profiles")
         .select("id, nama, subdomain, tagline, alamat, telepon")
-        .eq("subdomain", params.subdomain)
+        .eq("subdomain", subdomain)
         .single();
 
       if (!profileData) {
