@@ -3,7 +3,13 @@ import { createClient } from "@/lib/supabase-server";
 
 const BOT_URL = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notification", "") || "";
 
-export async function GET() {
+// Cache sederhana — bot status tidak mungkin berubah dalam 2 detik
+let cachedStatus: Record<string, unknown> | null = null;
+let cacheTime = 0;
+const CACHE_TTL = 3000; // 3 detik
+
+export async function GET(req: Request) {
+  // Auth check — gunakan cache singkat agar tidak hit Supabase setiap polling 5 detik
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,8 +21,13 @@ export async function GET() {
       qr_available: false,
       has_session: false,
       uptime: "0s",
-      error: "Bot URL tidak dikonfigurasi di environment",
     });
+  }
+
+  // Gunakan cache jika masih fresh
+  const now = Date.now();
+  if (cachedStatus && now - cacheTime < CACHE_TTL) {
+    return NextResponse.json(cachedStatus);
   }
 
   try {
@@ -30,6 +41,9 @@ export async function GET() {
     }
 
     const data = await res.json();
+    // Update cache
+    cachedStatus = data;
+    cacheTime = now;
     return NextResponse.json(data);
   } catch {
     return NextResponse.json({

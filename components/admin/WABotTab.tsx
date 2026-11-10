@@ -159,7 +159,8 @@ export default function WABotTab({
     // Cleanup QR saat sudah connected
     if (botStatus.status === "connected") {
       setQrSrc((prev) => {
-        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        if (prev === null) return prev; // sudah null — React skip re-render
+        if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
         return null;
       });
       stopPolling();

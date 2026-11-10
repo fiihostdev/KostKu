@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "./supabase-browser";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -157,7 +157,9 @@ function mapCashFlow(c: Record<string, unknown>): CashFlow {
 // ─── Provider ────────────────────────────────────────────────────────────────
 
 export function KostProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  // ── KRITIS: useMemo agar instance Supabase stabil — tidak baru setiap render ──
+  // Tanpa ini: supabase baru → loadData baru → useEffect loop → infinite re-render
+  const supabase = useMemo(() => createClient(), []);
 
   const [kostId, setKostId] = useState<string | null>(null);
   const [profile, setProfileState] = useState<KostProfile>(defaultProfile);
@@ -239,7 +241,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase]); // supabase stabil via useMemo — tidak akan trigger ulang
 
   // Load saat mount + saat auth state berubah
   useEffect(() => {
@@ -258,7 +260,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => listener.subscription.unsubscribe();
-  }, [loadData, supabase.auth]);
+  }, [loadData]); // supabase.auth stabil — tidak perlu di deps
 
   // ── Realtime subscriptions ─────────────────────────────────────────────────
   useEffect(() => {
@@ -277,7 +279,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [kostId, supabase, loadData]);
+  }, [kostId]); // supabase & loadData stabil via useMemo/useCallback — tidak perlu di deps
 
   // ── setProfile → upsert ke Supabase ───────────────────────────────────────
   const setProfile = async (newProfile: KostProfile) => {
