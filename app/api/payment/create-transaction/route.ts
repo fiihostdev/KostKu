@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
+// Gunakan tipe SupabaseClient yang fleksibel agar tidak ada type mismatch
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabase = ReturnType<typeof createServiceClient<any>>;
+
 /**
  * POST /api/payment/create-transaction
  * Dibuat dari halaman publik kost oleh calon penyewa yang ingin booking
@@ -114,7 +118,7 @@ async function createMidtransTransaction({ config, invoice, orderId, customerNam
   nominal: number;
   kamar: string;
   description?: string;
-  supabase: ReturnType<typeof createServiceClient>;
+  supabase: AnySupabase;
 }) {
   const cfg = config.config as Record<string, string>;
   const serverKey  = cfg.server_key;
@@ -201,7 +205,7 @@ async function createTripayTransaction({ config, invoice, orderId, customerName,
   nominal: number;
   kamar: string;
   description?: string;
-  supabase: ReturnType<typeof createServiceClient>;
+  supabase: AnySupabase;
 }) {
   const cfg = config.config as Record<string, string>;
   const apiKey     = cfg.api_key;
@@ -290,7 +294,7 @@ async function createXenditTransaction({ config, invoice, orderId, customerName,
   nominal: number;
   kamar: string;
   description?: string;
-  supabase: ReturnType<typeof createServiceClient>;
+  supabase: AnySupabase;
 }) {
   const cfg = config.config as Record<string, string>;
   const secretKey = cfg.secret_key;

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { createHmac } from "crypto";
+import { createHmac, createHash } from "crypto";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabase = ReturnType<typeof createServiceClient<any>>;
 
 /**
  * POST /api/payment/webhook
@@ -55,7 +58,7 @@ export async function GET() {
 
 // ── Helper: update invoice ke Lunas ──────────────────────────────────────────
 async function markInvoicePaid(
-  supabase: ReturnType<typeof createServiceClient>,
+  supabase: AnySupabase,
   paymentRef: string,
   extraData?: Record<string, unknown>
 ) {
@@ -119,7 +122,7 @@ async function markInvoicePaid(
 // ── Midtrans Webhook ──────────────────────────────────────────────────────────
 async function handleMidtrans(
   body: Record<string, unknown>,
-  supabase: ReturnType<typeof createServiceClient>
+  supabase: AnySupabase
 ) {
   const orderId        = body.order_id as string;
   const transactionStatus = body.transaction_status as string;
@@ -151,8 +154,7 @@ async function handleMidtrans(
       if (config) {
         const serverKey = (config.config as Record<string, string>).server_key;
         if (serverKey) {
-          const expectedSig = require("crypto")
-            .createHash("sha512")
+          const expectedSig = createHash("sha512")
             .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
             .digest("hex");
 
@@ -187,7 +189,7 @@ async function handleMidtrans(
 async function handleTripay(
   body: Record<string, unknown>,
   receivedSignature: string,
-  supabase: ReturnType<typeof createServiceClient>
+  supabase: AnySupabase
 ) {
   const reference  = body.reference as string;
   const merchantRef = body.merchant_ref as string;
@@ -244,7 +246,7 @@ async function handleTripay(
 async function handleXendit(
   body: Record<string, unknown>,
   callbackToken: string,
-  supabase: ReturnType<typeof createServiceClient>
+  supabase: AnySupabase
 ) {
   const externalId = body.external_id as string;
   const status     = body.status as string;
