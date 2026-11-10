@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase-browser";
+import { useKost } from "@/lib/store";
 
 const menuItems = [
-  { name: "Dashboard", href: "/admin/dashboard", icon: "dashboard" },
-  { name: "Data Kamar", href: "/admin/kamar", icon: "meeting_room" },
-  { name: "Data Penyewa", href: "/admin/penyewa", icon: "group" },
-  { name: "Tagihan & Keuangan", href: "/admin/tagihan", icon: "receipt_long" },
-  { name: "Laporan Keuangan", href: "/admin/laporan", icon: "trending_up" },
-  { name: "Website Saya", href: "/admin/website", icon: "public" },
-  { name: "Pengaturan & Midtrans", href: "/admin/pengaturan", icon: "settings" },
+  { name: "Dashboard",           href: "/admin/dashboard",  icon: "dashboard" },
+  { name: "Data Kamar",          href: "/admin/kamar",      icon: "meeting_room" },
+  { name: "Data Penyewa",        href: "/admin/penyewa",    icon: "group" },
+  { name: "Tagihan & Keuangan",  href: "/admin/tagihan",    icon: "receipt_long" },
+  { name: "Laporan Keuangan",    href: "/admin/laporan",    icon: "trending_up" },
+  { name: "Website Saya",        href: "/admin/website",    icon: "public" },
+  { name: "Pengaturan",          href: "/admin/pengaturan", icon: "settings" },
 ];
 
 interface AdminSidebarProps {
@@ -21,8 +23,54 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const { profile } = useKost();
+
+  const [userName,     setUserName]     = useState("");
+  const [userEmail,    setUserEmail]    = useState("");
+  const [userInitials, setUserInitials] = useState("?");
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+
+  /* ── Ambil data user dari Supabase Auth (bukan hardcoded) ── */
+  useEffect(() => {
+    const supabase = createClient();
+
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      /* Nama: ambil dari metadata Google / metadata onboarding / email prefix */
+      const name =
+        (user.user_metadata?.full_name as string) ||
+        (user.user_metadata?.name as string) ||
+        (user.user_metadata?.nama_lengkap as string) ||
+        user.email?.split("@")[0] ||
+        "Admin";
+
+      setUserName(name);
+      setUserEmail(user.email || "");
+      setUserInitials(
+        name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      );
+
+      /* Cek role superadmin */
+      const { data: kp } = await supabase
+        .from("kost_profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsSuperadmin(kp?.role === "superadmin");
+    }
+
+    loadUser();
+  }, []);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -31,25 +79,29 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     router.refresh();
   };
 
+  /* Nama kost aktif — tampil hanya jika sudah ada data nyata */
+  const hasKost = profile.nama && profile.nama !== "Kost Saya" && profile.subdomain !== "kostsaya";
+
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
+      {/* Mobile backdrop */}
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
         />
       )}
 
-      {/* Sidebar Drawer */}
       <aside
         className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-72 lg:w-64 bg-surface-container-low border-r border-white/60 min-h-screen flex flex-col justify-between p-4 shrink-0 shadow-lg lg:shadow-sm transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="overflow-y-auto">
-          {/* Logo & Close Button */}
-          <div className="flex items-center justify-between px-3 py-3 mb-4 border-b border-white/60">
+        {/* ── Top: Logo + Nav ── */}
+        <div className="overflow-y-auto flex-1 min-h-0">
+
+          {/* Logo */}
+          <div className="flex items-center justify-between px-3 py-3 mb-3 border-b border-white/60">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl skeu-card flex items-center justify-center text-primary shadow-sm">
                 <span className="material-symbols-outlined text-[22px]">apartment</span>
@@ -59,17 +111,24 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Admin Portal</span>
               </div>
             </Link>
-            <button
-              onClick={onClose}
-              className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800"
-              title="Tutup Menu"
-            >
+            <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-500">
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1">
+          {/* Nama kost aktif — hanya tampil jika data sudah dimuat dari Supabase */}
+          {hasKost && (
+            <div className="mx-1 mb-3 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/10">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Kost Aktif</p>
+              <p className="text-xs font-black text-primary truncate">{profile.nama}</p>
+              <p className="text-[10px] text-slate-500 font-mono truncate">
+                {profile.subdomain}.fiihost.my.id
+              </p>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <nav className="space-y-0.5">
             {menuItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -90,51 +149,63 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             })}
           </nav>
 
-          {/* Superadmin Link */}
-          <div className="my-5 border-t border-white/60 pt-4">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2 block">
-              Multi-Tenant View
-            </span>
-            <Link
-              href="/superadmin/dashboard"
-              onClick={onClose}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                pathname === "/superadmin/dashboard"
-                  ? "skeu-button text-white shadow-md"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">domain</span>
-              <span>Dashboard Multi-Kost</span>
-            </Link>
-          </div>
+          {/* Superadmin link — HANYA untuk superadmin */}
+          {isSuperadmin && (
+            <div className="mt-4 pt-4 border-t border-white/60">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2 block">
+                Platform Control
+              </span>
+              <Link
+                href="/superadmin/dashboard"
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  pathname.startsWith("/superadmin")
+                    ? "skeu-button text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                <span>Superadmin</span>
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Bottom Profile / Home */}
-        <div className="pt-4 border-t border-white/60 shrink-0">
-          <div className="skeu-card p-3 rounded-xl mb-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm">
-              US
+        {/* ── Bottom: User card + actions ── */}
+        <div className="pt-4 border-t border-white/60 shrink-0 space-y-2">
+
+          {/* User card — nama & email dari auth nyata */}
+          <div className="skeu-card p-3 rounded-xl flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+              {userInitials}
             </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-xs font-bold text-slate-900 truncate">Pak Usman</p>
-              <p className="text-[10px] text-emerald-600 font-bold truncate">Pro Plan (Aktif)</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {userName || "Memuat..."}
+              </p>
+              <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+              {profile.paket && profile.paket !== "Pro Plan" && (
+                <p className="text-[9px] text-emerald-600 font-bold truncate">{profile.paket}</p>
+              )}
             </div>
           </div>
-          <Link
-            href="/"
-            className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 py-1 font-semibold transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px]">home</span>
-            <span>Beranda</span>
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-700 py-1 font-semibold transition-colors w-full mt-1"
-          >
-            <span className="material-symbols-outlined text-[16px]">logout</span>
-            <span>Keluar (Logout)</span>
-          </button>
+
+          <div className="flex gap-1.5">
+            <Link
+              href="/"
+              className="flex-1 flex items-center justify-center gap-1 text-xs text-slate-500 hover:text-slate-800 py-1.5 font-semibold transition-colors skeu-card rounded-xl"
+            >
+              <span className="material-symbols-outlined text-[14px]">home</span>
+              <span>Beranda</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex-1 flex items-center justify-center gap-1 text-xs text-red-500 hover:text-red-700 py-1.5 font-semibold transition-colors skeu-card rounded-xl"
+            >
+              <span className="material-symbols-outlined text-[14px]">logout</span>
+              <span>Keluar</span>
+            </button>
+          </div>
         </div>
       </aside>
     </>

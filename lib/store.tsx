@@ -87,12 +87,12 @@ interface KostContextType {
 // ─── Default fallback (tampil sebelum data Supabase dimuat) ──────────────────
 
 const defaultProfile: KostProfile = {
-  nama: "Kost Saya",
-  subdomain: "kostsaya",
-  tagline: "Hunian nyaman dan strategis",
-  alamat: "Alamat kost Anda",
+  nama: "",
+  subdomain: "",
+  tagline: "",
+  alamat: "",
   telepon: "",
-  paket: "Pro Plan",
+  paket: "",
   bankPenerima: "BCA",
   noRekening: "",
 };
