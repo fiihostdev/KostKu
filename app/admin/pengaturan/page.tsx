@@ -375,7 +375,6 @@ export default function PengaturanPage() {
                 className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
               />
             </div>
-            </div>
             <div>
               <label className="font-bold text-slate-700 block mb-1">Alamat Lengkap</label>
               <textarea
