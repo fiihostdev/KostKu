@@ -4,13 +4,8 @@ import { createClient } from "@/lib/supabase-server";
 const BOT_URL = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notification", "") || "";
 const BOT_SECRET = process.env.NOTIFICATION_BOT_SECRET || "";
 
-/**
- * POST /api/notify/bot-start
- * Dipanggil saat admin klik "Hubungkan WA"
- * Memulai proses koneksi WA di bot server dan generate QR
- */
 export async function POST() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -150,9 +150,10 @@ export default function WABotTab({
   useEffect(() => {
     if (botStatus.status === "qr_ready" && !qrSrc) {
       fetchQR();
-      startPolling();
+      // Hanya start polling jika belum berjalan
+      if (!pollRef.current) startPolling();
     }
-    if (botStatus.status === "connecting") {
+    if (botStatus.status === "connecting" && !pollRef.current) {
       startPolling();
     }
     // Cleanup QR saat sudah connected
@@ -163,6 +164,7 @@ export default function WABotTab({
       });
       stopPolling();
     }
+  // Status berubah → reaksi. fetchQR, startPolling, stopPolling stabil (useCallback)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botStatus.status]);
 

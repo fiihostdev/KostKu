@@ -5,7 +5,7 @@ const BOT_URL = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notificatio
 const BOT_SECRET = process.env.NOTIFICATION_BOT_SECRET || "";
 
 export async function POST() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,7 +25,7 @@ export async function POST() {
 
     const data = await res.json();
     return NextResponse.json(data, { status: res.ok ? 200 : 500 });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Gagal menghubungi bot" }, { status: 500 });
   }
 }

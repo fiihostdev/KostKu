@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// Server-side Supabase client (dipakai di Server Components & Route Handlers)
-export function createClient() {
-  const cookieStore = cookies();
+// Server-side Supabase client — async karena cookies() di Next.js 15 mengembalikan Promise
+export async function createClient() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -18,7 +18,7 @@ export function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Ignore when called from Server Components
+            // Diabaikan saat dipanggil dari Server Components (read-only)
           }
         },
       },
