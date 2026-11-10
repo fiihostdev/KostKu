@@ -1,9 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// Server-side Supabase client — async karena cookies() di Next.js 15 mengembalikan Promise
-export async function createClient() {
-  const cookieStore = await cookies();
+/**
+ * Server-side Supabase client untuk Next.js 14
+ * Di Next.js 14, cookies() TIDAK return Promise — tidak perlu await
+ * Di Next.js 15+, cookies() return Promise — perlu await
+ * 
+ * Package.json: "next": "^14.2.20" → gunakan sync cookies()
+ */
+export function createClient() {
+  const cookieStore = cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

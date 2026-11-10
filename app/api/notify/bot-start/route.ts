@@ -6,20 +6,17 @@ const BOT_SECRET = process.env.NOTIFICATION_BOT_SECRET || "";
 
 export async function POST() {
   try {
-    // Auth check
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (!BOT_URL || !BOT_SECRET) {
-      // Bot belum dikonfigurasi — kembalikan idle tanpa error agar UI tetap berjalan
       return NextResponse.json({
         success: true,
         status: "idle",
-        message: "Bot URL belum dikonfigurasi di environment variables",
+        message: "Bot URL belum dikonfigurasi",
       });
     }
 
@@ -35,7 +32,7 @@ export async function POST() {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       return NextResponse.json(
-        { error: `Bot server error ${res.status}: ${text.slice(0, 200)}` },
+        { error: `Bot error ${res.status}: ${text.slice(0, 200)}` },
         { status: 502 }
       );
     }
@@ -46,6 +43,6 @@ export async function POST() {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[bot-start]", msg);
-    return NextResponse.json({ error: `Server error: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

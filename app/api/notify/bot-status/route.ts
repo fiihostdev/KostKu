@@ -3,31 +3,24 @@ import { createClient } from "@/lib/supabase-server";
 
 const BOT_URL = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notification", "") || "";
 
-// Cache sederhana — bot status tidak mungkin berubah dalam 2 detik
 let cachedStatus: Record<string, unknown> | null = null;
 let cacheTime = 0;
 const CACHE_TTL = 3000;
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (!BOT_URL) {
       return NextResponse.json({
-        status: "idle",
-        phone: null,
-        qr_available: false,
-        has_session: false,
-        uptime: "0s",
+        status: "idle", phone: null, qr_available: false, has_session: false, uptime: "0s",
       });
     }
 
-    // Gunakan cache jika masih fresh
     const now = Date.now();
     if (cachedStatus && now - cacheTime < CACHE_TTL) {
       return NextResponse.json(cachedStatus);
@@ -40,11 +33,7 @@ export async function GET() {
 
     if (!res.ok) {
       return NextResponse.json({
-        status: "idle",
-        phone: null,
-        qr_available: false,
-        has_session: false,
-        uptime: "0s",
+        status: "idle", phone: null, qr_available: false, has_session: false, uptime: "0s",
       });
     }
 
@@ -57,11 +46,7 @@ export async function GET() {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[bot-status]", msg);
     return NextResponse.json({
-      status: "idle",
-      phone: null,
-      qr_available: false,
-      has_session: false,
-      uptime: "0s",
+      status: "idle", phone: null, qr_available: false, has_session: false, uptime: "0s",
     });
   }
 }
