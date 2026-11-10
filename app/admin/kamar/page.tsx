@@ -73,7 +73,7 @@ function RoomFormFields({
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">Rp</span>
           <input
             type="number"
-            step="50000"
+            step="1"
             min="0"
             value={form.harga}
             onChange={(e) => onChange({ ...form, harga: Number(e.target.value) })}
