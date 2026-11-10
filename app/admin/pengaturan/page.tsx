@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useKost } from "@/lib/store";
 import WABotTab from "@/components/admin/WABotTab";
+import LogoUploader from "@/components/admin/LogoUploader";
 import { useToast } from "@/components/ui/Toast";
 
 export default function PengaturanPage() {
@@ -17,26 +18,37 @@ export default function PengaturanPage() {
   const [showServerKey, setShowServerKey] = useState(false);
 
   // Profil Kost
-  const [namaKost, setNamaKost] = useState(profile.nama);
-  const [alamatKost, setAlamatKost] = useState(profile.alamat);
-  const [teleponKost, setTeleponKost] = useState(profile.telepon);
+  const [namaKost,     setNamaKost]     = useState(profile.nama);
+  const [alamatKost,   setAlamatKost]   = useState(profile.alamat);
+  const [teleponKost,  setTeleponKost]  = useState(profile.telepon);
   const [bankPenerima, setBankPenerima] = useState(profile.bankPenerima);
-  const [noRekening, setNoRekening] = useState(profile.noRekening);
+  const [noRekening,   setNoRekening]   = useState(profile.noRekening);
+  const [logoUrl,      setLogoUrl]      = useState(profile.logoUrl || "");
+
+  // Sync saat profile store berubah
+  useEffect(() => {
+    setNamaKost(profile.nama);
+    setAlamatKost(profile.alamat);
+    setTeleponKost(profile.telepon);
+    setBankPenerima(profile.bankPenerima);
+    setNoRekening(profile.noRekening);
+    setLogoUrl(profile.logoUrl || "");
+  }, [profile]);
 
   // WhatsApp
-  const [waNumber, setWaNumber] = useState("6281234567890");
-  const [waBotEnabled, setWaBotEnabled] = useState(true);
-  const [waTemplate, setWaTemplate] = useState(
+  const [waNumber,       setWaNumber]       = useState("6281234567890");
+  const [waBotEnabled,   setWaBotEnabled]   = useState(true);
+  const [waTemplate,     setWaTemplate]     = useState(
     "Halo {nama_penyewa}, ini pengingat tagihan sewa {kamar} sebesar Rp {nominal} jatuh tempo {tanggal}. Terima kasih 🙏"
   );
   const [waReminderDays, setWaReminderDays] = useState(3);
 
   // Keamanan
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState("30");
+  const [currentPassword,     setCurrentPassword]     = useState("");
+  const [newPassword,          setNewPassword]          = useState("");
+  const [confirmNewPassword,   setConfirmNewPassword]   = useState("");
+  const [twoFactorEnabled,     setTwoFactorEnabled]     = useState(false);
+  const [sessionTimeout,       setSessionTimeout]       = useState("30");
 
   const toast = useToast();
 
@@ -80,8 +92,20 @@ export default function PengaturanPage() {
       telepon: teleponKost,
       bankPenerima,
       noRekening,
+      logoUrl,
     });
     toast.success("Profil diperbarui!", "Identitas kost berhasil disimpan.");
+  };
+
+  // Callback saat logo diupload dari tab Identitas Kost
+  const handleLogoUploaded = (newLogoUrl: string) => {
+    setLogoUrl(newLogoUrl);
+    setProfile({ ...profile, nama: namaKost, alamat: alamatKost, telepon: teleponKost, bankPenerima, noRekening, logoUrl: newLogoUrl });
+    if (newLogoUrl) {
+      toast.success("Logo berhasil diupload!", "Logo kost telah diperbarui di website publik.");
+    } else {
+      toast.success("Logo dihapus.", "Website publik kembali menggunakan ikon default.");
+    }
   };
 
   const handleSaveWA = () => {
@@ -335,7 +359,14 @@ export default function PengaturanPage() {
             <h2 className="font-bold text-slate-900 text-sm pb-3 border-b border-white/60">
               Identitas & Informasi Properti Kost
             </h2>
-            <div>
+
+            {/* ── Logo Upload ── */}
+            <LogoUploader
+              currentLogoUrl={logoUrl}
+              onUploadSuccess={handleLogoUploaded}
+            />
+
+            <div className="border-t border-white/60 pt-3">
               <label className="font-bold text-slate-700 block mb-1">Nama Properti Kost</label>
               <input
                 type="text"
@@ -343,6 +374,7 @@ export default function PengaturanPage() {
                 onChange={(e) => setNamaKost(e.target.value)}
                 className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
               />
+            </div>
             </div>
             <div>
               <label className="font-bold text-slate-700 block mb-1">Alamat Lengkap</label>
