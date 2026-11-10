@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
-# Install deps untuk Baileys (crypto, native modules)
+# Install git + build deps yang diperlukan Baileys
 RUN apk add --no-cache \
+    git \
     python3 \
     make \
     g++ \
@@ -14,12 +15,12 @@ WORKDIR /app
 
 COPY package.json ./
 
-# Install semua dependencies
+# Install dependencies
 RUN npm install
 
 COPY server.js ./
 
-# Direktori untuk menyimpan session WA (persisten via Coolify volume)
+# Direktori untuk session WA (akan di-mount sebagai Coolify Volume)
 RUN mkdir -p /app/wa_auth
 
 EXPOSE 4000
