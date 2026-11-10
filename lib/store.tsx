@@ -57,6 +57,7 @@ export interface KostProfile {
   paket: string;
   bankPenerima: string;
   noRekening: string;
+  logoUrl: string;
 }
 
 interface KostContextType {
@@ -95,6 +96,7 @@ const defaultProfile: KostProfile = {
   paket: "",
   bankPenerima: "BCA",
   noRekening: "",
+  logoUrl: "",
 };
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -202,6 +204,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         paket: profileData.paket || "Pro Plan",
         bankPenerima: profileData.bank_penerima || "BCA",
         noRekening: profileData.no_rekening || "",
+        logoUrl: profileData.logo_url || "",
       });
 
       // 2. Ambil kamar
@@ -298,6 +301,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         paket: newProfile.paket,
         bank_penerima: newProfile.bankPenerima,
         no_rekening: newProfile.noRekening,
+        logo_url: newProfile.logoUrl || null,
       })
       .eq("id", kostId);
 

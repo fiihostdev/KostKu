@@ -27,6 +27,7 @@ interface KostProfile {
   tagline: string;
   alamat: string;
   telepon: string;
+  logo_url?: string;
 }
 
 // Supabase server-side client (env vars tersedia di server tanpa masalah)
@@ -49,7 +50,7 @@ async function getKostData(subdomain: string): Promise<{
 
   const { data: profiles } = await supabase
     .from("kost_profiles")
-    .select("id, nama, subdomain, tagline, alamat, telepon")
+    .select("id, nama, subdomain, tagline, alamat, telepon, logo_url")
     .eq("subdomain", subdomain)
     .limit(1);
 
@@ -123,8 +124,17 @@ export default async function PublicKostPage({
       <header className="bg-surface/90 backdrop-blur-md border-b border-white/60 sticky top-0 z-40 px-4 sm:px-8 py-4 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl skeu-card flex items-center justify-center text-primary shadow-sm shrink-0">
-              <span className="material-symbols-outlined text-[24px]">apartment</span>
+            {/* Logo atau icon default */}
+            <div className="w-10 h-10 rounded-xl skeu-card flex items-center justify-center shadow-sm shrink-0 overflow-hidden bg-white">
+              {profile.logo_url ? (
+                <img
+                  src={profile.logo_url}
+                  alt={`Logo ${profile.nama}`}
+                  className="w-full h-full object-contain p-1"
+                />
+              ) : (
+                <span className="material-symbols-outlined text-primary text-[24px]">apartment</span>
+              )}
             </div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-tight truncate">
@@ -185,11 +195,19 @@ export default async function PublicKostPage({
 
           <div className="lg:col-span-5">
             <div className="skeu-card p-5 rounded-3xl shadow-xl space-y-3">
-              <div className="h-48 bg-slate-200 rounded-2xl flex items-center justify-center">
-                <div className="text-center">
-                  <span className="material-symbols-outlined text-slate-400 text-[48px] block mb-1">apartment</span>
-                  <span className="text-xs text-slate-500 font-medium">{profile.nama}</span>
-                </div>
+              <div className="h-48 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
+                {profile.logo_url ? (
+                  <img
+                    src={profile.logo_url}
+                    alt={`Logo ${profile.nama}`}
+                    className="max-h-full max-w-full object-contain p-4"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <span className="material-symbols-outlined text-slate-300 text-[64px] block mb-1">apartment</span>
+                    <span className="text-xs text-slate-400 font-medium">{profile.nama}</span>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-3 rounded-xl skeu-inset">

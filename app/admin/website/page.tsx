@@ -1,19 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
+import LogoUploader from "@/components/admin/LogoUploader";
 
 export default function WebsiteSayaPage() {
   const { profile, setProfile, rooms } = useKost();
   const toast = useToast();
 
-  const [subdomain, setSubdomain] = useState(profile.subdomain);
-  const [namaKost, setNamaKost] = useState(profile.nama);
-  const [tagline, setTagline] = useState(profile.tagline);
-  const [alamat, setAlamat] = useState(profile.alamat);
-  const [kontakWa, setKontakWa] = useState(profile.telepon);
+  const [subdomain,  setSubdomain]  = useState(profile.subdomain);
+  const [namaKost,   setNamaKost]   = useState(profile.nama);
+  const [tagline,    setTagline]    = useState(profile.tagline);
+  const [alamat,     setAlamat]     = useState(profile.alamat);
+  const [kontakWa,   setKontakWa]   = useState(profile.telepon);
+  const [logoUrl,    setLogoUrl]    = useState(profile.logoUrl || "");
+
+  // Sync saat profile dari store berubah (misalnya setelah realtime update)
+  useEffect(() => {
+    setSubdomain(profile.subdomain);
+    setNamaKost(profile.nama);
+    setTagline(profile.tagline);
+    setAlamat(profile.alamat);
+    setKontakWa(profile.telepon);
+    setLogoUrl(profile.logoUrl || "");
+  }, [profile]);
 
   const handleSave = () => {
     setProfile({
@@ -23,8 +35,21 @@ export default function WebsiteSayaPage() {
       tagline,
       alamat,
       telepon: kontakWa,
+      logoUrl,
     });
     toast.success("Website berhasil disimpan!", "Perubahan profil kost telah diperbarui.");
+  };
+
+  // Callback saat logo berhasil diupload — update local state + store langsung
+  const handleLogoUploaded = (newLogoUrl: string) => {
+    setLogoUrl(newLogoUrl);
+    // Update store langsung tanpa tombol Simpan (realtime)
+    setProfile({ ...profile, subdomain, nama: namaKost, tagline, alamat, telepon: kontakWa, logoUrl: newLogoUrl });
+    if (newLogoUrl) {
+      toast.success("Logo berhasil diupload!", "Logo kost telah diperbarui di website publik.");
+    } else {
+      toast.success("Logo dihapus.", "Website publik kembali menggunakan ikon default.");
+    }
   };
 
   const sampleAvailableRoom = rooms.find((r) => r.status === "Kosong") || rooms[0];
@@ -94,24 +119,33 @@ export default function WebsiteSayaPage() {
 
       {/* Form & Live Preview Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
         {/* Settings Form */}
         <div className="lg:col-span-7 skeu-card p-5 sm:p-6 rounded-2xl space-y-4 text-xs">
           <h2 className="font-bold text-slate-900 text-sm pb-2 border-b border-white/60">
             Informasi Profil Kost
           </h2>
 
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">Subdomain Kost</label>
-            <div className="flex items-center max-w-full">
-              <input
-                type="text"
-                value={subdomain}
-                onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                className="p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none w-36 sm:w-48 font-mono font-bold text-xs"
-              />
-              <span className="p-2.5 bg-slate-200 text-slate-600 rounded-r-xl font-mono text-xs border-l border-slate-300">
-                .fiihost.my.id
-              </span>
+          {/* ── LOGO UPLOADER ── */}
+          <LogoUploader
+            currentLogoUrl={logoUrl}
+            onUploadSuccess={handleLogoUploaded}
+          />
+
+          <div className="pt-1 border-t border-white/60">
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Subdomain Kost</label>
+              <div className="flex items-center max-w-full">
+                <input
+                  type="text"
+                  value={subdomain}
+                  onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  className="p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none w-36 sm:w-48 font-mono font-bold text-xs"
+                />
+                <span className="p-2.5 bg-slate-200 text-slate-600 rounded-r-xl font-mono text-xs border-l border-slate-300">
+                  .fiihost.my.id
+                </span>
+              </div>
             </div>
           </div>
 
@@ -182,9 +216,20 @@ export default function WebsiteSayaPage() {
               <div className="w-14 h-2.5 bg-slate-300 rounded-full mx-auto mb-3"></div>
 
               <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
-                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2 font-bold">
-                  <span className="material-symbols-outlined text-[20px]">apartment</span>
+                {/* Logo / Icon */}
+                <div className="w-14 h-14 rounded-xl mx-auto mb-2 overflow-hidden flex items-center justify-center bg-primary/10 shadow-sm">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Logo"
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined text-primary text-[28px]">apartment</span>
+                  )}
                 </div>
+
                 <h3 className="font-bold text-slate-900 text-xs leading-snug">{namaKost}</h3>
                 <p className="text-[10px] text-slate-500 mt-1 line-clamp-2 leading-tight">{tagline}</p>
                 <div className="text-[9px] text-slate-400 mt-2 flex items-center justify-center gap-1">
@@ -218,7 +263,7 @@ export default function WebsiteSayaPage() {
           </div>
 
           <div className="text-center pt-3 text-[11px] text-slate-500">
-            Perubahan nama dan kontak langsung tersinkronisasi dan tersimpan ke memori kost Anda.
+            Logo otomatis tampil di header & halaman publik kost Anda.
           </div>
         </div>
       </div>
