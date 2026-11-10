@@ -130,12 +130,12 @@ export default function WABotTab({
       // Polling berhenti jika sudah connected atau kembali idle
       if (data.status === "connected" || data.status === "idle" || data.status === "disconnected") {
         stopPolling();
-        if (data.status !== "qr_ready") {
-          setQrSrc((prev) => {
-            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-            return null;
-          });
-        }
+        // Bersihkan QR (pasti bukan qr_ready di sini)
+        setQrSrc((prev) => {
+          if (prev === null) return prev;
+          if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+          return null;
+        });
       }
     }, 5000);
   }, [checkStatus, fetchQR, stopPolling]);
