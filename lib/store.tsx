@@ -296,7 +296,32 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         no_rekening: newProfile.noRekening,
       })
       .eq("id", kostId);
+
+    // Profil berubah → update halaman publik
+    if (newProfile.subdomain) {
+      try {
+        await fetch("/api/revalidate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subdomain: newProfile.subdomain }),
+        });
+      } catch {}
+    }
   };
+
+  // ── Helper: trigger revalidate halaman publik kost ────────────────────────
+  const triggerRevalidate = useCallback(async () => {
+    if (!profile.subdomain) return;
+    try {
+      await fetch("/api/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subdomain: profile.subdomain }),
+      });
+    } catch {
+      // silent fail — revalidate bukan critical path
+    }
+  }, [profile.subdomain]);
 
   // ── addRoom ────────────────────────────────────────────────────────────────
   const addRoom = async (roomData: Omit<Room, "id">) => {
@@ -318,6 +343,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data) {
       setRooms((prev) => [mapRoom(data as Record<string, unknown>), ...prev]);
+      triggerRevalidate(); // Invalidate cache halaman publik
     }
   };
 
@@ -326,6 +352,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from("rooms").delete().eq("id", id);
     if (!error) {
       setRooms((prev) => prev.filter((r) => r.id !== id));
+      triggerRevalidate(); // Invalidate cache halaman publik
     }
   };
 
@@ -365,6 +392,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
             r.id === room.id ? { ...r, status: "Terisi", penyewa: tenantData.nama } : r
           )
         );
+        triggerRevalidate(); // Kamar status berubah → update halaman publik
       }
     }
   };

@@ -1,7 +1,14 @@
 // Server Component — fetch di server, bukan di browser
-// Tidak ada CORS issue, tidak ada loading state, langsung render
+// Selalu fresh — tidak di-cache (no-store + revalidate 0)
+// Menjamin data kamar realtime setiap kali halaman dibuka
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+
+// Force halaman ini tidak pernah di-cache oleh Vercel/Next.js
+export const revalidate = 0;
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 interface Room {
   id: string;
@@ -34,6 +41,9 @@ async function getKostData(subdomain: string): Promise<{
   profile: KostProfile | null;
   rooms: Room[];
 }> {
+  // Pastikan tidak ada caching di level Next.js maupun fetch
+  noStore();
+
   const supabase = getSupabase();
   if (!supabase) return { profile: null, rooms: [] };
 
