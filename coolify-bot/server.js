@@ -130,15 +130,15 @@ async function connectWA() {
   sock = makeWASocket({
     version,
     auth: state,
-    // Logger minimal agar log tidak terlalu verbose di Coolify
     logger: pino({ level: "silent" }),
-    printQRInTerminal: true,
+    // printQRInTerminal DIHAPUS — deprecated, kita handle QR sendiri via /qr-image
     browser: ["KOSTKU Bot", "Chrome", "1.0.0"],
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 30000,
-    keepAliveIntervalMs: 25000,
-    retryRequestDelayMs: 2000,
-    maxMsgRetryCount: 5,
+    connectTimeoutMs: 120000,       // lebih panjang agar tidak timeout saat scan
+    defaultQueryTimeoutMs: 60000,
+    keepAliveIntervalMs: 20000,
+    retryRequestDelayMs: 3000,
+    maxMsgRetryCount: 3,
+    qrTimeout: 60000,               // QR valid 60 detik sebelum regenerate
   });
 
   // ── Event: QR Code muncul (perlu di-scan) ──────────────────────────────────
@@ -167,16 +167,22 @@ async function connectWA() {
       connectedPhone = null;
 
       if (shouldReconnect) {
-        // Auto-reconnect setelah 5 detik
+        // 408 = QR tidak di-scan (timeout) → tunggu 10 detik sebelum reconnect
+        // Error lain → tunggu 5 detik
+        const delay = statusCode === 408 ? 10000 : 5000;
+        console.log(`⏳ Reconnect dalam ${delay / 1000} detik...`);
         if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connectWA, 5000);
+        reconnectTimer = setTimeout(connectWA, delay);
       } else {
-        // Logged out — hapus auth dan minta scan ulang
-        console.log("🚪 Bot logged out — hapus auth dan restart untuk scan ulang");
+        // Logged out — hapus auth dan generate QR baru
+        console.log("🚪 Bot logged out — hapus auth, generate QR baru");
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch {}
         botStatus = "logged_out";
+        // Reconnect setelah 3 detik untuk generate QR baru
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connectWA, 3000);
       }
     }
 
