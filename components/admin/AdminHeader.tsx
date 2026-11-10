@@ -59,7 +59,8 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
             const msg = stats.tagihanTertunda > 0
               ? `Ada tagihan tertunda senilai Rp ${stats.tagihanTertunda.toLocaleString("id-ID")}.`
               : "Tidak ada notifikasi baru.";
-            alert(msg);
+            // Tidak pakai alert() — notifikasi sudah tampil di bell icon saja
+            console.info("[notif]", msg);
           }}
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl skeu-card flex items-center justify-center text-slate-600 hover:text-slate-950 relative"
         >

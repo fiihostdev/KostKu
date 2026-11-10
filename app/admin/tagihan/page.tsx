@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { useKost } from "@/lib/store";
 import MidtransModal from "@/components/payment/MidtransModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useToast } from "@/components/ui/Toast";
 
 export default function TagihanPage() {
   const { invoices, addInvoice, payInvoice, tenants, rooms } = useKost();
+  const toast = useToast();
   const [filter, setFilter] = useState("Semua");
   const [showModal, setShowModal] = useState(false);
   const [showMidtrans, setShowMidtrans] = useState(false);
@@ -13,6 +16,8 @@ export default function TagihanPage() {
   const [selectedAmount, setSelectedAmount] = useState(0);
   const [selectedItemName, setSelectedItemName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
   
   const [newInv, setNewInv] = useState({
     penyewa: "",
@@ -64,16 +69,18 @@ export default function TagihanPage() {
   const handleBroadcastWA = async () => {
     const unpaid = invoices.filter((i) => i.status !== "Lunas");
     if (unpaid.length === 0) {
-      alert("Semua tagihan sudah lunas! Tidak ada tagihan tertunda.");
+      toast.info("Semua tagihan sudah lunas!", "Tidak ada tagihan tertunda yang perlu diingatkan.");
       return;
     }
+    setShowBroadcastConfirm(true);
+  };
 
-    const confirm = window.confirm(
-      `Kirim pengingat tagihan ke ${unpaid.length} penyewa via WhatsApp?`
-    );
-    if (!confirm) return;
-
+  const doBroadcast = async () => {
+    setShowBroadcastConfirm(false);
+    setBroadcastLoading(true);
+    const unpaid = invoices.filter((i) => i.status !== "Lunas");
     let successCount = 0;
+
     for (const inv of unpaid) {
       const tenant = tenants.find((t) => t.nama === inv.penyewa);
       if (!tenant?.phone) continue;
@@ -90,23 +97,18 @@ export default function TagihanPage() {
         const res = await fetch("/api/notify/send-wa", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: tenant.phone,
-            name: inv.penyewa,
-            message,
-            invoiceId: inv.id,
-          }),
+          body: JSON.stringify({ phone: tenant.phone, name: inv.penyewa, message, invoiceId: inv.id }),
         });
         if (res.ok) successCount++;
       } catch {
-        // fallback: buka WhatsApp web manual
         const cleanPhone = tenant.phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, "_blank");
         successCount++;
       }
     }
 
-    alert(`✅ Pengingat berhasil dikirim ke ${successCount} penyewa.`);
+    setBroadcastLoading(false);
+    toast.success(`Broadcast selesai!`, `${successCount} dari ${unpaid.length} penyewa berhasil dikirimi pengingat.`);
   };
 
   const pendapatanLunas = invoices.filter((i) => i.status === "Lunas").reduce((s, i) => s + i.nominal, 0);
@@ -126,6 +128,18 @@ export default function TagihanPage() {
         onSuccess={handleMidtransSuccess}
       />
 
+      {/* Broadcast Confirm Modal — TANPA window.confirm() native */}
+      <ConfirmModal
+        isOpen={showBroadcastConfirm}
+        title="Kirim Broadcast Pengingat WA?"
+        message={`Pengingat tagihan akan dikirim ke ${invoices.filter((i) => i.status !== "Lunas").length} penyewa yang belum membayar.`}
+        confirmLabel="Ya, Kirim Sekarang"
+        cancelLabel="Batal"
+        variant="primary"
+        onConfirm={doBroadcast}
+        onCancel={() => setShowBroadcastConfirm(false)}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -139,10 +153,13 @@ export default function TagihanPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleBroadcastWA}
-            className="skeu-button-secondary text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-emerald-800 flex-1 sm:flex-none"
+            disabled={broadcastLoading}
+            className="skeu-button-secondary text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-emerald-800 flex-1 sm:flex-none disabled:opacity-60"
           >
-            <span className="material-symbols-outlined text-[16px] text-emerald-600">forward_to_inbox</span>
-            <span>Broadcast WA</span>
+            <span className={`material-symbols-outlined text-[16px] text-emerald-600 ${broadcastLoading ? "animate-spin" : ""}`}>
+              {broadcastLoading ? "sync" : "forward_to_inbox"}
+            </span>
+            <span>{broadcastLoading ? "Mengirim..." : "Broadcast WA"}</span>
           </button>
           <button
             onClick={() => setShowModal(true)}
@@ -276,7 +293,7 @@ export default function TagihanPage() {
                             }),
                           });
                           if (res.ok) {
-                            alert(`✅ Tagihan berhasil dikirim ke ${inv.penyewa} via WhatsApp!`);
+                            toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa} via WhatsApp.`);
                             return;
                           }
                         } catch {}

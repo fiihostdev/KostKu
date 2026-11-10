@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { KostProvider } from "@/lib/store";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,7 +28,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans min-h-screen bg-surface text-on-surface antialiased overflow-x-hidden">
-        <KostProvider>{children}</KostProvider>
+        <KostProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </KostProvider>
       </body>
     </html>
   );

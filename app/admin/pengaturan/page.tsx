@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useKost } from "@/lib/store";
 import WABotTab from "@/components/admin/WABotTab";
+import { useToast } from "@/components/ui/Toast";
 
 export default function PengaturanPage() {
   const { profile, setProfile } = useKost();
@@ -37,7 +38,7 @@ export default function PengaturanPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState("30");
 
-  const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
+  const toast = useToast();
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -61,11 +62,6 @@ export default function PengaturanPage() {
     } catch {}
   }, []);
 
-  const showToast = (msg: string) => {
-    setSavedSuccess(msg);
-    setTimeout(() => setSavedSuccess(null), 3000);
-  };
-
   const handleSaveMidtrans = () => {
     try {
       localStorage.setItem(
@@ -73,7 +69,7 @@ export default function PengaturanPage() {
         JSON.stringify({ merchantId, clientKey, serverKey, isProduction })
       );
     } catch {}
-    showToast("Konfigurasi Payment Gateway Midtrans berhasil disimpan!");
+    toast.success("Midtrans tersimpan!", "Konfigurasi Payment Gateway berhasil diperbarui.");
   };
 
   const handleSaveProfil = () => {
@@ -85,7 +81,7 @@ export default function PengaturanPage() {
       bankPenerima,
       noRekening,
     });
-    showToast("Profil identitas kost berhasil diperbarui!");
+    toast.success("Profil diperbarui!", "Identitas kost berhasil disimpan.");
   };
 
   const handleSaveWA = () => {
@@ -95,27 +91,28 @@ export default function PengaturanPage() {
         JSON.stringify({ waNumber, waBotEnabled, waTemplate, waReminderDays })
       );
     } catch {}
-    showToast("Pengaturan notifikasi WhatsApp berhasil disimpan!");
+    toast.success("Pengaturan WA disimpan!", "Template dan konfigurasi notifikasi berhasil diperbarui.");
   };
 
   const handleSaveKeamanan = () => {
     if (newPassword && newPassword !== confirmNewPassword) {
-      alert("Konfirmasi kata sandi baru tidak cocok.");
+      toast.error("Kata sandi tidak cocok", "Konfirmasi kata sandi harus sama.");
       return;
     }
     if (newPassword && newPassword.length < 8) {
-      alert("Kata sandi baru harus minimal 8 karakter.");
+      toast.error("Kata sandi terlalu pendek", "Minimal 8 karakter.");
       return;
     }
-    showToast("Pengaturan keamanan akun berhasil disimpan!");
+    toast.success("Keamanan diperbarui!", "Pengaturan keamanan akun berhasil disimpan.");
     setCurrentPassword("");
     setNewPassword("");
     setConfirmNewPassword("");
   };
 
   const testConnection = () => {
-    alert(
-      `Koneksi ke Midtrans API ${isProduction ? "PRODUCTION" : "SANDBOX"} berhasil diverifikasi!\n\nMerchant: ${merchantId}\nStatus: HTTP 200 OK (Terhubung)`
+    toast.info(
+      `Koneksi ${isProduction ? "PRODUCTION" : "SANDBOX"} berhasil!`,
+      `Merchant: ${merchantId} · HTTP 200 OK`
     );
   };
 
@@ -128,14 +125,6 @@ export default function PengaturanPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
-      {/* Toast */}
-      {savedSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold">
-          <span className="material-symbols-outlined text-[18px]">check_circle</span>
-          <span>{savedSuccess}</span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -266,7 +255,7 @@ export default function PengaturanPage() {
                   type="button"
                   onClick={() => {
                     navigator.clipboard?.writeText("https://api.kostku.id/webhooks/midtrans");
-                    alert("Webhook URL berhasil disalin!");
+                    toast.success("Tersalin!", "Webhook URL berhasil disalin ke clipboard.");
                   }}
                   className="skeu-button-secondary px-3 py-2 sm:py-2.5 rounded-xl sm:rounded-l-none sm:rounded-r-xl border-t sm:border-t-0 sm:border-l border-slate-300 font-bold text-xs shrink-0 text-center"
                 >
@@ -531,7 +520,7 @@ export default function PengaturanPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => alert("Mengunduh backup data kamar, penyewa, dan invoice dalam format JSON...")}
+                  onClick={() => toast.info("Fitur segera hadir", "Download backup JSON sedang dalam pengembangan.")}
                   className="skeu-button-secondary text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-[16px]">download</span>
@@ -539,7 +528,7 @@ export default function PengaturanPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert("Mengunduh seluruh laporan keuangan dalam format Excel (.xlsx)...")}
+                  onClick={() => toast.info("Fitur segera hadir", "Export Excel sedang dalam pengembangan.")}
                   className="skeu-button-secondary text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-[16px]">table_chart</span>

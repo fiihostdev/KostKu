@@ -68,28 +68,28 @@
 
 /* Animations */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out both;
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.animate-fadeInUp {
-  animation: fadeInUp 0.25s ease-out both;
+@keyframes slideOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(100%); }
 }
+
+.animate-fadeIn      { animation: fadeIn 0.2s ease-out both; }
+.animate-fadeInUp    { animation: fadeInUp 0.25s ease-out both; }
+.animate-slideInRight { animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1) both; }
 
 
 /* Fix input text clipping when using icon inside input */

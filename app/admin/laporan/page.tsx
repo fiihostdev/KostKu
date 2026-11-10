@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useKost } from "@/lib/store";
+import { useToast } from "@/components/ui/Toast";
 
 export default function LaporanKeuanganPage() {
   const { stats, cashFlows, loading } = useKost();
+  const toast = useToast();
   const [periode, setPeriode] = useState("November 2026");
 
   // Filter cashFlows
@@ -40,7 +42,7 @@ export default function LaporanKeuanganPage() {
             </select>
           </div>
           <button
-            onClick={() => alert("Mengunduh Laporan Keuangan format Excel & PDF...")}
+            onClick={() => toast.info("Fitur segera hadir", "Export Excel & PDF sedang dalam pengembangan.")}
             className="skeu-button text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md flex-1 sm:flex-none justify-center"
           >
             <span className="material-symbols-outlined text-[16px]">download</span>

@@ -3,16 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useKost } from "@/lib/store";
+import { useToast } from "@/components/ui/Toast";
 
 export default function WebsiteSayaPage() {
   const { profile, setProfile, rooms } = useKost();
+  const toast = useToast();
 
   const [subdomain, setSubdomain] = useState(profile.subdomain);
   const [namaKost, setNamaKost] = useState(profile.nama);
   const [tagline, setTagline] = useState(profile.tagline);
   const [alamat, setAlamat] = useState(profile.alamat);
   const [kontakWa, setKontakWa] = useState(profile.telepon);
-  const [showSavedToast, setShowSavedToast] = useState(false);
 
   const handleSave = () => {
     setProfile({
@@ -23,22 +24,13 @@ export default function WebsiteSayaPage() {
       alamat,
       telepon: kontakWa,
     });
-    setShowSavedToast(true);
-    setTimeout(() => setShowSavedToast(false), 3000);
+    toast.success("Website berhasil disimpan!", "Perubahan profil kost telah diperbarui.");
   };
 
   const sampleAvailableRoom = rooms.find((r) => r.status === "Kosong") || rooms[0];
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
-      {/* Toast */}
-      {showSavedToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold animate-fadeInUp">
-          <span className="material-symbols-outlined text-[18px]">check_circle</span>
-          <span>Pengaturan Website Kost berhasil diperbarui dan disimpan!</span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -91,7 +83,7 @@ export default function WebsiteSayaPage() {
         <button
           onClick={() => {
             navigator.clipboard?.writeText(`https://${subdomain}.fiihost.my.id`);
-            alert("Link website kost berhasil disalin ke clipboard!");
+            toast.success("Link disalin!", `https://${subdomain}.fiihost.my.id`);
           }}
           className="skeu-button-secondary text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1 self-start md:self-auto shrink-0"
         >
