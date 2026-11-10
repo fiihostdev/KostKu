@@ -1,10 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-
-const BOT_URL = process.env.NEXT_PUBLIC_APP_URL
-  ? "https://wiya3dh8uopgirnwkgmuolug.fiihosting.my.id"
-  : "https://wiya3dh8uopgirnwkgmuolug.fiihosting.my.id";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface BotStatus {
   status: "disconnected" | "connecting" | "qr_ready" | "connected" | "logged_out" | "unknown";
@@ -44,8 +40,14 @@ export default function WABotTab({
     uptime: "0s",
   });
   const [loadingStatus, setLoadingStatus] = useState(false);
+
+  // QR inline state
+  const [qrSrc, setQrSrc] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [testPhone, setTestPhone] = useState("");
-  const [testMsg, setTestMsg] = useState("");
+  const [testMsg, setTestMsg] = useState("Halo! Ini pesan test dari KOSTKU Bot 🤖");
   const [sendingTest, setSendingTest] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -55,11 +57,11 @@ export default function WABotTab({
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Cek status bot
+  // ── Cek status bot ───────────────────────────────────────────────────────────
   const checkStatus = useCallback(async () => {
     setLoadingStatus(true);
     try {
-      const res = await fetch(`/api/notify/bot-status`);
+      const res = await fetch(`/api/notify/bot-status`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setBotStatus(data);
@@ -71,21 +73,72 @@ export default function WABotTab({
     }
   }, []);
 
-  // Auto-refresh status setiap 10 detik
+  // ── Ambil QR image dari proxy Next.js ────────────────────────────────────────
+  const fetchQR = useCallback(async () => {
+    setQrLoading(true);
+    try {
+      // Tambahkan timestamp agar browser tidak cache
+      const res = await fetch(`/api/notify/bot-qr?t=${Date.now()}`, { cache: "no-store" });
+      if (res.status === 200) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setQrSrc((prev) => {
+          // Revoke URL lama untuk mencegah memory leak
+          if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+          return url;
+        });
+      } else {
+        // 204 = bot connected atau QR belum siap
+        setQrSrc(null);
+      }
+    } catch {
+      setQrSrc(null);
+    } finally {
+      setQrLoading(false);
+    }
+  }, []);
+
+  // ── Auto-refresh status setiap 10 detik ──────────────────────────────────────
   useEffect(() => {
     checkStatus();
     const interval = setInterval(checkStatus, 10000);
     return () => clearInterval(interval);
   }, [checkStatus]);
 
-  // Reset bot (ganti nomor WA)
+  // ── Jika status qr_ready → ambil QR + auto-refresh setiap 25 detik ──────────
+  useEffect(() => {
+    // Bersihkan interval lama
+    if (qrIntervalRef.current) {
+      clearInterval(qrIntervalRef.current);
+      qrIntervalRef.current = null;
+    }
+
+    if (botStatus.status === "qr_ready") {
+      // Langsung ambil QR
+      fetchQR();
+      // Refresh QR setiap 25 detik (QR WA expire ~20-30 detik)
+      qrIntervalRef.current = setInterval(fetchQR, 25000);
+    } else {
+      // Bukan qr_ready — bersihkan QR
+      setQrSrc((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+    }
+
+    return () => {
+      if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
+    };
+  }, [botStatus.status, fetchQR]);
+
+  // ── Reset bot (ganti nomor WA) ────────────────────────────────────────────────
   const handleReset = async () => {
-    if (!confirm("Reset bot akan logout dari WA. Anda perlu scan QR ulang. Lanjutkan?")) return;
     setResetLoading(true);
     try {
       const res = await fetch("/api/notify/bot-reset", { method: "POST" });
       if (res.ok) {
-        showToast("success", "Bot di-reset. Buka halaman QR untuk scan ulang.");
+        showToast("success", "Bot di-reset. QR baru akan muncul dalam beberapa detik...");
+        // Cek status ulang setelah 3 detik
         setTimeout(checkStatus, 3000);
       } else {
         showToast("error", "Gagal reset bot.");
@@ -97,10 +150,14 @@ export default function WABotTab({
     }
   };
 
-  // Kirim test message
+  // ── Kirim test message ────────────────────────────────────────────────────────
   const handleTestSend = async () => {
-    if (!testPhone || !testMsg) {
-      showToast("error", "Isi nomor HP dan pesan test terlebih dahulu.");
+    if (!testPhone.trim()) {
+      showToast("error", "Isi nomor HP tujuan terlebih dahulu.");
+      return;
+    }
+    if (!testMsg.trim()) {
+      showToast("error", "Isi pesan test terlebih dahulu.");
       return;
     }
     setSendingTest(true);
@@ -124,19 +181,22 @@ export default function WABotTab({
   };
 
   const statusConfig = {
-    connected: { color: "text-emerald-700", bg: "bg-emerald-500", label: "Terhubung & Aktif" },
-    qr_ready: { color: "text-amber-700", bg: "bg-amber-500 animate-pulse", label: "Menunggu Scan QR" },
-    connecting: { color: "text-blue-700", bg: "bg-blue-500 animate-pulse", label: "Sedang Menghubungkan..." },
-    disconnected: { color: "text-red-700", bg: "bg-red-500", label: "Tidak Terhubung" },
-    logged_out: { color: "text-slate-700", bg: "bg-slate-400", label: "Logged Out" },
-    unknown: { color: "text-slate-500", bg: "bg-slate-300", label: "Mengecek status..." },
+    connected:    { dot: "bg-emerald-500",             text: "text-emerald-700", label: "Terhubung & Aktif" },
+    qr_ready:     { dot: "bg-amber-500 animate-pulse",  text: "text-amber-700",  label: "Menunggu Scan QR" },
+    connecting:   { dot: "bg-blue-500 animate-pulse",   text: "text-blue-700",   label: "Sedang Menghubungkan..." },
+    disconnected: { dot: "bg-red-500",                  text: "text-red-700",    label: "Tidak Terhubung" },
+    logged_out:   { dot: "bg-slate-400",                text: "text-slate-600",  label: "Logged Out" },
+    unknown:      { dot: "bg-slate-300",                text: "text-slate-500",  label: "Mengecek status..." },
   };
 
-  const sc = statusConfig[botStatus.status] || statusConfig.unknown;
+  const sc = statusConfig[botStatus.status] ?? statusConfig.unknown;
+  const isConnected = botStatus.status === "connected";
+  const isQrReady   = botStatus.status === "qr_ready";
 
   return (
     <div className="space-y-6 text-xs">
-      {/* Toast */}
+
+      {/* ── Toast ── */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold animate-fadeInUp ${
           toast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
@@ -144,21 +204,23 @@ export default function WABotTab({
           <span className="material-symbols-outlined text-[18px]">
             {toast.type === "success" ? "check_circle" : "error"}
           </span>
-          <span>{toast.msg}</span>
+          {toast.msg}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* ── Kolom Kiri: Status + Template ── */}
+        {/* ── Kolom Kiri ── */}
         <div className="lg:col-span-8 space-y-5">
 
-          {/* Status Card */}
+          {/* ── Status + QR inline ── */}
           <div className="skeu-card p-5 rounded-2xl space-y-4">
+
+            {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/60">
               <h2 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px] text-emerald-600">phone_android</span>
-                Status WhatsApp Bot (Baileys)
+                Status WhatsApp Bot
               </h2>
               <button
                 onClick={checkStatus}
@@ -170,40 +232,133 @@ export default function WABotTab({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {/* Status */}
-              <div className="skeu-inset p-3 rounded-xl col-span-2">
+            {/* Status baris */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="skeu-inset p-3 rounded-xl">
                 <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1">Status</span>
-                <span className={`font-bold flex items-center gap-1.5 ${sc.color}`}>
-                  <span className={`w-2.5 h-2.5 rounded-full ${sc.bg} shrink-0`}></span>
+                <span className={`font-bold flex items-center gap-1.5 text-xs ${sc.text}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`}></span>
                   {sc.label}
                 </span>
               </div>
-              {/* Nomor WA */}
-              <div className="skeu-inset p-3 rounded-xl col-span-2">
+              <div className="skeu-inset p-3 rounded-xl">
                 <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1">Nomor Aktif</span>
                 <span className="font-bold text-slate-800 font-mono text-[11px]">
-                  {botStatus.phone ? `+${botStatus.phone.replace("@s.whatsapp.net", "")}` : "—"}
+                  {botStatus.phone
+                    ? `+${botStatus.phone.replace("@s.whatsapp.net", "")}`
+                    : "—"}
                 </span>
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* ── QR Code Inline ─────────────────────────────────────────────── */}
+            {isQrReady && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-amber-600 text-[20px]">qr_code_scanner</span>
+                  <div>
+                    <p className="font-bold text-amber-800 text-xs">Scan QR dengan WhatsApp</p>
+                    <p className="text-[11px] text-amber-600">QR refresh otomatis setiap 25 detik</p>
+                  </div>
+                  <span className="ml-auto text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                    ● LIVE
+                  </span>
+                </div>
+
+                {/* QR Image */}
+                <div className="flex justify-center">
+                  {qrLoading && !qrSrc ? (
+                    <div className="w-56 h-56 flex items-center justify-center rounded-2xl bg-white border-2 border-amber-200">
+                      <div className="text-center">
+                        <span className="material-symbols-outlined text-[32px] text-amber-400 animate-spin">sync</span>
+                        <p className="text-[11px] text-amber-600 mt-1">Memuat QR...</p>
+                      </div>
+                    </div>
+                  ) : qrSrc ? (
+                    <div className="relative">
+                      <img
+                        src={qrSrc}
+                        alt="QR Code WhatsApp"
+                        width={224}
+                        height={224}
+                        className="rounded-2xl border-4 border-white shadow-lg"
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                      {/* Overlay loading saat refresh */}
+                      {qrLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-2xl">
+                          <span className="material-symbols-outlined text-[28px] text-primary animate-spin">sync</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-56 h-56 flex items-center justify-center rounded-2xl bg-white border-2 border-amber-200">
+                      <div className="text-center">
+                        <span className="material-symbols-outlined text-[32px] text-slate-300">qr_code_2</span>
+                        <p className="text-[11px] text-slate-400 mt-1">QR belum tersedia</p>
+                        <button onClick={fetchQR} className="mt-2 text-[10px] text-primary font-bold hover:underline">
+                          Coba Lagi
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Instruksi */}
+                <div className="mt-3 space-y-1.5 text-[11px] text-amber-700">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">1</span>
+                    Buka WhatsApp di HP kamu
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">2</span>
+                    Ketuk menu ⋮ → <strong>Linked Devices</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">3</span>
+                    Ketuk <strong>Link a Device</strong> → scan QR di atas
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Sukses: Bot terhubung ─────────────────────────────────────── */}
+            {isConnected && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-emerald-600 text-[28px]">check_circle</span>
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-800">Bot WhatsApp aktif!</p>
+                  <p className="text-[11px] text-emerald-600 mt-0.5">
+                    Terhubung sebagai <strong className="font-mono">+{botStatus.phone?.replace("@s.whatsapp.net", "")}</strong>
+                  </p>
+                  <p className="text-[11px] text-emerald-600">
+                    Notifikasi tagihan otomatis siap dikirim ke penyewa.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Action Buttons ─────────────────────────────────────────────── */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-white/60">
-              {/* Scan QR */}
-              {(botStatus.status === "qr_ready" || botStatus.status === "disconnected" || botStatus.status === "connecting") && (
-                <a
-                  href={`${BOT_URL}/qr`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+
+              {/* Tombol Scan QR — tampil saat bukan connected, bukan qr_ready */}
+              {!isConnected && !isQrReady && (
+                <button
+                  onClick={() => { checkStatus(); }}
+                  disabled={loadingStatus}
                   className="skeu-button text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
                 >
-                  <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
-                  {botStatus.status === "qr_ready" ? "Scan QR Sekarang →" : "Buka Halaman QR"}
-                </a>
+                  <span className={`material-symbols-outlined text-[16px] ${loadingStatus ? "animate-spin" : ""}`}>
+                    {loadingStatus ? "sync" : "qr_code_2"}
+                  </span>
+                  {loadingStatus ? "Memeriksa Bot..." : "Hubungkan WhatsApp"}
+                </button>
               )}
 
-              {/* Reset / Ganti Nomor */}
+              {/* Tombol Ganti Nomor WA — selalu tampil */}
+              {/* Fungsi: logout bot dari WA saat ini, generate QR baru untuk scan dengan nomor berbeda */}
               <button
                 onClick={handleReset}
                 disabled={resetLoading}
@@ -212,50 +367,26 @@ export default function WABotTab({
                 <span className={`material-symbols-outlined text-[16px] ${resetLoading ? "animate-spin" : ""}`}>
                   {resetLoading ? "sync" : "phone_callback"}
                 </span>
-                Ganti Nomor WA
+                {isConnected ? "Ganti Nomor WA" : "Scan QR Ulang"}
               </button>
 
-              {/* Status di server */}
-              <a
-                href={`${BOT_URL}/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="skeu-button-secondary text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 text-slate-600"
-              >
-                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                Buka Bot Panel
-              </a>
             </div>
 
-            {/* QR Banner */}
-            {botStatus.status === "qr_ready" && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-                <span className="material-symbols-outlined text-amber-600 text-[20px] shrink-0">qr_code_scanner</span>
-                <div>
-                  <p className="font-bold text-amber-800 text-xs">QR Code tersedia — perlu di-scan!</p>
-                  <p className="text-[11px] text-amber-700 mt-0.5">
-                    Buka WhatsApp → Menu ⋮ → Linked Devices → Link a Device → Scan QR
-                  </p>
-                  <a
-                    href={`${BOT_URL}/qr`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary font-bold text-[11px] mt-1 hover:underline"
-                  >
-                    Buka QR Code →
-                  </a>
-                </div>
-              </div>
+            {/* Info uptime */}
+            {botStatus.uptime && botStatus.uptime !== "0s" && (
+              <p className="text-[10px] text-slate-400 text-right">
+                Bot uptime: {botStatus.uptime}
+              </p>
             )}
           </div>
 
-          {/* Template Editor */}
+          {/* ── Template Editor ── */}
           <div className="skeu-card p-5 rounded-2xl space-y-4">
             <h2 className="font-bold text-slate-900 text-sm pb-3 border-b border-white/60">
               Custom Template Pesan WhatsApp
             </h2>
 
-            {/* Toggle */}
+            {/* Toggle otomatis */}
             <div className="flex items-center justify-between p-3 rounded-xl skeu-inset">
               <div>
                 <span className="font-bold text-slate-800 block">Kirim Pengingat Otomatis (CRON)</span>
@@ -272,19 +403,26 @@ export default function WABotTab({
 
             {/* Reminder timing */}
             <div>
-              <label className="font-bold text-slate-700 block mb-2">Kirim Pengingat Sebelum Jatuh Tempo</label>
+              <label className="font-bold text-slate-700 block mb-2">
+                Kirim Pengingat Sebelum Jatuh Tempo
+              </label>
               <div className="flex items-center gap-2 flex-wrap">
                 {[1, 3, 5, 7].map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setWaReminderDays(d)}
-                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${waReminderDays === d ? "skeu-button text-white shadow-sm" : "skeu-card text-slate-600"}`}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                      waReminderDays === d ? "skeu-button text-white shadow-sm" : "skeu-card text-slate-600"
+                    }`}
                   >
                     H-{d}
                   </button>
                 ))}
               </div>
+              <p className="text-[10px] text-slate-500 mt-1.5">
+                Contoh: H-3 = pengingat dikirim 3 hari sebelum tanggal jatuh tempo.
+              </p>
             </div>
 
             {/* Template */}
@@ -312,7 +450,7 @@ export default function WABotTab({
                   <button
                     key={v}
                     type="button"
-                    onClick={() => setWaTemplate(waTemplate + v)}
+                    onClick={() => setWaTemplate((waTemplate || "") + v)}
                     className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono text-[10px] font-bold hover:bg-primary/20 transition-colors"
                   >
                     {v}
@@ -320,7 +458,7 @@ export default function WABotTab({
                 ))}
               </div>
               <p className="text-[10px] text-slate-500 mt-1">
-                Klik variabel untuk menyisipkan. Gunakan *teks* untuk bold, `teks` untuk kode.
+                Klik variabel untuk menyisipkan. Gunakan *teks* untuk bold.
               </p>
             </div>
 
@@ -351,7 +489,7 @@ export default function WABotTab({
           </div>
         </div>
 
-        {/* ── Kolom Kanan: Test Send + Panduan ── */}
+        {/* ── Kolom Kanan: Test + Panduan ── */}
         <div className="lg:col-span-4 space-y-4">
 
           {/* Test Kirim Pesan */}
@@ -382,7 +520,7 @@ export default function WABotTab({
             </div>
             <button
               onClick={handleTestSend}
-              disabled={sendingTest || botStatus.status !== "connected"}
+              disabled={sendingTest || !isConnected}
               className="w-full skeu-button py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md disabled:opacity-60"
             >
               {sendingTest ? (
@@ -391,37 +529,55 @@ export default function WABotTab({
                 <><span className="material-symbols-outlined text-[16px]">send</span> Kirim Test</>
               )}
             </button>
-            {botStatus.status !== "connected" && (
+            {!isConnected && (
               <p className="text-[10px] text-amber-700 font-bold text-center">
                 ⚠️ Bot harus terhubung untuk kirim pesan
               </p>
             )}
           </div>
 
-          {/* Panduan Setup */}
+          {/* Panduan */}
           <div className="skeu-card p-5 rounded-2xl space-y-3">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px] text-primary">help_center</span>
-              Panduan Setup Bot
+              Cara Hubungkan WhatsApp
             </h3>
             <div className="space-y-3 text-[11px] text-slate-600">
               {[
-                { n: 1, t: "Bot sudah berjalan di server Coolify." },
-                { n: 2, t: "Klik tombol \"Scan QR Sekarang\" saat status QR tersedia." },
-                { n: 3, t: "Buka WhatsApp → Menu ⋮ → Linked Devices → Link a Device." },
-                { n: 4, t: "Scan QR dengan kamera WA. Bot langsung aktif." },
-                { n: 5, t: "Test kirim pesan untuk verifikasi bot berjalan." },
+                { n: 1, t: "Pastikan bot berjalan di server (status bukan Tidak Terhubung)." },
+                { n: 2, t: "Tunggu status berubah menjadi \"Menunggu Scan QR\"." },
+                { n: 3, t: "QR Code akan muncul otomatis di halaman ini — tanpa buka link baru." },
+                { n: 4, t: "Buka WhatsApp → Menu ⋮ → Linked Devices → Link a Device." },
+                { n: 5, t: "Scan QR dengan kamera WA. Bot langsung aktif." },
+                { n: 6, t: "Test kirim pesan untuk verifikasi bot berjalan." },
               ].map((s) => (
                 <div key={s.n} className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">{s.n}</span>
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+                    {s.n}
+                  </span>
                   <span>{s.t}</span>
                 </div>
               ))}
             </div>
+
             <div className="skeu-inset p-2.5 rounded-xl">
-              <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Catatan Penting</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Info Tombol</p>
+              <div className="space-y-1.5 text-[11px] text-slate-600">
+                <div className="flex items-start gap-1.5">
+                  <span className="font-bold text-primary shrink-0">Ganti Nomor WA</span>
+                  <span>→ Logout dari WA aktif. QR baru akan muncul untuk sambungkan nomor berbeda.</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="font-bold text-primary shrink-0">Scan QR Ulang</span>
+                  <span>→ Jika bot disconnect, klik ini untuk generate QR baru tanpa buka link baru.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="skeu-inset p-2.5 rounded-xl">
+              <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Catatan</p>
               <p className="text-[11px] text-slate-600">
-                Session WA tersimpan di server — tidak perlu scan ulang setiap restart. Ganti nomor WA dengan tombol "Ganti Nomor WA".
+                Session WA tersimpan di server — tidak perlu scan ulang setiap restart Coolify. Scan hanya diperlukan saat pertama kali atau ganti nomor.
               </p>
             </div>
           </div>

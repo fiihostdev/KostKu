@@ -219,6 +219,28 @@ async function connectWA() {
 
 // ── ROUTES ────────────────────────────────────────────────────────────────────
 
+// ── QR Image (binary PNG) — dipanggil dari Next.js proxy ─────────────────────
+// Berbeda dengan /qr (HTML page), endpoint ini return image/png mentah
+// Digunakan agar QR bisa di-embed langsung di <img> tag di dashboard admin
+app.get("/qr-image", (req, res) => {
+  if (botStatus === "connected") {
+    // Bot sudah terhubung — return 204 (no content) agar front-end tahu
+    return res.status(204).end();
+  }
+
+  if (botStatus === "qr_ready" && qrCodeData) {
+    // qrCodeData = "data:image/png;base64,iVBORw..." — ambil bagian base64-nya
+    const base64 = qrCodeData.replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64, "base64");
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res.send(buffer);
+  }
+
+  // QR belum siap (connecting / disconnected)
+  return res.status(204).end();
+});
+
 // Root / Health check
 app.get("/", (req, res) => {
   res.json({
