@@ -20,6 +20,107 @@ const emptyForm: RoomForm = {
   nomor: "", lantai: 1, tipe: "Standard", harga: 1500000, status: "Kosong", fasilitas: "AC, WiFi, Kasur",
 };
 
+// ── RoomFormFields — HARUS di luar DataKamarPage agar tidak di-recreate saat re-render ──
+// Jika didefinisikan di dalam komponen parent, React unmount/remount setiap ketik → fokus hilang
+function RoomFormFields({
+  form,
+  onChange,
+  showStatus = false,
+}: {
+  form: RoomForm;
+  onChange: (f: RoomForm) => void;
+  showStatus?: boolean;
+}) {
+  return (
+    <div className="space-y-4 text-xs">
+      <div>
+        <label className="font-bold text-slate-700 block mb-1">Nomor Kamar</label>
+        <input
+          required
+          type="text"
+          placeholder="Contoh: A-05"
+          value={form.nomor}
+          onChange={(e) => onChange({ ...form, nomor: e.target.value })}
+          className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Lantai</label>
+          <input
+            type="number" min="1" max="20"
+            value={form.lantai}
+            onChange={(e) => onChange({ ...form, lantai: Number(e.target.value) })}
+            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+          />
+        </div>
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Tipe Kamar</label>
+          <select
+            value={form.tipe}
+            onChange={(e) => onChange({ ...form, tipe: e.target.value as RoomForm["tipe"] })}
+            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
+          >
+            <option value="Standard">Standard</option>
+            <option value="Deluxe">Deluxe</option>
+            <option value="VIP">VIP</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="font-bold text-slate-700 block mb-1">Harga Sewa / Bulan (Rp)</label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">Rp</span>
+          <input
+            type="number"
+            step="50000"
+            min="0"
+            value={form.harga}
+            onChange={(e) => onChange({ ...form, harga: Number(e.target.value) })}
+            className="w-full pl-9 p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-black text-sm"
+          />
+        </div>
+        <p className="text-[10px] text-slate-500 mt-1">
+          = Rp {Number(form.harga).toLocaleString("id-ID")} / bulan
+        </p>
+      </div>
+      {showStatus && (
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Status Kamar</label>
+          <select
+            value={form.status}
+            onChange={(e) => onChange({ ...form, status: e.target.value as RoomForm["status"] })}
+            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
+          >
+            <option value="Kosong">Kosong (Tersedia)</option>
+            <option value="Terisi">Terisi</option>
+            <option value="Perawatan">Perawatan</option>
+          </select>
+        </div>
+      )}
+      <div>
+        <label className="font-bold text-slate-700 block mb-1">
+          Fasilitas <span className="text-slate-400 font-normal">(pisahkan koma)</span>
+        </label>
+        <input
+          type="text"
+          placeholder="AC, WiFi, Kasur, K. Mandi Dalam"
+          value={form.fasilitas}
+          onChange={(e) => onChange({ ...form, fasilitas: e.target.value })}
+          className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+        />
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {form.fasilitas.split(",").filter((f) => f.trim()).map((f, i) => (
+            <span key={i} className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-md font-semibold">
+              {f.trim()}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DataKamarPage() {
   const { rooms, addRoom, deleteRoom, profile, loading, kostId } = useKost();
   const toast = useToast();
@@ -136,103 +237,6 @@ export default function DataKamarPage() {
       setDeleteLoading(false);
     }
   };
-
-  // ── Shared form fields ─────────────────────────────────────────────────────
-  const RoomFormFields = ({
-    form,
-    onChange,
-    showStatus = false,
-  }: {
-    form: RoomForm;
-    onChange: (f: RoomForm) => void;
-    showStatus?: boolean;
-  }) => (
-    <div className="space-y-4 text-xs">
-      <div>
-        <label className="font-bold text-slate-700 block mb-1">Nomor Kamar</label>
-        <input
-          required
-          type="text"
-          placeholder="Contoh: A-05"
-          value={form.nomor}
-          onChange={(e) => onChange({ ...form, nomor: e.target.value })}
-          className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="font-bold text-slate-700 block mb-1">Lantai</label>
-          <input
-            type="number" min="1" max="20"
-            value={form.lantai}
-            onChange={(e) => onChange({ ...form, lantai: Number(e.target.value) })}
-            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
-          />
-        </div>
-        <div>
-          <label className="font-bold text-slate-700 block mb-1">Tipe Kamar</label>
-          <select
-            value={form.tipe}
-            onChange={(e) => onChange({ ...form, tipe: e.target.value as RoomForm["tipe"] })}
-            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
-          >
-            <option value="Standard">Standard</option>
-            <option value="Deluxe">Deluxe</option>
-            <option value="VIP">VIP</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className="font-bold text-slate-700 block mb-1">Harga Sewa / Bulan (Rp)</label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">Rp</span>
-          <input
-            type="number"
-            step="50000"
-            min="0"
-            value={form.harga}
-            onChange={(e) => onChange({ ...form, harga: Number(e.target.value) })}
-            className="w-full pl-9 p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-black text-sm"
-          />
-        </div>
-        <p className="text-[10px] text-slate-500 mt-1">
-          = Rp {Number(form.harga).toLocaleString("id-ID")} / bulan
-        </p>
-      </div>
-      {showStatus && (
-        <div>
-          <label className="font-bold text-slate-700 block mb-1">Status Kamar</label>
-          <select
-            value={form.status}
-            onChange={(e) => onChange({ ...form, status: e.target.value as RoomForm["status"] })}
-            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-semibold cursor-pointer"
-          >
-            <option value="Kosong">Kosong (Tersedia)</option>
-            <option value="Terisi">Terisi</option>
-            <option value="Perawatan">Perawatan</option>
-          </select>
-        </div>
-      )}
-      <div>
-        <label className="font-bold text-slate-700 block mb-1">Fasilitas <span className="text-slate-400 font-normal">(pisahkan koma)</span></label>
-        <input
-          type="text"
-          placeholder="AC, WiFi, Kasur, K. Mandi Dalam"
-          value={form.fasilitas}
-          onChange={(e) => onChange({ ...form, fasilitas: e.target.value })}
-          className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
-        />
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          {form.fasilitas.split(",").filter((f) => f.trim()).map((f, i) => (
-            <span key={i} className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-md font-semibold">
-              {f.trim()}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
 
