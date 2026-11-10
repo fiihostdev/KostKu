@@ -1,7 +1,15 @@
 /**
  * KOSTKU WA Bot — Self-hosted dengan Baileys
- * Tidak memerlukan WA Gateway berbayar
- * Scan QR Code sekali → Bot aktif permanen
+ * 
+ * ALUR YANG BENAR:
+ * 1. Saat server start → cek apakah ada session tersimpan di AUTH_DIR
+ *    - Ada session → auto-reconnect (tidak perlu QR lagi)
+ *    - Tidak ada session → idle, tidak connect
+ * 2. Admin klik "Hubungkan WA" → panggil POST /api/start → generate QR
+ * 3. Admin scan QR → connected, session tersimpan permanen
+ * 4. Admin klik "Putuskan WA" → POST /api/reset → hapus session, kembali idle
+ * 
+ * TIDAK ADA auto-connect/generate QR tanpa permintaan dari admin.
  */
 
 process.on("uncaughtException", (err) => {
@@ -19,13 +27,11 @@ const { createClient } = require("@supabase/supabase-js");
 const path = require("path");
 const fs = require("fs");
 
-// ── Baileys Import ────────────────────────────────────────────────────────────
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeInMemoryStore,
   jidNormalizedUser,
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
@@ -62,11 +68,22 @@ try {
 
 // ── State Bot ─────────────────────────────────────────────────────────────────
 let sock = null;
-let qrCodeData = null;       // QR dalam format base64 (untuk ditampilkan di browser)
-let qrCodeString = null;     // QR string mentah
-let botStatus = "disconnected"; // disconnected | connecting | qr_ready | connected
+let qrCodeData = null;    // base64 PNG untuk ditampilkan di dashboard
+let botStatus = "idle";   // idle | connecting | qr_ready | connected | disconnected
 let connectedPhone = null;
 let reconnectTimer = null;
+let isConnecting = false; // mencegah double-connect
+
+// ── Helper: cek apakah session tersimpan ada ──────────────────────────────────
+function hasSession() {
+  try {
+    const files = fs.readdirSync(AUTH_DIR);
+    // Session valid jika ada file creds.json
+    return files.some((f) => f === "creds.json");
+  } catch {
+    return false;
+  }
+}
 
 // ── Helper: format nomor telepon ──────────────────────────────────────────────
 function toJid(phone) {
@@ -88,7 +105,6 @@ async function sendMessage(phone, text) {
   if (!sock || botStatus !== "connected") {
     return { success: false, error: `Bot tidak terhubung. Status: ${botStatus}` };
   }
-
   try {
     const jid = toJid(phone);
     await sock.sendMessage(jid, { text });
@@ -100,7 +116,7 @@ async function sendMessage(phone, text) {
   }
 }
 
-// ── Log ke Supabase notification_queue ───────────────────────────────────────
+// ── Log ke Supabase ───────────────────────────────────────────────────────────
 async function logNotification(data) {
   if (!supabase) return;
   try {
@@ -110,152 +126,133 @@ async function logNotification(data) {
   }
 }
 
-// ── Inisialisasi Baileys WA Connection ───────────────────────────────────────
+// ── Core: Inisialisasi koneksi WA ─────────────────────────────────────────────
+// Dipanggil hanya jika:
+// 1. Ada session tersimpan (auto-reconnect saat server start)
+// 2. Admin klik "Hubungkan WA" via POST /api/start
 async function connectWA() {
-  console.log("🔄 Menghubungkan ke WhatsApp...");
+  if (isConnecting) {
+    console.log("⚠️  connectWA dipanggil saat masih connecting — diabaikan");
+    return;
+  }
+  isConnecting = true;
   botStatus = "connecting";
   qrCodeData = null;
-  qrCodeString = null;
 
-  // Pastikan direktori auth ada
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
 
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version } = await fetchLatestBaileysVersion();
+    console.log(`📦 Baileys version: ${version.join(".")}`);
 
-  console.log(`📦 Baileys version: ${version.join(".")}`);
+    sock = makeWASocket({
+      version,
+      auth: state,
+      logger: pino({ level: "silent" }),
+      // printQRInTerminal TIDAK dipakai — kita handle sendiri
+      browser: ["KOSTKU Bot", "Chrome", "1.0.0"],
+      connectTimeoutMs: 90000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 20000,
+      retryRequestDelayMs: 3000,
+      maxMsgRetryCount: 3,
+    });
 
-  sock = makeWASocket({
-    version,
-    auth: state,
-    logger: pino({ level: "silent" }),
-    // printQRInTerminal DIHAPUS — deprecated, kita handle QR sendiri via /qr-image
-    browser: ["KOSTKU Bot", "Chrome", "1.0.0"],
-    connectTimeoutMs: 120000,       // lebih panjang agar tidak timeout saat scan
-    defaultQueryTimeoutMs: 60000,
-    keepAliveIntervalMs: 20000,
-    retryRequestDelayMs: 3000,
-    maxMsgRetryCount: 3,
-    qrTimeout: 60000,               // QR valid 60 detik sebelum regenerate
-  });
+    // ── QR Code muncul ──────────────────────────────────────────────────────
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, lastDisconnect, qr } = update;
 
-  // ── Event: QR Code muncul (perlu di-scan) ──────────────────────────────────
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      botStatus = "qr_ready";
-      qrCodeString = qr;
-      try {
-        qrCodeData = await qrcode.toDataURL(qr, { width: 256 });
-      } catch (e) {
-        console.error("QR gen error:", e.message);
-      }
-      console.log("📱 QR Code tersedia — buka /qr untuk scan");
-    }
-
-    if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-      console.log(`🔌 Koneksi terputus (${statusCode}). Reconnect: ${shouldReconnect}`);
-
-      botStatus = "disconnected";
-      qrCodeData = null;
-      connectedPhone = null;
-
-      if (shouldReconnect) {
-        // 408 = QR tidak di-scan (timeout) → tunggu 10 detik sebelum reconnect
-        // Error lain → tunggu 5 detik
-        const delay = statusCode === 408 ? 10000 : 5000;
-        console.log(`⏳ Reconnect dalam ${delay / 1000} detik...`);
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connectWA, delay);
-      } else {
-        // Logged out — hapus auth dan generate QR baru
-        console.log("🚪 Bot logged out — hapus auth, generate QR baru");
+      if (qr) {
+        botStatus = "qr_ready";
+        isConnecting = false;
         try {
-          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-        } catch {}
-        botStatus = "logged_out";
-        // Reconnect setelah 3 detik untuk generate QR baru
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connectWA, 3000);
+          qrCodeData = await qrcode.toDataURL(qr, { width: 280, margin: 2 });
+          console.log("📱 QR tersedia — menunggu scan dari admin dashboard");
+        } catch (e) {
+          console.error("QR gen error:", e.message);
+        }
       }
-    }
 
-    if (connection === "open") {
-      botStatus = "connected";
-      qrCodeData = null;
-      qrCodeString = null;
-      connectedPhone = jidNormalizedUser(sock.user?.id || "");
-      console.log(`✅ Bot WhatsApp terhubung! Nomor: ${connectedPhone}`);
-    }
-  });
+      if (connection === "close") {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
 
-  // ── Event: Simpan credentials ──────────────────────────────────────────────
-  sock.ev.on("creds.update", saveCreds);
+        console.log(`🔌 Koneksi terputus (${statusCode})`);
+        isConnecting = false;
+        qrCodeData = null;
+        connectedPhone = null;
 
-  // ── Event: Pesan masuk (optional — untuk fitur balas otomatis) ──────────────
-  sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return;
-
-    for (const msg of messages) {
-      if (!msg.message || msg.key.fromMe) continue;
-
-      const from = msg.key.remoteJid;
-      const body =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        "";
-
-      console.log(`📩 Pesan masuk dari ${from}: ${body.slice(0, 80)}`);
-
-      // Auto-reply sederhana
-      if (body.toLowerCase().includes("info") || body.toLowerCase().includes("tagihan")) {
-        await sock.sendMessage(from, {
-          text: "Halo! 👋 Untuk info tagihan sewa, silakan hubungi pengelola kost Anda atau kunjungi website kost di platform KOSTKU.",
-        });
+        if (isLoggedOut) {
+          // Logout sengaja (admin klik "Putuskan") — hapus session, kembali idle
+          console.log("🚪 Bot logged out — session dihapus, status: idle");
+          try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+          botStatus = "idle";
+          sock = null;
+        } else if (botStatus === "connected" || hasSession()) {
+          // Sudah pernah connected dan disconnect tidak disengaja → reconnect
+          console.log("🔄 Disconnect tidak disengaja — reconnect dalam 8 detik...");
+          botStatus = "disconnected";
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectWA, 8000);
+        } else {
+          // Belum pernah connected, QR timeout / gagal — kembali idle
+          // Admin harus klik tombol lagi untuk generate QR baru
+          console.log("⏹️  QR timeout atau gagal connect — status: idle");
+          botStatus = "idle";
+          sock = null;
+        }
       }
-    }
-  });
+
+      if (connection === "open") {
+        botStatus = "connected";
+        isConnecting = false;
+        qrCodeData = null;
+        connectedPhone = jidNormalizedUser(sock.user?.id || "");
+        console.log(`✅ Bot WhatsApp terhubung! Nomor: ${connectedPhone}`);
+      }
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+
+    // ── Auto-reply sederhana ────────────────────────────────────────────────
+    sock.ev.on("messages.upsert", async ({ messages, type }) => {
+      if (type !== "notify") return;
+      for (const msg of messages) {
+        if (!msg.message || msg.key.fromMe) continue;
+        const from = msg.key.remoteJid;
+        const body =
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text || "";
+        if (body.toLowerCase().includes("info") || body.toLowerCase().includes("tagihan")) {
+          await sock.sendMessage(from, {
+            text: "Halo! 👋 Untuk info tagihan sewa, silakan hubungi pengelola kost Anda.",
+          });
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error("connectWA error:", err.message);
+    isConnecting = false;
+    botStatus = "idle";
+    sock = null;
+  }
 }
 
 // ── ROUTES ────────────────────────────────────────────────────────────────────
 
-// ── QR Image (binary PNG) — dipanggil dari Next.js proxy ─────────────────────
-// Berbeda dengan /qr (HTML page), endpoint ini return image/png mentah
-// Digunakan agar QR bisa di-embed langsung di <img> tag di dashboard admin
-app.get("/qr-image", (req, res) => {
-  if (botStatus === "connected") {
-    // Bot sudah terhubung — return 204 (no content) agar front-end tahu
-    return res.status(204).end();
-  }
-
-  if (botStatus === "qr_ready" && qrCodeData) {
-    // qrCodeData = "data:image/png;base64,iVBORw..." — ambil bagian base64-nya
-    const base64 = qrCodeData.replace(/^data:image\/png;base64,/, "");
-    const buffer = Buffer.from(base64, "base64");
-    res.set("Content-Type", "image/png");
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    return res.send(buffer);
-  }
-
-  // QR belum siap (connecting / disconnected)
-  return res.status(204).end();
-});
-
-// Root / Health check
+// Health check
 app.get("/", (req, res) => {
   res.json({
-    service: "KOSTKU WA Bot (Baileys)",
-    version: "3.0.0",
+    service: "KOSTKU WA Bot",
+    version: "4.0.0",
     status: botStatus,
     phone: connectedPhone || null,
     qr_available: !!qrCodeData,
-    supabase: !!supabase,
+    has_session: hasSession(),
     uptime: Math.floor(process.uptime()) + "s",
     timestamp: new Date().toISOString(),
   });
@@ -263,65 +260,94 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => res.json({ status: "ok", bot: botStatus }));
 
-// ── QR Code Page (untuk scan pertama kali) ────────────────────────────────────
-app.get("/qr", (req, res) => {
+// ── QR Image (binary PNG) — dipanggil dari Next.js proxy ─────────────────────
+// Hanya tersedia saat botStatus === "qr_ready"
+app.get("/qr-image", (req, res) => {
   if (botStatus === "connected") {
-    return res.send(`
-      <html><head><title>KOSTKU WA Bot</title>
-      <meta http-equiv="refresh" content="10">
-      <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#e6e9ec}</style>
-      </head><body>
-      <h2>✅ Bot WhatsApp Terhubung!</h2>
-      <p>Nomor aktif: <strong>${connectedPhone}</strong></p>
-      <p style="color:green">Bot siap mengirim notifikasi tagihan.</p>
-      </body></html>
-    `);
+    return res.status(204).end(); // Sudah connected, tidak perlu QR
   }
-
   if (botStatus === "qr_ready" && qrCodeData) {
-    return res.send(`
-      <html><head><title>Scan QR - KOSTKU WA Bot</title>
-      <meta http-equiv="refresh" content="30">
-      <style>
-        body{font-family:sans-serif;text-align:center;padding:40px;background:#e6e9ec}
-        img{border:4px solid #3525cd;border-radius:12px;padding:8px;background:white}
-        .badge{background:#3525cd;color:white;padding:8px 16px;border-radius:20px;font-size:12px;display:inline-block;margin:8px}
-      </style>
-      </head><body>
-      <h2>📱 Scan QR Code dengan WhatsApp</h2>
-      <span class="badge">● QR Aktif</span>
-      <br><br>
-      <img src="${qrCodeData}" width="260" alt="QR Code"/>
-      <br><br>
-      <p>Buka WhatsApp → Menu ⋮ → Linked Devices → Link a Device</p>
-      <p style="color:#666;font-size:12px">Halaman refresh otomatis setiap 30 detik</p>
-      </body></html>
-    `);
+    const base64 = qrCodeData.replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64, "base64");
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "no-store");
+    return res.send(buffer);
   }
-
-  return res.send(`
-    <html><head><title>KOSTKU WA Bot</title>
-    <meta http-equiv="refresh" content="5">
-    <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#e6e9ec}</style>
-    </head><body>
-    <h2>⏳ Bot sedang menghubungkan...</h2>
-    <p>Status: <strong>${botStatus}</strong></p>
-    <p style="color:#666;font-size:12px">Halaman refresh otomatis setiap 5 detik</p>
-    </body></html>
-  `);
+  return res.status(204).end(); // QR belum siap
 });
 
-// ── Kirim Notifikasi (dipanggil dari Vercel) ──────────────────────────────────
+// ── QR HTML Page (fallback, bisa dibuka langsung di browser) ─────────────────
+app.get("/qr", (req, res) => {
+  if (botStatus === "connected") {
+    return res.send(`<html><body style="font-family:sans-serif;text-align:center;padding:40px">
+      <h2>✅ Bot Terhubung</h2><p>Nomor: <strong>${connectedPhone}</strong></p>
+    </body></html>`);
+  }
+  if (botStatus === "qr_ready" && qrCodeData) {
+    return res.send(`<html><head><meta http-equiv="refresh" content="30"><style>
+      body{font-family:sans-serif;text-align:center;padding:40px;background:#f5f5f5}
+      img{border:4px solid #3525cd;border-radius:12px;padding:8px;background:white}
+    </style></head><body>
+      <h2>📱 Scan QR dengan WhatsApp</h2>
+      <img src="${qrCodeData}" width="260"/><br><br>
+      <p>Buka WhatsApp → ⋮ → Linked Devices → Link a Device</p>
+    </body></html>`);
+  }
+  return res.send(`<html><body style="font-family:sans-serif;text-align:center;padding:40px">
+    <h2>⏳ Status: ${botStatus}</h2>
+    <p>Bot belum dalam mode QR. Gunakan dashboard admin untuk memulai koneksi.</p>
+  </body></html>`);
+});
+
+// ── POST /api/start — Admin klik "Hubungkan WA" ───────────────────────────────
+// Memulai proses koneksi dan generate QR
+app.post("/api/start", auth, (req, res) => {
+  if (botStatus === "connected") {
+    return res.json({ success: true, status: "connected", message: "Bot sudah terhubung" });
+  }
+  if (isConnecting || botStatus === "connecting" || botStatus === "qr_ready") {
+    return res.json({ success: true, status: botStatus, message: "Bot sedang dalam proses koneksi" });
+  }
+
+  console.log("▶️  Admin meminta start koneksi WA...");
+  connectWA().catch((e) => console.error("start error:", e.message));
+  res.json({ success: true, status: "connecting", message: "Proses koneksi dimulai. QR akan tersedia dalam beberapa detik." });
+});
+
+// ── POST /api/reset — Admin klik "Putuskan WA" / "Ganti Nomor" ───────────────
+// Logout + hapus session. Bot kembali idle.
+app.post("/api/reset", auth, async (req, res) => {
+  console.log("🔄 Admin meminta reset/putuskan WA...");
+
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (sock) {
+    try { await sock.logout(); } catch {}
+    sock = null;
+  }
+
+  try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+
+  botStatus = "idle";
+  connectedPhone = null;
+  qrCodeData = null;
+  isConnecting = false;
+
+  res.json({ success: true, message: "Bot diputuskan. Klik 'Hubungkan WA' untuk menyambungkan ulang." });
+});
+
+// ── POST /api/send-notification — Kirim notifikasi ke penyewa ────────────────
 app.post("/api/send-notification", auth, async (req, res) => {
   const { phone, name, message, invoiceId, kostId } = req.body || {};
-
   if (!phone || !message) {
     return res.status(400).json({ error: "phone & message wajib diisi" });
   }
 
   const result = await sendMessage(phone, message);
 
-  // Log ke Supabase
   await logNotification({
     kost_id: kostId || null,
     recipient_phone: phone,
@@ -336,27 +362,19 @@ app.post("/api/send-notification", auth, async (req, res) => {
   res.json(result);
 });
 
-// ── Broadcast ke semua penyewa 1 kost ────────────────────────────────────────
+// ── POST /api/broadcast ───────────────────────────────────────────────────────
 app.post("/api/broadcast", auth, async (req, res) => {
   const { kostId, message } = req.body || {};
-
   if (!kostId || !message) {
     return res.status(400).json({ error: "kostId & message wajib diisi" });
   }
-
-  if (!supabase) {
-    return res.status(503).json({ error: "Supabase tidak terkonfigurasi" });
-  }
-
+  if (!supabase) return res.status(503).json({ error: "Supabase tidak terkonfigurasi" });
   if (botStatus !== "connected") {
     return res.status(503).json({ error: `Bot belum terhubung. Status: ${botStatus}` });
   }
 
   const { data: tenants, error } = await supabase
-    .from("tenants")
-    .select("nama, phone")
-    .eq("kost_id", kostId);
-
+    .from("tenants").select("nama, phone").eq("kost_id", kostId);
   if (error) return res.status(500).json({ error: error.message });
 
   const results = [];
@@ -364,97 +382,55 @@ app.post("/api/broadcast", auth, async (req, res) => {
     const personalMsg = message.replace("{nama}", t.nama);
     const r = await sendMessage(t.phone, personalMsg);
     results.push({ nama: t.nama, phone: t.phone, ...r });
-    await new Promise((resolve) => setTimeout(resolve, 1200)); // delay antar pesan
+    await new Promise((resolve) => setTimeout(resolve, 1200));
   }
-
   res.json({ success: true, sent: results.length, results });
 });
 
-// ── Reset / Logout Bot (untuk ganti nomor WA) ─────────────────────────────────
-app.post("/api/reset", auth, async (req, res) => {
-  console.log("🔄 Reset bot diminta...");
-
-  if (sock) {
-    try { await sock.logout(); } catch {}
-    sock = null;
-  }
-
-  try {
-    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-  } catch {}
-
-  botStatus = "disconnected";
-  connectedPhone = null;
-  qrCodeData = null;
-
-  // Reconnect untuk generate QR baru
-  setTimeout(connectWA, 2000);
-
-  res.json({ success: true, message: "Bot di-reset. Buka /qr untuk scan ulang." });
-});
-
-// ── CRON: Reminder tagihan jatuh tempo — 08:00 WIB (01:00 UTC) ───────────────
+// ── CRON: Reminder tagihan — 08:00 WIB (01:00 UTC) ───────────────────────────
 cron.schedule("0 1 * * *", async () => {
   if (!supabase || botStatus !== "connected") {
-    console.log(`[CRON] Skip: supabase=${!!supabase}, bot=${botStatus}`);
+    console.log(`[CRON] Skip: bot=${botStatus}`);
     return;
   }
 
-  console.log("[CRON] Cek tagihan jatuh tempo...");
   const today = new Date().toISOString().split("T")[0];
-
   const { data: invoices } = await supabase
     .from("invoices")
-    .select("*, kost_profiles!inner(nama, telepon)")
+    .select("*, kost_profiles!inner(nama)")
     .eq("status", "Menunggu")
     .lte("jatuh_tempo", today);
 
   let count = 0;
   for (const inv of invoices || []) {
     const { data: tenant } = await supabase
-      .from("tenants")
-      .select("phone")
-      .eq("nama", inv.penyewa)
-      .eq("kost_id", inv.kost_id)
-      .single();
-
+      .from("tenants").select("phone").eq("nama", inv.penyewa).eq("kost_id", inv.kost_id).single();
     if (!tenant?.phone) continue;
 
-    // Ambil template dari Supabase (jika ada) atau pakai default
-    const template = inv.kost_profiles?.wa_template ||
-      `🏠 *Pengingat Tagihan Sewa*\n*{nama_kost}*\n\nHalo *{nama_penyewa}*, tagihan sewa *{kamar}* sebesar *Rp {nominal}* jatuh tempo *{tanggal}*.\n\nNo: \`{no_invoice}\`\n\nMohon segera bayar. Terima kasih! 🙏`;
-
-    const msg = template
-      .replace("{nama_kost}", inv.kost_profiles?.nama || "KOSTKU")
-      .replace("{nama_penyewa}", inv.penyewa)
-      .replace("{kamar}", inv.kamar)
-      .replace("{nominal}", Number(inv.nominal).toLocaleString("id-ID"))
-      .replace("{tanggal}", inv.jatuh_tempo)
-      .replace("{no_invoice}", inv.no_invoice);
+    const msg = `🏠 *Pengingat Tagihan Sewa*\n*${inv.kost_profiles?.nama || "KOSTKU"}*\n\nHalo *${inv.penyewa}*, tagihan sewa *${inv.kamar}* sebesar *Rp ${Number(inv.nominal).toLocaleString("id-ID")}* jatuh tempo *${inv.jatuh_tempo}*.\n\nNo: \`${inv.no_invoice}\`\n\nMohon segera bayar. Terima kasih! 🙏`;
 
     const result = await sendMessage(tenant.phone, msg);
-
     if (result.success) {
-      await supabase.from("invoices")
-        .update({ status: "Jatuh Tempo" })
-        .eq("id", inv.id);
+      await supabase.from("invoices").update({ status: "Jatuh Tempo" }).eq("id", inv.id);
       count++;
     }
-
     await new Promise((r) => setTimeout(r, 1500));
   }
-
-  console.log(`[CRON] Selesai — ${count} reminder terkirim`);
+  console.log(`[CRON] ${count} reminder terkirim`);
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-const server = app.listen(PORT, "0.0.0.0", () => {
+// ── Start Server ──────────────────────────────────────────────────────────────
+app.listen(PORT, "0.0.0.0", () => {
   console.log("================================================");
-  console.log(`  KOSTKU WA Bot (Baileys) — Port ${PORT}`);
-  console.log(`  QR Page: http://localhost:${PORT}/qr`);
-  console.log(`  Health:  http://localhost:${PORT}/health`);
+  console.log(`  KOSTKU WA Bot v4 — Port ${PORT}`);
   console.log("================================================");
 
-  // Start koneksi WA
-  connectWA().catch((e) => console.error("connectWA error:", e.message));
+  // Cek apakah ada session tersimpan
+  if (hasSession()) {
+    console.log("🔑 Session tersimpan ditemukan — auto-reconnect...");
+    connectWA().catch((e) => console.error("auto-reconnect error:", e.message));
+  } else {
+    console.log("⏹️  Tidak ada session — bot idle. Admin perlu klik 'Hubungkan WA'.");
+    botStatus = "idle";
+  }
 });

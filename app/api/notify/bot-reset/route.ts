@@ -18,7 +18,7 @@ export async function POST() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": BOT_SECRET,
+        "Authorization": `Bearer ${BOT_SECRET}`,
       },
       signal: AbortSignal.timeout(10000),
     });
