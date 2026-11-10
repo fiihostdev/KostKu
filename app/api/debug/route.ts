@@ -29,11 +29,18 @@ export async function GET() {
   const botUrl = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notification", "") || "";
   if (botUrl) {
     try {
-      const res = await fetch(`${botUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${botUrl}/health`, { signal: AbortSignal.timeout(8000) });
       const text = await res.text();
-      results.bot = { status: res.status, ok: res.ok, body: text.slice(0, 200) };
+      results.bot = { status: res.status, ok: res.ok, body: text.slice(0, 200), url: botUrl };
     } catch (e: unknown) {
-      results.bot = { ok: false, error: String(e) };
+      const err = e as NodeJS.ErrnoException;
+      results.bot = {
+        ok: false,
+        error: String(e),
+        code: err?.code || null,
+        cause: err?.cause ? String(err.cause) : null,
+        url: botUrl,
+      };
     }
   } else {
     results.bot = { ok: false, error: "BOT_URL not configured" };
