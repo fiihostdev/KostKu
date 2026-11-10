@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { useKost } from "@/lib/store";
 
@@ -27,6 +27,9 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const router    = useRouter();
   const { profile } = useKost();
 
+  // Satu instance stabil — tidak buat baru setiap render
+  const supabase = useMemo(() => createClient(), []);
+
   const [userName,     setUserName]     = useState("");
   const [userEmail,    setUserEmail]    = useState("");
   const [userInitials, setUserInitials] = useState("?");
@@ -34,13 +37,10 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
   /* ── Ambil data user dari Supabase Auth (bukan hardcoded) ── */
   useEffect(() => {
-    const supabase = createClient();
-
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      /* Nama: ambil dari metadata Google / metadata onboarding / email prefix */
       const name =
         (user.user_metadata?.full_name as string) ||
         (user.user_metadata?.name as string) ||
@@ -59,7 +59,6 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           .slice(0, 2)
       );
 
-      /* Cek role superadmin */
       const { data: kp } = await supabase
         .from("kost_profiles")
         .select("role")
@@ -70,13 +69,12 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     }
 
     loadUser();
-  }, []);
+  }, [supabase]); // supabase stabil via useMemo — hanya jalan sekali
 
   const handleLogout = async () => {
-    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
-    router.refresh();
+    // Tidak pakai router.refresh() — signOut sudah trigger auth state change
   };
 
   /* Nama kost aktif — tampil hanya jika sudah ada data nyata */

@@ -247,7 +247,9 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadData();
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      // TOKEN_REFRESHED TIDAK trigger loadData — hanya update session di background
+      // Hanya SIGNED_IN (login baru) yang perlu load ulang
+      if (event === "SIGNED_IN") {
         loadData();
       }
       if (event === "SIGNED_OUT") {
