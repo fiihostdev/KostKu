@@ -12,6 +12,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "KOSTKU - Multi-Tenant SaaS Platform",
   description: "Platform Manajemen Kost & Properti Modern Multi-Tenant",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
