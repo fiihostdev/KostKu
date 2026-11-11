@@ -25,7 +25,7 @@ export async function GET() {
     if (!res.ok) return new NextResponse(null, { status: 204 });
 
     const buffer = await res.arrayBuffer();
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
     });

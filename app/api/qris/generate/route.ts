@@ -58,18 +58,18 @@ export async function GET(request: NextRequest) {
       width:         400,
       margin:        2,
       errorCorrectionLevel: "M",
-      color: {
-        dark:  "#000000",
-        light: "#FFFFFF",
-      },
+      color: { dark: "#000000", light: "#FFFFFF" },
     });
 
-    return new NextResponse(qrBuffer, {
+    // Konversi ke Uint8Array agar kompatibel dengan NextResponse BodyInit
+    const uint8 = new Uint8Array(qrBuffer);
+
+    return new NextResponse(uint8, {
       status: 200,
       headers: {
         "Content-Type":  "image/png",
         "Cache-Control": "no-store, no-cache",
-        "X-QRIS-Amount": String(amount),
+        "X-QRIS-Amount":   String(amount),
         "X-QRIS-Merchant": config.merchant_name || "",
       },
     });
