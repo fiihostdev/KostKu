@@ -62,15 +62,15 @@ export async function POST(request: NextRequest) {
       // ── Decode QR dari gambar menggunakan jsQR ───────────────────────────
       if (!qrisString) {
         try {
-          // Dynamic import agar tidak crash di build jika jsqr belum install
-          const jsQR   = (await import("jsqr")).default;
-          const Jimp   = (await import("jimp")).Jimp;
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const jsQR = require("jsqr");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const Jimp = require("jimp");
 
-          const image  = await Jimp.read(buffer);
-          const { data: pixels, width, height } = image.bitmap;
-
-          // jsQR butuh Uint8ClampedArray dari RGBA
-          const uint8 = new Uint8ClampedArray(pixels.buffer);
+          const image = await Jimp.read(buffer);
+          const { width, height } = image.bitmap;
+          // Jimp 0.16 menyimpan pixel data di image.bitmap.data sebagai Buffer
+          const uint8 = new Uint8ClampedArray(image.bitmap.data.buffer);
           const result = jsQR(uint8, width, height, { inversionAttempts: "dontInvert" });
 
           if (result?.data) {
@@ -78,7 +78,6 @@ export async function POST(request: NextRequest) {
           }
         } catch (decodeErr) {
           console.warn("[qris/upload] Auto-decode gagal:", decodeErr);
-          // Tidak return error — user bisa input manual
         }
       }
     }
