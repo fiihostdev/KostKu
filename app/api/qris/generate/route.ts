@@ -51,9 +51,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate QR code image (PNG)
-    const QRCode = (await import("qrcode")).default;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const QRCode = require("qrcode") as typeof import("qrcode");
 
-    const qrBuffer = await QRCode.toBuffer(dynamicQris, {
+    const qrBuffer: Buffer = await QRCode.toBuffer(dynamicQris, {
       type:          "png",
       width:         400,
       margin:        2,
@@ -117,8 +118,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Gagal generate QRIS dinamis" }, { status: 500 });
     }
 
-    const QRCode = (await import("qrcode")).default;
-    const qrBase64 = await QRCode.toDataURL(dynamicQris, {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const QRCode = require("qrcode") as typeof import("qrcode");
+    const qrBase64: string = await QRCode.toDataURL(dynamicQris, {
       width:  400,
       margin: 2,
       errorCorrectionLevel: "M",
