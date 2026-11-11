@@ -79,7 +79,7 @@ async function getKostData(subdomain: string): Promise<{
 
 // Komponen booking button — harus client karena ada window.open
 import BookingButton from "./BookingButton";
-import QRISPayButton from "./QRISPayButton";
+import BookingFlow from "./BookingFlow";
 
 export default async function PublicKostPage({
   params,
@@ -325,20 +325,19 @@ export default async function PublicKostPage({
                     <div className="pt-3 border-t border-white/60">
                       {isAvailable && waPhone ? (
                         <div className="space-y-2">
-                          {/* QRIS Pay — jika sudah dikonfigurasi */}
-                          {profile.has_qris && (
-                            <QRISPayButton
-                              kostId={profile.id}
-                              amount={room.harga}
-                              kamar={room.nomor}
-                              merchantName={profile.nama}
-                            />
-                          )}
-                          {/* WhatsApp booking */}
-                          <BookingButton
+                          {/* Booking Flow — form data diri + pilih metode bayar */}
+                          <BookingFlow
+                            kostId={profile.id}
+                            kostNama={profile.nama}
+                            kamarNomor={room.nomor}
+                            kamarTipe={room.tipe}
+                            kamarLantai={room.lantai}
+                            harga={room.harga}
+                            hasQris={profile.has_qris ?? false}
                             waPhone={waPhone}
-                            message={bookingText}
                           />
+                          {/* WhatsApp fallback */}
+                          <BookingButton waPhone={waPhone} message={bookingText} />
                         </div>
                       ) : (
                         <button

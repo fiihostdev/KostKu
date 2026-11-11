@@ -11,6 +11,7 @@ const menuItems = [
   { name: "Dashboard",           href: "/admin/dashboard",  icon: "dashboard" },
   { name: "Data Kamar",          href: "/admin/kamar",      icon: "meeting_room" },
   { name: "Data Penyewa",        href: "/admin/penyewa",    icon: "group" },
+  { name: "Booking Masuk",       href: "/admin/booking",    icon: "how_to_reg" },
   { name: "Tagihan & Keuangan",  href: "/admin/tagihan",    icon: "receipt_long" },
   { name: "Laporan Keuangan",    href: "/admin/laporan",    icon: "trending_up" },
   { name: "Website Saya",        href: "/admin/website",    icon: "public" },
