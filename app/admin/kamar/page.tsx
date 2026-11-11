@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { createClient } from "@/lib/supabase-browser";
 import type { Room } from "@/lib/store";
 
 type RoomForm = {
@@ -122,7 +121,7 @@ function RoomFormFields({
 }
 
 export default function DataKamarPage() {
-  const { rooms, addRoom, deleteRoom, profile, loading, kostId } = useKost();
+  const { rooms, addRoom, updateRoom, deleteRoom, profile, loading, kostId } = useKost();
   const toast = useToast();
 
   const [filter, setFilter] = useState<string>("Semua");
@@ -192,30 +191,17 @@ export default function DataKamarPage() {
     if (!editRoom || !kostId) return;
     setEditLoading(true);
     try {
-      const supabase = createClient();      const { error } = await supabase
-        .from("rooms")
-        .update({
-          nomor:     editForm.nomor,
-          lantai:    Number(editForm.lantai),
-          tipe:      editForm.tipe,
-          harga:     Number(editForm.harga),
-          status:    editForm.status,
-          fasilitas: editForm.fasilitas.split(",").map((s: string) => s.trim()).filter(Boolean),
-        })
-        .eq("id", editRoom.id);
-
-      if (error) throw error;
+      await updateRoom(editRoom.id, {
+        nomor:     editForm.nomor,
+        lantai:    Number(editForm.lantai),
+        tipe:      editForm.tipe,
+        harga:     Number(editForm.harga),
+        status:    editForm.status,
+        fasilitas: editForm.fasilitas.split(",").map((s: string) => s.trim()).filter(Boolean),
+      });
 
       setEditRoom(null);
       toast.success("Kamar berhasil diperbarui!", `${editForm.nomor} telah disimpan.`);
-
-      // Trigger revalidate halaman publik
-      fetch("/api/revalidate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subdomain: profile.subdomain }),
-      }).catch(() => {});
-
     } catch {
       toast.error("Gagal menyimpan", "Periksa koneksi dan coba lagi.");
     } finally {

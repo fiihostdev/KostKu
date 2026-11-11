@@ -66,9 +66,12 @@ interface KostContextType {
   setProfile: (p: KostProfile) => Promise<void>;
   rooms: Room[];
   addRoom: (r: Omit<Room, "id">) => Promise<void>;
+  updateRoom: (id: string, r: Partial<Omit<Room, "id">>) => Promise<void>;
   deleteRoom: (id: string) => Promise<void>;
   tenants: Tenant[];
   addTenant: (t: Omit<Tenant, "id">) => Promise<void>;
+  updateTenant: (id: string, t: Partial<Omit<Tenant, "id">>) => Promise<void>;
+  deleteTenant: (id: string) => Promise<void>;
   invoices: Invoice[];
   addInvoice: (inv: Omit<Invoice, "id" | "noInvoice">) => Promise<void>;
   payInvoice: (id: string) => Promise<void>;
@@ -360,13 +363,30 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from("rooms").delete().eq("id", id);
     if (!error) {
       setRooms((prev) => prev.filter((r) => r.id !== id));
-      triggerRevalidate(); // Invalidate cache halaman publik
+      triggerRevalidate();
+    }
+  };
+
+  // ── updateRoom ─────────────────────────────────────────────────────────────
+  const updateRoom = async (id: string, roomData: Partial<Omit<Room, "id">>) => {
+    const updatePayload: Record<string, unknown> = {};
+    if (roomData.nomor    !== undefined) updatePayload.nomor    = roomData.nomor;
+    if (roomData.lantai   !== undefined) updatePayload.lantai   = roomData.lantai;
+    if (roomData.tipe     !== undefined) updatePayload.tipe     = roomData.tipe;
+    if (roomData.harga    !== undefined) updatePayload.harga    = roomData.harga;
+    if (roomData.status   !== undefined) updatePayload.status   = roomData.status;
+    if (roomData.penyewa  !== undefined) updatePayload.penyewa  = roomData.penyewa || null;
+    if (roomData.fasilitas !== undefined) updatePayload.fasilitas = roomData.fasilitas;
+
+    const { error } = await supabase.from("rooms").update(updatePayload).eq("id", id);
+    if (!error) {
+      setRooms((prev) => prev.map((r) => r.id === id ? { ...r, ...roomData } : r));
+      triggerRevalidate();
     }
   };
 
   // ── addTenant ──────────────────────────────────────────────────────────────
-  const addTenant = async (tenantData: Omit<Tenant, "id">) => {
-    if (!kostId) return;
+  const addTenant = async (tenantData: Omit<Tenant, "id">) => {    if (!kostId) return;
     const { data, error } = await supabase
       .from("tenants")
       .insert({
@@ -405,9 +425,45 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ── updateTenant ───────────────────────────────────────────────────────────
+  const updateTenant = async (id: string, tenantData: Partial<Omit<Tenant, "id">>) => {
+    const updatePayload: Record<string, unknown> = {};
+    if (tenantData.nama       !== undefined) updatePayload.nama        = tenantData.nama;
+    if (tenantData.phone      !== undefined) updatePayload.phone       = tenantData.phone;
+    if (tenantData.kamar      !== undefined) updatePayload.kamar       = tenantData.kamar;
+    if (tenantData.mulaiSewa  !== undefined) updatePayload.mulai_sewa  = tenantData.mulaiSewa;
+    if (tenantData.akhirSewa  !== undefined) updatePayload.akhir_sewa  = tenantData.akhirSewa;
+    if (tenantData.statusBayar !== undefined) updatePayload.status_bayar = tenantData.statusBayar;
+    if (tenantData.ktpVerified !== undefined) updatePayload.ktp_verified = tenantData.ktpVerified;
+
+    const { error } = await supabase.from("tenants").update(updatePayload).eq("id", id);
+    if (!error) {
+      setTenants((prev) => prev.map((t) => t.id === id ? { ...t, ...tenantData } : t));
+    }
+  };
+
+  // ── deleteTenant ───────────────────────────────────────────────────────────
+  const deleteTenant = async (id: string) => {
+    const tenant = tenants.find((t) => t.id === id);
+    const { error } = await supabase.from("tenants").delete().eq("id", id);
+    if (!error) {
+      setTenants((prev) => prev.filter((t) => t.id !== id));
+
+      // Bebaskan kamar jika penyewa dihapus
+      if (tenant?.kamar) {
+        const roomNomor = tenant.kamar.replace(/^kamar\s*/i, "").trim();
+        const room = rooms.find((r) => r.nomor.toLowerCase() === roomNomor.toLowerCase());
+        if (room && room.status === "Terisi") {
+          await supabase.from("rooms").update({ status: "Kosong", penyewa: null }).eq("id", room.id);
+          setRooms((prev) => prev.map((r) => r.id === room.id ? { ...r, status: "Kosong", penyewa: undefined } : r));
+          triggerRevalidate();
+        }
+      }
+    }
+  };
+
   // ── addInvoice ─────────────────────────────────────────────────────────────
-  const addInvoice = async (invData: Omit<Invoice, "id" | "noInvoice">) => {
-    if (!kostId) return;
+  const addInvoice = async (invData: Omit<Invoice, "id" | "noInvoice">) => {    if (!kostId) return;
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -496,9 +552,12 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         setProfile,
         rooms,
         addRoom,
+        updateRoom,
         deleteRoom,
         tenants,
         addTenant,
+        updateTenant,
+        deleteTenant,
         invoices,
         addInvoice,
         payInvoice,
