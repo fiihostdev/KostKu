@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { createHmac, createHash } from "crypto";
+import { createHmac, createHash, timingSafeEqual } from "crypto";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = ReturnType<typeof createServiceClient<any>>;
 
 /**
  * POST /api/payment/webhook
- * Menerima notifikasi pembayaran dari Midtrans, Tripay, dan Xendit
  *
- * Query params:
- *   ?provider=midtrans|tripay|xendit
+ * SECURITY:
+ * - Signature WAJIB — tidak ada header signature → 401 langsung
+ * - timingSafeEqual untuk perbandingan signature (mencegah timing attack)
+ * - Idempotency: invoice sudah Lunas → skip tanpa error
+ * - Nominal di-verify server-side vs invoice (tidak percaya body)
  */
 export async function POST(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get("provider") || "midtrans";
@@ -23,46 +25,47 @@ export async function POST(request: NextRequest) {
 
     const rawBody = await request.text();
     let body: Record<string, unknown>;
-
     try {
       body = JSON.parse(rawBody);
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    if (provider === "midtrans") {
-      return await handleMidtrans(body, supabase);
-    }
-    if (provider === "tripay") {
-      const signature = request.headers.get("X-Callback-Signature") || "";
-      return await handleTripay(body, signature, supabase);
-    }
-    if (provider === "xendit") {
-      const token = request.headers.get("x-callback-token") || "";
-      return await handleXendit(body, token, supabase);
-    }
+    if (provider === "midtrans") return await handleMidtrans(body, rawBody, request, supabase);
+    if (provider === "tripay")  return await handleTripay(body, rawBody, request, supabase);
+    if (provider === "xendit")  return await handleXendit(body, request, supabase);
 
     return NextResponse.json({ error: "Provider tidak dikenal" }, { status: 400 });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[webhook]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Midtrans juga mengirim GET untuk verifikasi endpoint
 export async function GET() {
   return NextResponse.json({ status: "ok", service: "KOSTKU Payment Webhook" });
 }
 
-// ── Helper: update invoice ke Lunas ──────────────────────────────────────────
+// ── Helper: safe string comparison (timing-safe) ──────────────────────────────
+function safeCompare(a: string, b: string): boolean {
+  try {
+    const aBuf = Buffer.from(a, "hex");
+    const bBuf = Buffer.from(b, "hex");
+    if (aBuf.length !== bBuf.length) return false;
+    return timingSafeEqual(aBuf, bBuf);
+  } catch {
+    return false;
+  }
+}
+
+// ── Helper: update invoice ke Lunas ───────────────────────────────────────────
 async function markInvoicePaid(
   supabase: AnySupabase,
   paymentRef: string,
   extraData?: Record<string, unknown>
 ) {
-  // Cari invoice berdasarkan payment_ref atau order_id
   const { data: invoice, error } = await supabase
     .from("invoices")
     .select("id, kost_id, nominal, kamar, penyewa, no_invoice, status")
@@ -70,25 +73,20 @@ async function markInvoicePaid(
     .single();
 
   if (error || !invoice) {
-    console.error("[webhook] Invoice tidak ditemukan untuk ref:", paymentRef);
+    console.error("[webhook] Invoice tidak ditemukan:", paymentRef);
+    // Kembalikan 200 agar provider tidak retry terus
     return null;
   }
 
+  // Idempotency — sudah Lunas, tidak perlu proses ulang
   if (invoice.status === "Lunas") {
-    console.log("[webhook] Invoice sudah Lunas, skip:", paymentRef);
     return invoice;
   }
 
   const paidAt = new Date().toISOString();
-
-  // Update invoice
   await supabase
     .from("invoices")
-    .update({
-      status:  "Lunas",
-      paid_at: paidAt,
-      ...extraData,
-    })
+    .update({ status: "Lunas", paid_at: paidAt, ...extraData })
     .eq("id", invoice.id);
 
   // Tambah entri arus kas
@@ -99,11 +97,8 @@ async function markInvoicePaid(
     .order("created_at", { ascending: false })
     .limit(1);
 
-  const lastSaldo = (cashFlows?.[0]?.saldo as number) || 0;
-
-  const tgl = new Date().toLocaleDateString("id-ID", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  const lastSaldo = Number((cashFlows?.[0]?.saldo as number) || 0);
+  const tgl = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
   await supabase.from("cash_flows").insert({
     kost_id: invoice.kost_id,
@@ -115,157 +110,168 @@ async function markInvoicePaid(
     saldo:   lastSaldo + Number(invoice.nominal),
   });
 
-  console.log(`[webhook] ✅ Invoice ${invoice.no_invoice} LUNAS — Rp ${invoice.nominal}`);
+  console.log(`[webhook] ✅ Invoice ${invoice.no_invoice} LUNAS`);
   return invoice;
 }
 
-// ── Midtrans Webhook ──────────────────────────────────────────────────────────
+// ── Midtrans ──────────────────────────────────────────────────────────────────
 async function handleMidtrans(
   body: Record<string, unknown>,
+  _rawBody: string,
+  _request: NextRequest,
   supabase: AnySupabase
 ) {
-  const orderId        = body.order_id as string;
-  const transactionStatus = body.transaction_status as string;
-  const fraudStatus    = body.fraud_status as string;
-  const statusCode     = body.status_code as string;
-  const grossAmount    = body.gross_amount as string;
+  const orderId           = (body.order_id as string) || "";
+  const transactionStatus = (body.transaction_status as string) || "";
+  const fraudStatus       = (body.fraud_status as string) || "";
+  const statusCode        = (body.status_code as string) || "";
+  const grossAmount       = (body.gross_amount as string) || "";
+  const receivedSig       = (body.signature_key as string) || "";
 
-  // Verifikasi signature: SHA512(orderId + statusCode + grossAmount + serverKey)
-  // Ambil server key dari database berdasarkan orderId prefix
-  // Format orderId: KOSTKU-{invoiceId}-{timestamp}
-  const parts = orderId.split("-");
-  const invoiceId = parts[1];
-
-  if (invoiceId) {
-    const { data: inv } = await supabase
-      .from("invoices")
-      .select("kost_id")
-      .eq("id", invoiceId)
-      .single();
-
-    if (inv) {
-      const { data: config } = await supabase
-        .from("payment_configs")
-        .select("config")
-        .eq("kost_id", inv.kost_id)
-        .eq("provider", "midtrans")
-        .single();
-
-      if (config) {
-        const serverKey = (config.config as Record<string, string>).server_key;
-        if (serverKey) {
-          const expectedSig = createHash("sha512")
-            .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
-            .digest("hex");
-
-          const receivedSig = body.signature_key as string;
-          if (receivedSig && receivedSig !== expectedSig) {
-            console.error("[midtrans webhook] Invalid signature");
-            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-          }
-        }
-      }
-    }
+  // Signature WAJIB
+  if (!receivedSig) {
+    console.error("[midtrans webhook] Missing signature_key");
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+  }
+  if (!orderId || !statusCode || !grossAmount) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const isPaid =
-    (transactionStatus === "capture" && fraudStatus === "accept") ||
-    transactionStatus === "settlement";
+  // Ambil server key dari DB berdasarkan orderId (format: KOSTKU-{invoiceId}-{timestamp})
+  const parts     = orderId.split("-");
+  const invoiceId = parts[1];
+
+  if (!invoiceId) {
+    return NextResponse.json({ error: "Invalid order_id format" }, { status: 400 });
+  }
+
+  const { data: inv } = await supabase
+    .from("invoices").select("kost_id, nominal").eq("id", invoiceId).single();
+  if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+
+  const { data: config } = await supabase
+    .from("payment_configs").select("config")
+    .eq("kost_id", inv.kost_id).eq("provider", "midtrans").single();
+
+  const serverKey = (config?.config as Record<string, string>)?.server_key;
+  if (!serverKey) {
+    return NextResponse.json({ error: "Payment config missing" }, { status: 500 });
+  }
+
+  // Verify signature (timing-safe)
+  const expectedSig = createHash("sha512")
+    .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
+    .digest("hex");
+
+  if (!safeCompare(receivedSig.toLowerCase(), expectedSig.toLowerCase())) {
+    console.error("[midtrans webhook] Invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  // Verify gross_amount vs invoice nominal (tidak percaya body)
+  const bodyAmount = parseFloat(grossAmount);
+  if (Math.abs(bodyAmount - Number(inv.nominal)) > 1) {
+    console.error(`[midtrans webhook] Amount mismatch: body=${bodyAmount} invoice=${inv.nominal}`);
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+  }
+
+  const isPaid = (transactionStatus === "capture" && fraudStatus === "accept") ||
+                 transactionStatus === "settlement";
 
   if (isPaid) {
     await markInvoicePaid(supabase, orderId);
   } else if (["cancel", "deny", "expire"].includes(transactionStatus)) {
-    await supabase
-      .from("invoices")
-      .update({ status: "Jatuh Tempo" })
-      .eq("payment_ref", orderId);
-    console.log(`[midtrans webhook] Invoice ${orderId} — status: ${transactionStatus}`);
+    await supabase.from("invoices").update({ status: "Jatuh Tempo" }).eq("payment_ref", orderId);
   }
 
   return NextResponse.json({ status: "ok" });
 }
 
-// ── Tripay Webhook ────────────────────────────────────────────────────────────
+// ── Tripay ────────────────────────────────────────────────────────────────────
 async function handleTripay(
   body: Record<string, unknown>,
-  receivedSignature: string,
+  rawBody: string,
+  request: NextRequest,
   supabase: AnySupabase
 ) {
-  const reference  = body.reference as string;
-  const merchantRef = body.merchant_ref as string;
-  const status     = body.status as string;
+  const receivedSig = request.headers.get("X-Callback-Signature") || "";
+  const merchantRef = (body.merchant_ref as string) || "";
+  const reference   = (body.reference as string) || "";
+  const status      = (body.status as string) || "";
 
-  // Ambil private key dari config untuk verifikasi signature
-  // merchant_ref = orderId = KOSTKU-{invoiceId}-{timestamp}
-  const parts = merchantRef?.split("-");
-  const invoiceId = parts?.[1];
+  // Signature WAJIB
+  if (!receivedSig) {
+    console.error("[tripay webhook] Missing X-Callback-Signature");
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+  }
 
-  if (invoiceId && receivedSignature) {
-    const { data: inv } = await supabase
-      .from("invoices")
-      .select("kost_id")
-      .eq("id", invoiceId)
-      .single();
+  const parts     = merchantRef.split("-");
+  const invoiceId = parts[1];
+  if (!invoiceId) return NextResponse.json({ error: "Invalid merchant_ref" }, { status: 400 });
 
-    if (inv) {
-      const { data: config } = await supabase
-        .from("payment_configs")
-        .select("config")
-        .eq("kost_id", inv.kost_id)
-        .eq("provider", "tripay")
-        .single();
+  const { data: inv } = await supabase
+    .from("invoices").select("kost_id").eq("id", invoiceId).single();
+  if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
-      if (config) {
-        const privateKey = (config.config as Record<string, string>).private_key;
-        if (privateKey) {
-          const expectedSig = createHmac("sha256", privateKey)
-            .update(JSON.stringify(body))
-            .digest("hex");
-          if (receivedSignature !== expectedSig) {
-            console.error("[tripay webhook] Invalid signature");
-            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-          }
-        }
-      }
-    }
+  const { data: config } = await supabase
+    .from("payment_configs").select("config")
+    .eq("kost_id", inv.kost_id).eq("provider", "tripay").single();
+
+  const privateKey = (config?.config as Record<string, string>)?.private_key;
+  if (!privateKey) return NextResponse.json({ error: "Config missing" }, { status: 500 });
+
+  const expectedSig = createHmac("sha256", privateKey)
+    .update(rawBody)
+    .digest("hex");
+
+  if (!safeCompare(receivedSig, expectedSig)) {
+    console.error("[tripay webhook] Invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   if (status === "PAID") {
     await markInvoicePaid(supabase, merchantRef, { payment_ref: reference });
   } else if (["EXPIRED", "FAILED"].includes(status)) {
-    await supabase
-      .from("invoices")
-      .update({ status: "Jatuh Tempo" })
-      .eq("payment_ref", merchantRef);
+    await supabase.from("invoices").update({ status: "Jatuh Tempo" }).eq("payment_ref", merchantRef);
   }
 
   return NextResponse.json({ success: true });
 }
 
-// ── Xendit Webhook ────────────────────────────────────────────────────────────
+// ── Xendit ────────────────────────────────────────────────────────────────────
 async function handleXendit(
   body: Record<string, unknown>,
-  callbackToken: string,
+  request: NextRequest,
   supabase: AnySupabase
 ) {
-  const externalId = body.external_id as string;
-  const status     = body.status as string;
+  const callbackToken = request.headers.get("x-callback-token") || "";
+  const externalId    = (body.external_id as string) || "";
+  const status        = (body.status as string) || "";
 
-  // Verifikasi callback token
-  if (callbackToken) {
-    const xenditCallbackToken = process.env.XENDIT_WEBHOOK_TOKEN;
-    if (xenditCallbackToken && callbackToken !== xenditCallbackToken) {
-      return NextResponse.json({ error: "Invalid callback token" }, { status: 401 });
-    }
+  // Token WAJIB
+  if (!callbackToken) {
+    console.error("[xendit webhook] Missing x-callback-token");
+    return NextResponse.json({ error: "Missing callback token" }, { status: 401 });
+  }
+
+  const xenditToken = process.env.XENDIT_WEBHOOK_TOKEN;
+  if (!xenditToken) {
+    console.error("[xendit webhook] XENDIT_WEBHOOK_TOKEN not configured");
+    return NextResponse.json({ error: "Server config error" }, { status: 500 });
+  }
+
+  if (!safeCompare(
+    Buffer.from(callbackToken).toString("hex"),
+    Buffer.from(xenditToken).toString("hex")
+  )) {
+    console.error("[xendit webhook] Invalid token");
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
   if (status === "PAID" || status === "SETTLED") {
     await markInvoicePaid(supabase, externalId);
   } else if (status === "EXPIRED") {
-    await supabase
-      .from("invoices")
-      .update({ status: "Jatuh Tempo" })
-      .eq("payment_ref", externalId);
+    await supabase.from("invoices").update({ status: "Jatuh Tempo" }).eq("payment_ref", externalId);
   }
 
   return NextResponse.json({ success: true });

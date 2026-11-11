@@ -53,49 +53,84 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Payment gateway ${provider} belum dikonfigurasi atau tidak aktif untuk kost ini` }, { status: 400 });
     }
 
-    // Ambil/buat invoice
+    // ── Ambil/buat invoice ─────────────────────────────────────────────────────
     let invoice: Record<string, unknown>;
     if (invoiceId) {
       const { data, error } = await supabase.from("invoices").select("*").eq("id", invoiceId).single();
       if (error || !data) return NextResponse.json({ error: "Invoice tidak ditemukan" }, { status: 404 });
+
+      // SECURITY: verifikasi invoice milik kost yang di-claim
+      if ((data as Record<string, unknown>).kost_id !== kostId) {
+        return NextResponse.json({ error: "Invoice tidak valid untuk kost ini" }, { status: 403 });
+      }
+
+      // SECURITY: gunakan nominal dari DB, abaikan nominal dari client
       invoice = data;
+      // Override nominal dengan nilai dari DB
+      (invoice as Record<string, unknown>).__verified_nominal = Number((data as Record<string, unknown>).nominal);
     } else {
-      // Buat invoice baru otomatis
+      // Buat invoice baru — tapi ambil harga dari rooms DB, BUKAN dari client
+      if (!kamar) {
+        return NextResponse.json({ error: "kamar wajib diisi untuk buat invoice baru" }, { status: 400 });
+      }
+
+      // Ambil harga resmi dari DB
+      const { data: roomData } = await supabase
+        .from("rooms")
+        .select("harga, status")
+        .eq("kost_id", kostId)
+        .eq("nomor", kamar)
+        .single();
+
+      if (!roomData) return NextResponse.json({ error: "Kamar tidak ditemukan" }, { status: 404 });
+      if (roomData.status !== "Kosong") {
+        return NextResponse.json({ error: "Kamar tidak tersedia" }, { status: 409 });
+      }
+
+      // Nominal dari DB, BUKAN dari client
+      const verifiedNominal = Number(roomData.harga);
+
       const year  = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, "0");
       const { count } = await supabase.from("invoices").select("*", { count: "exact", head: true }).eq("kost_id", kostId);
       const seq = String((count || 0) + 1).padStart(3, "0");
       const noInvoice = `INV/${year}/${month}/${seq}`;
-
       const jatuhTempo = new Date();
-      jatuhTempo.setDate(jatuhTempo.getDate() + 3); // 3 hari dari sekarang
+      jatuhTempo.setDate(jatuhTempo.getDate() + 3);
 
       const { data, error } = await supabase.from("invoices").insert({
         kost_id:    kostId,
         no_invoice: noInvoice,
         penyewa:    customerName,
-        kamar:      kamar,
-        nominal:    nominal,
+        kamar,
+        nominal:    verifiedNominal,  // ← dari DB
         jatuh_tempo: jatuhTempo.toISOString().split("T")[0],
         metode:     provider,
         status:     "Menunggu",
         payment_provider: provider,
       }).select().single();
+
       if (error || !data) return NextResponse.json({ error: `Gagal buat invoice: ${error?.message}` }, { status: 500 });
       invoice = data;
+      (invoice as Record<string, unknown>).__verified_nominal = verifiedNominal;
     }
 
+    // Gunakan nominal yang sudah diverifikasi dari DB
+    const verifiedNominal = Number(
+      (invoice as Record<string, unknown>).__verified_nominal ??
+      (invoice as Record<string, unknown>).nominal
+    );
     const orderId = `KOSTKU-${invoice.id}-${Date.now()}`;
 
     // ── Proses per provider ──────────────────────────────────────────────────
     if (provider === "midtrans") {
-      return await createMidtransTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal, kamar, description, supabase });
+      return await createMidtransTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal: verifiedNominal, kamar, description, supabase });
     }
     if (provider === "tripay") {
-      return await createTripayTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal, kamar, description, supabase });
+      return await createTripayTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal: verifiedNominal, kamar, description, supabase });
     }
     if (provider === "xendit") {
-      return await createXenditTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal, kamar, description, supabase });
+      return await createXenditTransaction({ config, invoice, orderId, customerName, customerEmail, customerPhone, nominal: verifiedNominal, kamar, description, supabase });
     }
 
     return NextResponse.json({ error: "Provider tidak dikenal" }, { status: 400 });

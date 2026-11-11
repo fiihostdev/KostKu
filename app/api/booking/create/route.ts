@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/booking/create
- * Endpoint publik — tidak butuh auth (dipanggil dari halaman kost publik)
- *
- * Body: { kostId, kamar, nama, phone, email, noKtp, nominal, nominalAsli, refCode, metode }
- *
- * LOGIKA NOMINAL UNIK:
- * - nominal = harga + 3 digit acak (100-999)
- * - Misal: harga Rp 1.500.000 → nominal Rp 1.500.347
- * - Admin verifikasi dengan melihat nominal di mutasi rekening/QRIS
- * - 3 digit terakhir = identitas unik per booking
+ * Rate limited: 5 booking per IP per 10 menit
  */
 export async function POST(request: NextRequest) {
+  // Rate limiting: 5 booking per IP per 10 menit
+  const ip     = getClientIp(request);
+  const result = checkRateLimit(`booking:${ip}`, { windowMs: 10 * 60 * 1000, max: 5 });
+  if (!result.allowed) {
+    return NextResponse.json(
+      { error: "Terlalu banyak percobaan. Coba lagi nanti." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)) } }
+    );
+  }
   try {
     const body = await request.json();
     const { kostId, kamar, nama, phone, email, noKtp, nominal, nominalAsli, refCode, metode } = body;

@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { injectAmountToQRIS, isValidQRIS } from "@/lib/qris";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * GET /api/qris/generate?kostId=xxx&amount=1500000
- *
- * Endpoint publik (tidak butuh auth) — dipanggil dari halaman publik kost
- * saat penyewa ingin bayar online via QRIS.
- *
- * Returns: image/png — QR code dinamis dengan nominal sudah ter-inject
+ * Rate limited: 30 req/menit per IP
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: 30 QR per IP per menit
+  const ip    = getClientIp(request);
+  const limit = checkRateLimit(`qris-gen:${ip}`, { windowMs: 60 * 1000, max: 30 });
+  if (!limit.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded. Coba lagi nanti." }, { status: 429 });
+  }
+
   try {
     const { searchParams } = request.nextUrl;
     const kostId = searchParams.get("kostId");
