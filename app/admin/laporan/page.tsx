@@ -302,7 +302,6 @@ export default function LaporanKeuanganPage() {
           </div>
         </div>
       </div>
-    </div>
 
       {/* ── Modal Catat Transaksi ── */}
       {showAddCF && (
@@ -367,5 +366,6 @@ export default function LaporanKeuanganPage() {
           </div>
         </div>
       )}
+    </div>
   );
 }
