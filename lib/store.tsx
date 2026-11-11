@@ -20,10 +20,14 @@ export interface Tenant {
   id: string;
   nama: string;
   phone: string;
+  email?: string;
+  noKtp?: string;
+  pekerjaan?: string;
+  alamatAsal?: string;
   kamar: string;
   mulaiSewa: string;
   akhirSewa: string;
-  statusBayar: "Lunas" | "Jatuh Tempo" | "Tertunggak";
+  statusBayar: "Belum Bayar" | "Lunas" | "Jatuh Tempo" | "Tertunggak";
   ktpVerified: boolean;
 }
 
@@ -123,13 +127,17 @@ function mapRoom(r: Record<string, unknown>): Room {
 
 function mapTenant(t: Record<string, unknown>): Tenant {
   return {
-    id: t.id as string,
-    nama: t.nama as string,
-    phone: t.phone as string,
-    kamar: t.kamar as string,
-    mulaiSewa: t.mulai_sewa as string,
-    akhirSewa: t.akhir_sewa as string,
-    statusBayar: t.status_bayar as Tenant["statusBayar"],
+    id:          t.id as string,
+    nama:        t.nama as string,
+    phone:       t.phone as string,
+    email:       (t.email as string) || undefined,
+    noKtp:       (t.no_ktp as string) || undefined,
+    pekerjaan:   (t.pekerjaan as string) || undefined,
+    alamatAsal:  (t.alamat_asal as string) || undefined,
+    kamar:       t.kamar as string,
+    mulaiSewa:   t.mulai_sewa as string,
+    akhirSewa:   t.akhir_sewa as string,
+    statusBayar: (t.status_bayar as Tenant["statusBayar"]) || "Belum Bayar",
     ktpVerified: Boolean(t.ktp_verified),
   };
 }
@@ -390,12 +398,16 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase
       .from("tenants")
       .insert({
-        kost_id: kostId,
-        nama: tenantData.nama,
-        phone: tenantData.phone,
-        kamar: tenantData.kamar,
-        mulai_sewa: tenantData.mulaiSewa,
-        akhir_sewa: tenantData.akhirSewa,
+        kost_id:      kostId,
+        nama:         tenantData.nama,
+        phone:        tenantData.phone,
+        email:        tenantData.email        || null,
+        no_ktp:       tenantData.noKtp        || null,
+        pekerjaan:    tenantData.pekerjaan    || null,
+        alamat_asal:  tenantData.alamatAsal   || null,
+        kamar:        tenantData.kamar,
+        mulai_sewa:   tenantData.mulaiSewa,
+        akhir_sewa:   tenantData.akhirSewa,
         status_bayar: tenantData.statusBayar,
         ktp_verified: tenantData.ktpVerified,
       })
@@ -428,11 +440,15 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   // ── updateTenant ───────────────────────────────────────────────────────────
   const updateTenant = async (id: string, tenantData: Partial<Omit<Tenant, "id">>) => {
     const updatePayload: Record<string, unknown> = {};
-    if (tenantData.nama       !== undefined) updatePayload.nama        = tenantData.nama;
-    if (tenantData.phone      !== undefined) updatePayload.phone       = tenantData.phone;
-    if (tenantData.kamar      !== undefined) updatePayload.kamar       = tenantData.kamar;
-    if (tenantData.mulaiSewa  !== undefined) updatePayload.mulai_sewa  = tenantData.mulaiSewa;
-    if (tenantData.akhirSewa  !== undefined) updatePayload.akhir_sewa  = tenantData.akhirSewa;
+    if (tenantData.nama        !== undefined) updatePayload.nama         = tenantData.nama;
+    if (tenantData.phone       !== undefined) updatePayload.phone        = tenantData.phone;
+    if (tenantData.email       !== undefined) updatePayload.email        = tenantData.email || null;
+    if (tenantData.noKtp       !== undefined) updatePayload.no_ktp       = tenantData.noKtp || null;
+    if (tenantData.pekerjaan   !== undefined) updatePayload.pekerjaan    = tenantData.pekerjaan || null;
+    if (tenantData.alamatAsal  !== undefined) updatePayload.alamat_asal  = tenantData.alamatAsal || null;
+    if (tenantData.kamar       !== undefined) updatePayload.kamar        = tenantData.kamar;
+    if (tenantData.mulaiSewa   !== undefined) updatePayload.mulai_sewa   = tenantData.mulaiSewa;
+    if (tenantData.akhirSewa   !== undefined) updatePayload.akhir_sewa   = tenantData.akhirSewa;
     if (tenantData.statusBayar !== undefined) updatePayload.status_bayar = tenantData.statusBayar;
     if (tenantData.ktpVerified !== undefined) updatePayload.ktp_verified = tenantData.ktpVerified;
 
