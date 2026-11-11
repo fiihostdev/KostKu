@@ -78,8 +78,11 @@ interface KostContextType {
   deleteTenant: (id: string) => Promise<void>;
   invoices: Invoice[];
   addInvoice: (inv: Omit<Invoice, "id" | "noInvoice">) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
   payInvoice: (id: string) => Promise<void>;
   cashFlows: CashFlow[];
+  addCashFlow: (cf: Omit<CashFlow, "id" | "saldo">) => Promise<void>;
+  deleteCashFlow: (id: string) => Promise<void>;
   loading: boolean;
   stats: {
     totalKamar: number;
@@ -506,9 +509,51 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ── addCashFlow manual (catat pengeluaran/pemasukan manual) ──────────────
+  const addCashFlow = async (cfData: Omit<CashFlow, "id" | "saldo">) => {
+    if (!kostId) return;
+    const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 0;
+    const newSaldo = cfData.tipe === "Masuk"
+      ? currentSaldo + cfData.nominal
+      : currentSaldo - cfData.nominal;
+
+    const { data, error } = await supabase
+      .from("cash_flows")
+      .insert({
+        kost_id: kostId,
+        tgl:     cfData.tgl,
+        ket:     cfData.ket,
+        kat:     cfData.kat,
+        tipe:    cfData.tipe,
+        nominal: cfData.nominal,
+        saldo:   newSaldo,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setCashFlows((prev) => [mapCashFlow(data as Record<string, unknown>), ...prev]);
+    }
+  };
+
+  // ── deleteCashFlow ──────────────────────────────────────────────────────────
+  const deleteCashFlow = async (id: string) => {
+    const { error } = await supabase.from("cash_flows").delete().eq("id", id);
+    if (!error) {
+      setCashFlows((prev) => prev.filter((c) => c.id !== id));
+    }
+  };
+
+  // ── deleteInvoice ──────────────────────────────────────────────────────────
+  const deleteInvoice = async (id: string) => {
+    const { error } = await supabase.from("invoices").delete().eq("id", id);
+    if (!error) {
+      setInvoices((prev) => prev.filter((i) => i.id !== id));
+    }
+  };
+
   // ── payInvoice ─────────────────────────────────────────────────────────────
-  const payInvoice = async (id: string) => {
-    const inv = invoices.find((i) => i.id === id);
+  const payInvoice = async (id: string) => {    const inv = invoices.find((i) => i.id === id);
     if (!inv || !kostId) return;
 
     // Update invoice → Lunas
@@ -576,8 +621,11 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         deleteTenant,
         invoices,
         addInvoice,
+        deleteInvoice,
         payInvoice,
         cashFlows,
+        addCashFlow,
+        deleteCashFlow,
         loading,
         stats: {
           totalKamar,

@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useKost } from "@/lib/store";
+import type { Invoice } from "@/lib/store";
 import PaymentModal from "@/components/payment/PaymentModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/Toast";
 
 export default function TagihanPage() {
-  const { invoices, addInvoice, payInvoice, tenants, rooms } = useKost();
+  const { invoices, addInvoice, deleteInvoice, payInvoice, tenants, rooms } = useKost();
   const toast = useToast();
   const [filter, setFilter] = useState("Semua");
   const [showModal,        setShowModal]        = useState(false);
@@ -19,6 +20,10 @@ export default function TagihanPage() {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
   const [broadcastLoading, setBroadcastLoading] = useState(false);
+
+  // Delete invoice
+  const [deleteTarget,  setDeleteTarget]  = useState<Invoice | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   
   const [newInv, setNewInv] = useState({
     penyewa: "",
@@ -65,6 +70,27 @@ export default function TagihanPage() {
     setShowPayment(false);
     setSelectedInvoice(null);
     toast.success("Pembayaran berhasil!", "Invoice telah ditandai Lunas.");
+  };
+
+  // Tandai lunas manual (tanpa gateway — tunai/transfer)
+  const handleLunasManual = (inv: Invoice) => {
+    payInvoice(inv.id);
+    toast.success("Invoice ditandai Lunas!", `${inv.noInvoice} · ${inv.penyewa} telah dilunaskan.`);
+  };
+
+  // Hapus invoice
+  const handleDeleteInvoice = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteInvoice(deleteTarget.id);
+      toast.success("Invoice dihapus", `${deleteTarget.noInvoice} berhasil dihapus.`);
+      setDeleteTarget(null);
+    } catch {
+      toast.error("Gagal menghapus", "Coba lagi.");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleBroadcastWA = async () => {
@@ -131,6 +157,18 @@ export default function TagihanPage() {
           nominal={selectedAmount}
         />
       )}
+
+      {/* Konfirmasi Hapus Invoice */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title={`Hapus Invoice ${deleteTarget?.noInvoice || ""}?`}
+        message="Invoice akan dihapus permanen. Pastikan tidak ada bukti pembayaran yang masih dibutuhkan."
+        confirmLabel={deleteLoading ? "Menghapus..." : "Ya, Hapus"}
+        cancelLabel="Batal"
+        variant="danger"
+        onConfirm={handleDeleteInvoice}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Broadcast Confirm Modal — TANPA window.confirm() native */}
       <ConfirmModal
@@ -260,20 +298,33 @@ export default function TagihanPage() {
                   </td>
                   <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
                     {inv.status !== "Lunas" ? (
-                      <button
-                        onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
-                        className="px-2.5 py-1 rounded-lg skeu-button text-[10px] font-bold inline-flex items-center gap-1"
-                        title="Pilih metode pembayaran"
-                      >
-                        <span className="material-symbols-outlined text-[13px]">payments</span>
-                        Bayar
-                      </button>
+                      <>
+                        {/* Bayar via gateway */}
+                        <button
+                          onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
+                          className="px-2.5 py-1 rounded-lg skeu-button text-[10px] font-bold inline-flex items-center gap-1"
+                          title="Bayar via QRIS/Midtrans"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">payments</span>
+                          Bayar
+                        </button>
+                        {/* Tandai Lunas Manual (tunai/transfer) */}
+                        <button
+                          onClick={() => handleLunasManual(inv)}
+                          className="px-2.5 py-1 rounded-lg skeu-button-secondary text-[10px] font-bold inline-flex items-center gap-1 text-emerald-700"
+                          title="Tandai Lunas Manual (tunai/transfer)"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                          Lunas
+                        </button>
+                      </>
                     ) : (
                       <span className="text-[10px] font-bold text-emerald-600 inline-flex items-center gap-0.5">
                         <span className="material-symbols-outlined text-[13px]">done_all</span>
                         Terbayar
                       </span>
                     )}
+                    {/* Kirim WA */}
                     <button
                       onClick={async () => {
                         const tenant = tenants.find((t) => t.nama === inv.penyewa);
@@ -283,35 +334,28 @@ export default function TagihanPage() {
                           `Halo ${inv.penyewa}, ini rincian tagihan sewa ${inv.kamar} ` +
                           `(${inv.noInvoice}) sebesar Rp ${inv.nominal.toLocaleString("id-ID")} ` +
                           `dengan jatuh tempo ${inv.jatuhTempo}. Mohon melakukan pembayaran. Terima kasih 🙏`;
-
-                        // Coba kirim via bot dulu
                         try {
                           const res = await fetch("/api/notify/send-wa", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              phone,
-                              name: inv.penyewa,
-                              message,
-                              invoiceId: inv.id,
-                            }),
+                            body: JSON.stringify({ phone, name: inv.penyewa, message, invoiceId: inv.id }),
                           });
-                          if (res.ok) {
-                            toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa} via WhatsApp.`);
-                            return;
-                          }
+                          if (res.ok) { toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa}.`); return; }
                         } catch {}
-
-                        // Fallback: buka WhatsApp Web
-                        window.open(
-                          `https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`,
-                          "_blank"
-                        );
+                        window.open(`https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`, "_blank");
                       }}
                       className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center"
                       title="Kirim Tagihan via WhatsApp"
                     >
                       <span className="material-symbols-outlined text-[16px]">send</span>
+                    </button>
+                    {/* Hapus invoice */}
+                    <button
+                      onClick={() => setDeleteTarget(inv)}
+                      className="p-1.5 rounded-lg skeu-card text-red-500 hover:text-red-700 inline-flex items-center"
+                      title="Hapus invoice"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
                     </button>
                   </td>
                 </tr>

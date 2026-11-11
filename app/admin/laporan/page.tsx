@@ -1,22 +1,125 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import type { CashFlow } from "@/lib/store";
 
 export default function LaporanKeuanganPage() {
-  const { stats, cashFlows, loading } = useKost();
+  const { stats, cashFlows, addCashFlow, deleteCashFlow, loading } = useKost();
   const toast = useToast();
-  const [periode, setPeriode] = useState("November 2026");
 
-  // Filter cashFlows
-  const totalMasuk = cashFlows.filter((c) => c.tipe === "Masuk").reduce((sum, c) => sum + c.nominal, 0);
-  const totalKeluar = cashFlows.filter((c) => c.tipe === "Keluar").reduce((sum, c) => sum + c.nominal, 0);
-  const labaBersih = totalMasuk - totalKeluar;
+  // Filter bulan/tahun
+  const now = new Date();
+  const [filterBulan, setFilterBulan] = useState(now.getMonth()); // 0-11
+  const [filterTahun, setFilterTahun] = useState(now.getFullYear());
+
+  // Modal tambah pengeluaran/pemasukan manual
+  const [showAddCF, setShowAddCF] = useState(false);
+  const [cfForm, setCfForm] = useState({ tgl: new Date().toISOString().split("T")[0], ket: "", kat: "Utilitas", tipe: "Keluar" as "Masuk"|"Keluar", nominal: "" });
+  const [addingCF, setAddingCF] = useState(false);
+
+  // Delete cash flow
+  const [deleteCFTarget, setDeleteCFTarget] = useState<CashFlow | null>(null);
+  const [deletingCF, setDeletingCF] = useState(false);
+
+  // Filter cashFlows berdasarkan bulan/tahun
+  const filteredCF = useMemo(() => {
+    return cashFlows.filter((c) => {
+      // Format tgl bervariasi — coba parse
+      const d = new Date(c.tgl);
+      if (!isNaN(d.getTime())) {
+        return d.getMonth() === filterBulan && d.getFullYear() === filterTahun;
+      }
+      // Fallback: cek apakah string mengandung nama bulan
+      const bulanNames = ["jan","feb","mar","apr","mei","jun","jul","agu","sep","okt","nov","des"];
+      return c.tgl.toLowerCase().includes(bulanNames[filterBulan]) &&
+             c.tgl.includes(String(filterTahun));
+    });
+  }, [cashFlows, filterBulan, filterTahun]);
+
+  const totalMasuk  = filteredCF.filter((c) => c.tipe === "Masuk").reduce((s, c) => s + c.nominal, 0);
+  const totalKeluar = filteredCF.filter((c) => c.tipe === "Keluar").reduce((s, c) => s + c.nominal, 0);
+  const labaBersih  = totalMasuk - totalKeluar;
+  const margin      = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
+
+  const bulanOptions = [
+    "Januari","Februari","Maret","April","Mei","Juni",
+    "Juli","Agustus","September","Oktober","November","Desember"
+  ];
+  const tahunOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+
+  // Tambah entri kas manual
+  const handleAddCashFlow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cfForm.ket.trim() || !cfForm.nominal) return;
+    setAddingCF(true);
+    try {
+      const tgl = new Date(cfForm.tgl).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+      await addCashFlow({
+        tgl,
+        ket:     cfForm.ket.trim(),
+        kat:     cfForm.kat,
+        tipe:    cfForm.tipe,
+        nominal: Number(cfForm.nominal),
+      });
+      toast.success("Dicatat!", `${cfForm.tipe === "Masuk" ? "Pemasukan" : "Pengeluaran"} Rp ${Number(cfForm.nominal).toLocaleString("id-ID")} berhasil dicatat.`);
+      setShowAddCF(false);
+      setCfForm({ tgl: new Date().toISOString().split("T")[0], ket: "", kat: "Utilitas", tipe: "Keluar", nominal: "" });
+    } catch {
+      toast.error("Gagal mencatat", "Periksa koneksi.");
+    } finally {
+      setAddingCF(false);
+    }
+  };
+
+  // Hapus entri kas
+  const handleDeleteCF = async () => {
+    if (!deleteCFTarget) return;
+    setDeletingCF(true);
+    try {
+      await deleteCashFlow(deleteCFTarget.id);
+      toast.success("Dihapus", "Entri kas berhasil dihapus.");
+      setDeleteCFTarget(null);
+    } finally {
+      setDeletingCF(false);
+    }
+  };
+
+  // Export CSV nyata
+  const handleExportCSV = () => {
+    if (filteredCF.length === 0) { toast.info("Tidak ada data", "Tidak ada transaksi pada periode ini."); return; }
+    const header = "Tanggal,Keterangan,Kategori,Tipe,Nominal,Saldo\n";
+    const rows = filteredCF.map((c) =>
+      `"${c.tgl}","${c.ket}","${c.kat}","${c.tipe}",${c.nominal},${c.saldo}`
+    ).join("\n");
+    const csv  = header + rows;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `laporan-${bulanOptions[filterBulan].toLowerCase()}-${filterTahun}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Diekspor!", `File CSV ${bulanOptions[filterBulan]} ${filterTahun} siap didownload.`);
+  };
   const margin = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
+      {/* Confirm delete CF */}
+      <ConfirmModal
+        isOpen={!!deleteCFTarget}
+        title="Hapus Entri Kas?"
+        message={`"${deleteCFTarget?.ket}" — Rp ${deleteCFTarget?.nominal.toLocaleString("id-ID")} akan dihapus.`}
+        confirmLabel={deletingCF ? "Menghapus..." : "Ya, Hapus"}
+        cancelLabel="Batal"
+        variant="danger"
+        onConfirm={handleDeleteCF}
+        onCancel={() => setDeleteCFTarget(null)}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -29,24 +132,31 @@ export default function LaporanKeuanganPage() {
           <p className="text-xs text-slate-500 mt-0.5">Analisis laba rugi, penerimaan sewa, dan pengeluaran operasional terperinci.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Filter Bulan */}
           <div className="skeu-card px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
             <span className="material-symbols-outlined text-[16px] text-primary">calendar_month</span>
-            <select
-              value={periode}
-              onChange={(e) => setPeriode(e.target.value)}
-              className="bg-transparent text-slate-800 outline-none cursor-pointer"
-            >
-              <option value="November 2026">Nov 2026</option>
-              <option value="Oktober 2026">Okt 2026</option>
-              <option value="September 2026">Sep 2026</option>
+            <select value={filterBulan} onChange={(e) => setFilterBulan(Number(e.target.value))}
+              className="bg-transparent text-slate-800 outline-none cursor-pointer">
+              {bulanOptions.map((b, i) => <option key={i} value={i}>{b}</option>)}
+            </select>
+            <select value={filterTahun} onChange={(e) => setFilterTahun(Number(e.target.value))}
+              className="bg-transparent text-slate-800 outline-none cursor-pointer">
+              {tahunOptions.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+          {/* Tambah pengeluaran */}
           <button
-            onClick={() => toast.info("Fitur segera hadir", "Export Excel & PDF sedang dalam pengembangan.")}
-            className="skeu-button text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md flex-1 sm:flex-none justify-center"
-          >
+            onClick={() => setShowAddCF(true)}
+            className="skeu-button-secondary text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm text-slate-700">
+            <span className="material-symbols-outlined text-[16px]">add</span>
+            <span>Catat Transaksi</span>
+          </button>
+          {/* Export CSV nyata */}
+          <button
+            onClick={handleExportCSV}
+            className="skeu-button text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md flex-1 sm:flex-none justify-center">
             <span className="material-symbols-outlined text-[16px]">download</span>
-            <span>Ekspor Excel</span>
+            <span>Ekspor CSV</span>
           </button>
         </div>
       </div>
@@ -110,7 +220,7 @@ export default function LaporanKeuanganPage() {
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400">Belum ada mutasi kas</td>
                   </tr>
-                ) : cashFlows.map((c) => (
+                ) : filteredCF.map((c) => (
                   <tr key={c.id} className="hover:bg-white/40">
                     <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">{c.tgl}</td>
                     <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">{c.ket}</td>
@@ -122,8 +232,12 @@ export default function LaporanKeuanganPage() {
                         {c.tipe === "Masuk" ? "+" : "-"}Rp {c.nominal.toLocaleString("id-ID")}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap flex items-center justify-end gap-2">
                       Rp {c.saldo.toLocaleString("id-ID")}
+                      <button onClick={() => setDeleteCFTarget(c)}
+                        className="text-red-400 hover:text-red-600 transition-colors ml-1" title="Hapus entri">
+                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -183,11 +297,75 @@ export default function LaporanKeuanganPage() {
           <div className="skeu-inset p-3.5 rounded-xl mt-6">
             <span className="text-xs font-bold text-slate-800 block mb-1">💡 Tips Analitik Otomatis:</span>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Arus kas otomatis diperbarui setiap kali Anda menekan tombol &apos;Bayar&apos; pada invoice tagihan penyewa.
+              Arus kas otomatis diperbarui setiap kali Anda menekan tombol &apos;Bayar&apos; pada invoice tagihan penyewa. Gunakan tombol <strong>Catat Transaksi</strong> untuk mencatat pengeluaran operasional (listrik, WiFi, gaji staf, dsb).
             </p>
           </div>
         </div>
       </div>
     </div>
+
+      {/* ── Modal Catat Transaksi ── */}
+      {showAddCF && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="skeu-card p-5 rounded-2xl max-w-md w-full shadow-2xl text-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/60">
+              <h3 className="font-black text-sm text-slate-900">Catat Transaksi Kas</h3>
+              <button onClick={() => setShowAddCF(false)} className="text-slate-400 hover:text-slate-600">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleAddCashFlow} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Tanggal</label>
+                  <input type="date" required value={cfForm.tgl}
+                    onChange={(e) => setCfForm({...cfForm, tgl: e.target.value})}
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Tipe</label>
+                  <select value={cfForm.tipe} onChange={(e) => setCfForm({...cfForm, tipe: e.target.value as "Masuk"|"Keluar"})}
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer">
+                    <option value="Keluar">Pengeluaran</option>
+                    <option value="Masuk">Pemasukan Lain</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Keterangan</label>
+                <input required type="text" placeholder="Tagihan listrik, gaji satpam..." value={cfForm.ket}
+                  onChange={(e) => setCfForm({...cfForm, ket: e.target.value})}
+                  className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Kategori</label>
+                  <select value={cfForm.kat} onChange={(e) => setCfForm({...cfForm, kat: e.target.value})}
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer">
+                    {["Utilitas","WiFi & Internet","Gaji Staf","Perawatan","Kebersihan","Keamanan","Administrasi","Lain-lain"].map((k) => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Nominal (Rp)</label>
+                  <input required type="number" min="1" placeholder="500000" value={cfForm.nominal}
+                    onChange={(e) => setCfForm({...cfForm, nominal: e.target.value})}
+                    className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none" />
+                </div>
+              </div>
+              <div className={`p-3 rounded-xl text-[11px] font-bold ${cfForm.tipe === "Keluar" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+                {cfForm.tipe === "Keluar" ? "📤 Pengeluaran" : "📥 Pemasukan"}: Rp {Number(cfForm.nominal || 0).toLocaleString("id-ID")}
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setShowAddCF(false)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold">Batal</button>
+                <button type="submit" disabled={addingCF} className="skeu-button px-5 py-2 rounded-xl font-bold shadow-md disabled:opacity-70">
+                  {addingCF ? "Menyimpan..." : "Simpan Transaksi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
   );
 }

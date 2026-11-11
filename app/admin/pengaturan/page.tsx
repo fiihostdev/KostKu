@@ -103,7 +103,7 @@ export default function PengaturanPage() {
     toast.success("Pengaturan WA disimpan!", "Template dan konfigurasi notifikasi berhasil diperbarui.");
   };
 
-  const handleSaveKeamanan = () => {
+  const handleSaveKeamanan = async () => {
     if (newPassword && newPassword !== confirmNewPassword) {
       toast.error("Kata sandi tidak cocok", "Konfirmasi kata sandi harus sama.");
       return;
@@ -112,10 +112,32 @@ export default function PengaturanPage() {
       toast.error("Kata sandi terlalu pendek", "Minimal 8 karakter.");
       return;
     }
-    toast.success("Keamanan diperbarui!", "Pengaturan keamanan akun berhasil disimpan.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmNewPassword("");
+    if (newPassword) {
+      try {
+        // Verifikasi password lama dulu dengan re-auth
+        const supabase = (await import("@/lib/supabase-browser")).createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) { toast.error("Error", "Tidak bisa ambil data user."); return; }
+
+        // Coba sign in ulang dengan password lama untuk verifikasi
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+        if (signInErr) { toast.error("Password lama salah", "Masukkan password lama yang benar."); return; }
+
+        // Update password baru
+        const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateErr) { toast.error("Gagal update password", updateErr.message); return; }
+
+        toast.success("Password berhasil diubah!", "Gunakan password baru untuk login berikutnya.");
+        setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword("");
+      } catch (e) {
+        toast.error("Error", String(e));
+      }
+    } else {
+      toast.success("Pengaturan disimpan!", "Tidak ada perubahan password.");
+    }
   };
 
   // testConnection dipindah ke PaymentGatewayTab
