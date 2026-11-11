@@ -5,6 +5,7 @@ import { useKost } from "@/lib/store";
 import WABotTab from "@/components/admin/WABotTab";
 import LogoUploader from "@/components/admin/LogoUploader";
 import PaymentGatewayTab from "@/components/admin/PaymentGatewayTab";
+import QRISManager from "@/components/admin/QRISManager";
 import { useToast } from "@/components/ui/Toast";
 
 export default function PengaturanPage() {
@@ -154,8 +155,9 @@ export default function PengaturanPage() {
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/60">
         {[
           { id: "midtrans", label: "Payment Gateway", icon: "credit_card" },
-          { id: "profil", label: "Identitas Kost", icon: "apartment" },
-          { id: "whatsapp", label: "Notifikasi WA", icon: "chat" },
+          { id: "qris",     label: "QRIS Dinamis",    icon: "qr_code_2"  },
+          { id: "profil",   label: "Identitas Kost",  icon: "apartment"  },
+          { id: "whatsapp", label: "Notifikasi WA",   icon: "chat"       },
           { id: "keamanan", label: "Keamanan & Backup", icon: "security" },
         ].map((tab) => (
           <button
@@ -176,6 +178,19 @@ export default function PengaturanPage() {
       {/* ── TAB: MIDTRANS ── */}
       {activeTab === "midtrans" && (
         <PaymentGatewayTab />
+      )}
+
+      {/* ── TAB: QRIS DINAMIS ── */}
+      {activeTab === "qris" && (
+        <div className="space-y-2">
+          <div className="pb-2">
+            <h2 className="text-sm font-black text-slate-900">QRIS Dinamis</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Upload QR statis (GoPay/DANA/BRI/BCA) → sistem inject nominal otomatis saat penyewa bayar.
+            </p>
+          </div>
+          <QRISManager />
+        </div>
       )}
 
       {/* ── TAB: PROFIL IDENTITAS KOST ── */}

@@ -28,6 +28,7 @@ interface KostProfile {
   alamat: string;
   telepon: string;
   logo_url?: string;
+  has_qris?: boolean;
 }
 
 // Supabase server-side client (env vars tersedia di server tanpa masalah)
@@ -58,6 +59,15 @@ async function getKostData(subdomain: string): Promise<{
 
   const profile = profiles[0] as KostProfile;
 
+  // Cek apakah kost ini punya QRIS dikonfigurasi
+  const { count: qrisCount } = await supabase
+    .from("qris_configs")
+    .select("*", { count: "exact", head: true })
+    .eq("kost_id", profile.id)
+    .eq("is_active", true);
+
+  profile.has_qris = (qrisCount || 0) > 0;
+
   const { data: roomsData } = await supabase
     .from("rooms")
     .select("id, nomor, lantai, tipe, harga, status, fasilitas")
@@ -69,6 +79,7 @@ async function getKostData(subdomain: string): Promise<{
 
 // Komponen booking button — harus client karena ada window.open
 import BookingButton from "./BookingButton";
+import QRISPayButton from "./QRISPayButton";
 
 export default async function PublicKostPage({
   params,
@@ -313,10 +324,22 @@ export default async function PublicKostPage({
                     </div>
                     <div className="pt-3 border-t border-white/60">
                       {isAvailable && waPhone ? (
-                        <BookingButton
-                          waPhone={waPhone}
-                          message={bookingText}
-                        />
+                        <div className="space-y-2">
+                          {/* QRIS Pay — jika sudah dikonfigurasi */}
+                          {profile.has_qris && (
+                            <QRISPayButton
+                              kostId={profile.id}
+                              amount={room.harga}
+                              kamar={room.nomor}
+                              merchantName={profile.nama}
+                            />
+                          )}
+                          {/* WhatsApp booking */}
+                          <BookingButton
+                            waPhone={waPhone}
+                            message={bookingText}
+                          />
+                        </div>
                       ) : (
                         <button
                           disabled
