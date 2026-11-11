@@ -4,6 +4,33 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 
+// ── Helper: load jsQR dari CDN (berjalan di browser, tidak perlu install package) ──
+let jsQRLoaded = false;
+async function loadJsQR(): Promise<void> {
+  if (jsQRLoaded || typeof window === "undefined") return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((window as any).jsQR) { jsQRLoaded = true; return; }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+    script.onload  = () => { jsQRLoaded = true; resolve(); };
+    script.onerror = () => reject(new Error("Gagal load jsQR"));
+    document.head.appendChild(script);
+  });
+}
+
+// ── Helper: load file sebagai HTMLImageElement ────────────────────────────────
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Gagal load gambar")); };
+    img.src = url;
+  });
+}
+
 interface QRISConfig {
   id: string;
   label: string;
@@ -31,6 +58,8 @@ export default function QRISManager() {
   const [label,        setLabel]        = useState("QRIS Utama");
   const [manualQris,   setManualQris]   = useState("");
   const [showManual,   setShowManual]   = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [pendingFile,  setPendingFile]  = useState<File | null>(null);
 
   // Saved config
   const [config,  setConfig]  = useState<QRISConfig | null>(null);
@@ -57,43 +86,66 @@ export default function QRISManager() {
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
 
-  // Upload handler
+  // Upload handler — QR decode dilakukan di browser via Canvas API + jsQR CDN
   const handleUpload = useCallback(async (file: File) => {
     if (!file) return;
 
     setUploading(true);
-    const fd = new FormData();
-    fd.append("qr_image", file);
-    fd.append("label", label);
-    if (manualQris.trim()) fd.append("qris_string", manualQris.trim());
+    setError(null);
 
     try {
-      const res = await fetch("/api/qris/upload", { method: "POST", body: fd });
-      const data = await res.json();
+      // ── Step 1: Decode QR dari gambar di browser ─────────────────────────
+      let detectedQris = "";
 
-      if (data.needManualInput) {
-        toast.error("QR tidak terdeteksi", "Gambar terupload. Masukkan QRIS string secara manual di bawah.");
+      try {
+        // Load jsQR dari CDN secara dinamis (tidak perlu install package)
+        await loadJsQR();
+
+        const img = await loadImageFromFile(file);
+        const canvas = document.createElement("canvas");
+        canvas.width  = img.naturalWidth  || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const jsQR = (window as any).jsQR;
+        if (jsQR) {
+          const result = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+          if (result?.data) {
+            detectedQris = result.data;
+          }
+        }
+      } catch (decodeErr) {
+        console.warn("QR decode gagal di browser:", decodeErr);
+      }
+
+      if (detectedQris) {
+        // Auto-detected — tampilkan ke user untuk konfirmasi
+        setManualQris(detectedQris);
         setShowManual(true);
-        await loadConfig();
+        setPendingFile(file); // simpan file untuk dikirim bersama save
+        toast.success("QR Terdeteksi!", "QRIS string berhasil di-decode. Periksa lalu simpan.");
+        setUploading(false);
+        return;
+      } else {
+        // Tidak terdeteksi — minta input manual
+        setShowManual(true);
+        setPendingFile(file);
+        toast.error("QR tidak terdeteksi", "Pastikan gambar jelas. Atau input QRIS string manual di bawah.");
+        setUploading(false);
         return;
       }
-
-      if (!res.ok || !data.success) {
-        toast.error("Upload gagal", data.error || "Coba lagi");
-        return;
-      }
-
-      toast.success("QRIS berhasil disimpan!", `Merchant: ${data.merchantName}`);
-      setManualQris("");
-      setShowManual(false);
-      await loadConfig();
-
     } catch {
-      toast.error("Error", "Tidak dapat menghubungi server");
+      toast.error("Error", "Gagal memproses gambar");
     } finally {
       setUploading(false);
     }
-  }, [label, manualQris, loadConfig, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
 
   const handleManualSave = useCallback(async () => {
     if (!manualQris.trim()) {
@@ -101,27 +153,32 @@ export default function QRISManager() {
       return;
     }
     setUploading(true);
+    setError(null);
     const fd = new FormData();
     fd.append("label", label);
     fd.append("qris_string", manualQris.trim());
+    if (pendingFile) fd.append("qr_image", pendingFile);
 
     try {
       const res = await fetch("/api/qris/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || !data.success) {
+        setError(data.error || "QRIS string tidak valid");
         toast.error("Gagal", data.error || "QRIS string tidak valid");
         return;
       }
       toast.success("QRIS tersimpan!", `Merchant: ${data.merchantName}`);
       setManualQris("");
       setShowManual(false);
+      setPendingFile(null);
+      setError(null);
       await loadConfig();
     } catch {
       toast.error("Error", "Tidak dapat menghubungi server");
     } finally {
       setUploading(false);
     }
-  }, [manualQris, label, loadConfig, toast]);
+  }, [manualQris, label, pendingFile, loadConfig, toast]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -328,25 +385,33 @@ export default function QRISManager() {
                   Input QRIS string manual (jika auto-detect gagal)
                 </button>
 
-                {showManual && (
+                    {showManual && (
                   <div className="mt-2 space-y-2">
                     <textarea
                       rows={4}
                       value={manualQris}
-                      onChange={(e) => setManualQris(e.target.value)}
+                      onChange={(e) => { setManualQris(e.target.value); setError(null); }}
                       placeholder="000201010212..."
                       className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono text-[10px] leading-relaxed"
                     />
+                    {error && (
+                      <p className="text-[11px] text-red-700 font-bold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        {error}
+                      </p>
+                    )}
                     <p className="text-[10px] text-slate-500">
-                      QRIS string biasanya diawali dengan "000201". Bisa didapat dari aplikasi merchant (GoPay, DANA, dll).
+                      QRIS string biasanya diawali dengan "000201". Bisa didapat dari aplikasi merchant (GoPay, DANA, dll) → Share QR → Copy Text.
                     </p>
                     <button
                       onClick={handleManualSave}
                       disabled={uploading}
                       className="skeu-button w-full py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5"
                     >
-                      <span className="material-symbols-outlined text-[14px]">save</span>
-                      Simpan QRIS String
+                      <span className={`material-symbols-outlined text-[14px] ${uploading ? "animate-spin" : ""}`}>
+                        {uploading ? "sync" : "save"}
+                      </span>
+                      {uploading ? "Menyimpan..." : "Simpan QRIS"}
                     </button>
                   </div>
                 )}

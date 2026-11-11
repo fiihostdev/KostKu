@@ -5,13 +5,15 @@ import { isValidQRIS, extractQRISInfo, injectAmountToQRIS } from "@/lib/qris";
 
 /**
  * POST /api/qris/upload
- * Admin upload gambar QR (dari GoPay/DANA/BRI/dll)
- * → extract QRIS string dari gambar → validasi → simpan ke Supabase
+ *
+ * Admin simpan konfigurasi QRIS kost-nya.
+ * QR decode dilakukan di client (browser) menggunakan jsQR via Canvas API,
+ * kemudian QRIS string dikirim ke server bersama gambar untuk disimpan.
  *
  * Form fields:
- *   qr_image: File         — gambar QR PNG/JPG
- *   label:    string       — nama/label QR (misal "GoPay Utama")
- *   qris_string: string?   — opsional: input manual QRIS string jika auto-detect gagal
+ *   qr_image:    File   — gambar QR PNG/JPG (opsional, untuk disimpan sebagai preview)
+ *   qris_string: string — QRIS string hasil decode (wajib)
+ *   label:       string — nama/label QR
  */
 export async function POST(request: NextRequest) {
   try {
@@ -25,84 +27,21 @@ export async function POST(request: NextRequest) {
 
     const formData   = await request.formData();
     const file       = formData.get("qr_image") as File | null;
+    const qrisString = (formData.get("qris_string") as string || "").trim();
     const label      = (formData.get("label") as string) || "QRIS Utama";
-    const manualQris = (formData.get("qris_string") as string) || "";
 
-    const supabaseService = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    let qrisString = manualQris.trim();
-    let imageUrl   = "";
-
-    // ── Jika ada file gambar → upload dulu, lalu decode QR ──────────────────
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        return NextResponse.json({ error: "Ukuran file maksimal 2MB" }, { status: 400 });
-      }
-
-      const ext       = file.name.split(".").pop()?.toLowerCase() || "png";
-      const filePath  = `${user.id}/${profile.id}-${Date.now()}.${ext}`;
-      const buffer    = Buffer.from(await file.arrayBuffer());
-
-      const { error: uploadError } = await supabaseService.storage
-        .from("qris-images")
-        .upload(filePath, buffer, { contentType: file.type, upsert: false });
-
-      if (uploadError) {
-        return NextResponse.json({ error: `Upload gagal: ${uploadError.message}` }, { status: 500 });
-      }
-
-      const { data: { publicUrl } } = supabaseService.storage
-        .from("qris-images")
-        .getPublicUrl(filePath);
-      imageUrl = publicUrl;
-
-      // ── Decode QR dari gambar menggunakan jsQR ───────────────────────────
-      if (!qrisString) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const jsQR = require("jsqr");
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const Jimp = require("jimp");
-
-          const image = await Jimp.read(buffer);
-          const { width, height } = image.bitmap;
-          // Jimp 0.16 menyimpan pixel data di image.bitmap.data sebagai Buffer
-          const uint8 = new Uint8ClampedArray(image.bitmap.data.buffer);
-          const result = jsQR(uint8, width, height, { inversionAttempts: "dontInvert" });
-
-          if (result?.data) {
-            qrisString = result.data;
-          }
-        } catch (decodeErr) {
-          console.warn("[qris/upload] Auto-decode gagal:", decodeErr);
-        }
-      }
-    }
-
-    // ── Validasi QRIS string ─────────────────────────────────────────────────
     if (!qrisString) {
-      return NextResponse.json({
-        error: "QRIS string tidak terdeteksi dari gambar. Silakan masukkan QRIS string secara manual.",
-        imageUrl,
-        needManualInput: true,
-      }, { status: 422 });
+      return NextResponse.json({ error: "QRIS string wajib diisi" }, { status: 400 });
     }
 
+    // ── Validasi QRIS ─────────────────────────────────────────────────────────
     if (!isValidQRIS(qrisString)) {
       return NextResponse.json({
-        error: "Format QRIS tidak valid. Pastikan QR code berlogo QRIS (Bank Indonesia) dan bukan QR proprietary.",
-        imageUrl,
-        qrisString: qrisString.slice(0, 50) + "...",
+        error: "Format QRIS tidak valid. Pastikan string diawali '000201' dan merupakan QRIS Bank Indonesia.",
       }, { status: 400 });
     }
 
-    // ── Extract info merchant ─────────────────────────────────────────────────
-    const info = extractQRISInfo(qrisString);
-
-    // ── Test inject nominal 1000 untuk verifikasi ─────────────────────────────
+    // ── Test inject nominal 1000 ───────────────────────────────────────────────
     let testQris = "";
     try {
       testQris = injectAmountToQRIS(qrisString, 1000);
@@ -111,7 +50,36 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isValidQRIS(testQris)) {
-      return NextResponse.json({ error: "QRIS valid tapi gagal di-convert ke dinamis. Hubungi support." }, { status: 400 });
+      return NextResponse.json({ error: "QRIS valid tapi tidak dapat dikonversi ke dinamis." }, { status: 400 });
+    }
+
+    const info = extractQRISInfo(qrisString);
+
+    const supabaseService = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // ── Upload gambar preview (opsional) ─────────────────────────────────────
+    let imageUrl = "";
+    if (file && file.size > 0) {
+      if (file.size > 2 * 1024 * 1024) {
+        return NextResponse.json({ error: "Ukuran gambar maksimal 2MB" }, { status: 400 });
+      }
+      const ext      = file.name.split(".").pop()?.toLowerCase() || "png";
+      const filePath = `${user.id}/${profile.id}-${Date.now()}.${ext}`;
+      const buffer   = Buffer.from(await file.arrayBuffer());
+
+      const { error: uploadError } = await supabaseService.storage
+        .from("qris-images")
+        .upload(filePath, buffer, { contentType: file.type, upsert: false });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabaseService.storage
+          .from("qris-images")
+          .getPublicUrl(filePath);
+        imageUrl = publicUrl;
+      }
     }
 
     // ── Simpan ke database ────────────────────────────────────────────────────
@@ -126,7 +94,7 @@ export async function POST(request: NextRequest) {
         qr_image_url:  imageUrl || null,
         is_active:     true,
         updated_at:    new Date().toISOString(),
-      }, { onConflict: "kost_id" }) // 1 QRIS per kost (upsert)
+      }, { onConflict: "kost_id" })
       .select()
       .single();
 
@@ -152,7 +120,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ── GET: ambil QRIS config kost ini ──────────────────────────────────────────
 export async function GET() {
   try {
     const supabase = createClient();
@@ -175,8 +142,7 @@ export async function GET() {
   }
 }
 
-// ── DELETE: hapus QRIS config ─────────────────────────────────────────────────
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -191,11 +157,7 @@ export async function DELETE(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabaseService
-      .from("qris_configs")
-      .delete()
-      .eq("kost_id", profile.id);
-
+    await supabaseService.from("qris_configs").delete().eq("kost_id", profile.id);
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
