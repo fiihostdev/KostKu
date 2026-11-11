@@ -11,7 +11,7 @@ const nextConfig = {
   },
   // Tidak perlu rewrites di sini — subdomain routing ditangani di middleware.ts
 
-  // Headers: izinkan load script dari jsdelivr CDN untuk jsQR
+  // Headers: izinkan load script dari CDN dan WebSocket Supabase Realtime
   async headers() {
     return [
       {
@@ -25,8 +25,10 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https:",
+              // wss:// untuk Supabase Realtime + https: untuk API calls
+              "connect-src 'self' https: wss:",
               "frame-src 'self' https://app.midtrans.com https://app.sandbox.midtrans.com",
+              "worker-src 'self' blob:",
             ].join('; '),
           },
         ],

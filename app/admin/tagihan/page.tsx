@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useKost } from "@/lib/store";
-import MidtransModal from "@/components/payment/MidtransModal";
+import PaymentModal from "@/components/payment/PaymentModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/Toast";
 
@@ -10,11 +10,12 @@ export default function TagihanPage() {
   const { invoices, addInvoice, payInvoice, tenants, rooms } = useKost();
   const toast = useToast();
   const [filter, setFilter] = useState("Semua");
-  const [showModal, setShowModal] = useState(false);
-  const [showMidtrans, setShowMidtrans] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
-  const [selectedAmount, setSelectedAmount] = useState(0);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [showModal,        setShowModal]        = useState(false);
+  const [showPayment,      setShowPayment]      = useState(false);
+  const [selectedInvoice,  setSelectedInvoice]  = useState<string | null>(null);
+  const [selectedInvNo,    setSelectedInvNo]    = useState("");
+  const [selectedAmount,   setSelectedAmount]   = useState(0);
+  const [selectedKamar,    setSelectedKamar]    = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
   const [broadcastLoading, setBroadcastLoading] = useState(false);
@@ -50,20 +51,20 @@ export default function TagihanPage() {
     setNewInv({ penyewa: "", kamar: "", nominal: 1800000, jatuhTempo: "", metode: "Midtrans Payment Gateway" });
   };
 
-  const handleBayar = (invId: string, nominal: number, kamar: string, penyewa: string) => {
+  const handleBayar = (invId: string, invNo: string, nominal: number, kamar: string, penyewa: string) => {
     setSelectedInvoice(invId);
+    setSelectedInvNo(invNo);
     setSelectedAmount(nominal);
-    setSelectedItemName(`Sewa ${kamar}`);
+    setSelectedKamar(kamar);
     setSelectedCustomer(penyewa);
-    setShowMidtrans(true);
+    setShowPayment(true);
   };
 
-  const handleMidtransSuccess = () => {
-    if (selectedInvoice) {
-      payInvoice(selectedInvoice);
-      setSelectedInvoice(null);
-    }
-    setShowMidtrans(false);
+  const handlePaymentSuccess = (invoiceId: string) => {
+    payInvoice(invoiceId);
+    setShowPayment(false);
+    setSelectedInvoice(null);
+    toast.success("Pembayaran berhasil!", "Invoice telah ditandai Lunas.");
   };
 
   const handleBroadcastWA = async () => {
@@ -117,16 +118,19 @@ export default function TagihanPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
-      {/* Midtrans Modal */}
-      <MidtransModal
-        isOpen={showMidtrans}
-        grossAmount={selectedAmount}
-        orderId={selectedInvoice || "INV-001"}
-        itemName={selectedItemName}
-        customerName={selectedCustomer}
-        onClose={() => setShowMidtrans(false)}
-        onSuccess={handleMidtransSuccess}
-      />
+      {/* Payment Modal */}
+      {showPayment && selectedInvoice && (
+        <PaymentModal
+          isOpen={showPayment}
+          onClose={() => { setShowPayment(false); setSelectedInvoice(null); }}
+          onSuccess={handlePaymentSuccess}
+          invoiceId={selectedInvoice}
+          invoiceNo={selectedInvNo}
+          penyewa={selectedCustomer}
+          kamar={selectedKamar}
+          nominal={selectedAmount}
+        />
+      )}
 
       {/* Broadcast Confirm Modal — TANPA window.confirm() native */}
       <ConfirmModal
@@ -257,9 +261,9 @@ export default function TagihanPage() {
                   <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
                     {inv.status !== "Lunas" ? (
                       <button
-                        onClick={() => handleBayar(inv.id, inv.nominal, inv.kamar, inv.penyewa)}
+                        onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
                         className="px-2.5 py-1 rounded-lg skeu-button text-[10px] font-bold inline-flex items-center gap-1"
-                        title="Bayar via Midtrans Sandbox"
+                        title="Pilih metode pembayaran"
                       >
                         <span className="material-symbols-outlined text-[13px]">payments</span>
                         Bayar
