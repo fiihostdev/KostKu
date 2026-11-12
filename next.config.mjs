@@ -36,20 +36,22 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               // img hanya dari domain yang dikenal + blob untuk QR preview
-              "img-src 'self' data: blob: https://*.supabase.co https://fiihost.my.id https://*.fiihost.my.id https://*.fiihosting.my.id",
+              "img-src 'self' data: blob: https://*.supabase.co https://manajementkost.my.id https://*.manajementkost.my.id https://fiihost.my.id https://*.fiihost.my.id https://*.fiihosting.my.id",
               // connect hanya ke domain yang dikenal (bukan https: lebar)
               [
                 "connect-src 'self'",
                 "https://*.supabase.co",
-                "wss://*.supabase.co",        // Supabase Realtime
+                "wss://*.supabase.co",
+                "https://manajementkost.my.id",
+                "https://*.manajementkost.my.id",
                 "https://fiihost.my.id",
                 "https://*.fiihost.my.id",
-                "https://*.fiihosting.my.id", // Coolify WA bot
+                "https://*.fiihosting.my.id",
                 "https://app.midtrans.com",
                 "https://app.sandbox.midtrans.com",
                 "https://tripay.co.id",
                 "https://api.xendit.co",
-                "https://cdn.jsdelivr.net",   // jsQR CDN
+                "https://cdn.jsdelivr.net",
               ].join(" "),
               "frame-src 'self' https://app.midtrans.com https://app.sandbox.midtrans.com",
               "worker-src 'self' blob:",

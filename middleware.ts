@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_DOMAIN = "fiihost.my.id";
-const APP_URL = "https://fiihost.my.id";
+const APP_DOMAIN = "manajementkost.my.id";
+const APP_URL = "https://manajementkost.my.id";
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
