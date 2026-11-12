@@ -80,7 +80,7 @@ export default function Home() {
                         <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-400 shrink-0"></span>
                         <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 shrink-0"></span>
                         <span className="text-[11px] sm:text-xs font-mono font-semibold text-slate-500 ml-1.5 truncate">
-                          harmoni.fiihost.my.id
+                          harmoni.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}
                         </span>
                       </div>
                       <span className="text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold shrink-0">
@@ -204,7 +204,7 @@ export default function Home() {
                     </div>
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">Website Profil Kost</h3>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      Dapatkan alamat subdomain gratis (namakost.fiihost.my.id) untuk galeri foto dan promosi ke calon penyewa.
+                      Dapatkan alamat subdomain gratis (namakost.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}) untuk galeri foto dan promosi ke calon penyewa.
                     </p>
                   </div>
                   <Link href="/admin/website" className="text-xs font-bold text-primary mt-5 flex items-center gap-1 hover:underline">

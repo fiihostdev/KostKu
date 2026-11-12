@@ -402,7 +402,7 @@ export default function SuperadminDashboardPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-slate-900 truncate">{t.nama}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">{t.subdomain}.fiihost.my.id</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{t.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -483,8 +483,8 @@ export default function SuperadminDashboardPage() {
                         <div className="text-[10px] text-slate-500">{t.email || t.telepon || "—"}</div>
                       </td>
                       <td className="py-3 px-4 font-mono text-primary text-[11px]">
-                        <a href={`https://${t.subdomain}.fiihost.my.id`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {t.subdomain}.fiihost.my.id
+                        <a href={`https://${t.subdomain}.${process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {t.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}
                         </a>
                       </td>
                       <td className="py-3 px-4">
@@ -534,7 +534,7 @@ export default function SuperadminDashboardPage() {
                           </button>
                           {/* Website */}
                           <a
-                            href={`https://${t.subdomain}.fiihost.my.id`}
+                            href={`https://${t.subdomain}.${process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg skeu-card text-slate-500 hover:text-slate-700"
@@ -644,7 +644,7 @@ export default function SuperadminDashboardPage() {
             </h3>
             {[
               { label: "Platform Name", val: "KOSTKU SaaS" },
-              { label: "Main Domain", val: "fiihost.my.id" },
+              { label: "Main Domain", val: process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id" },
               { label: "Supabase Project", val: "mmcgxkjbmdfrgkhrajuc" },
               { label: "Bot URL", val: "wiya3dh8uopgirnwkgmuolug.fiihosting.my.id" },
               { label: "Total Registered", val: `${tenants.length} kost accounts` },
@@ -776,7 +776,7 @@ export default function SuperadminDashboardPage() {
               <div className="skeu-inset p-3 rounded-xl space-y-1">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Subdomain</span>
-                  <span className="font-mono font-bold text-primary">{editTenant.subdomain}.fiihost.my.id</span>
+                  <span className="font-mono font-bold text-primary">{editTenant?.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Total Kamar</span>

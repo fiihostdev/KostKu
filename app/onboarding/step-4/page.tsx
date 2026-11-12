@@ -6,6 +6,8 @@ import OnboardingStepper from "@/components/onboarding/OnboardingStepper";
 import MidtransModal from "@/components/payment/MidtransModal";
 import { Suspense } from "react";
 
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
+
 const PLAN_PRICES: Record<string, number> = {
   starter: 99000,
   pro: 199000,
@@ -77,7 +79,7 @@ function Step4Content() {
           <span className="material-symbols-outlined text-primary text-[48px] animate-spin block">sync</span>
           <h2 className="font-black text-slate-900 text-lg">Mengaktifkan Akun...</h2>
           <p className="text-xs text-slate-500">
-            Menyiapkan dashboard dan subdomain <strong>{subdomain}.fiihost.my.id</strong> untuk Anda.
+            Menyiapkan dashboard dan subdomain <strong>{subdomain}.{APP_DOMAIN}</strong> untuk Anda.
           </p>
         </div>
       </div>
@@ -131,7 +133,7 @@ function Step4Content() {
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Subdomain:</span>
-            <span className="font-mono font-bold text-primary">{subdomain}.fiihost.my.id</span>
+            <span className="font-mono font-bold text-primary">{subdomain}.{APP_DOMAIN}</span>
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Biaya Setup & SSL:</span>

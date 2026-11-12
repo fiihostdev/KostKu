@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useKost } from "@/lib/store";
+
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 import { useToast } from "@/components/ui/Toast";
 import LogoUploader from "@/components/admin/LogoUploader";
 
@@ -94,7 +96,7 @@ export default function WebsiteSayaPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm sm:text-base font-bold text-slate-900 truncate">
-                https://{subdomain}.fiihost.my.id
+                https://{subdomain}.{APP_DOMAIN}
               </span>
               <span className="text-[9px] sm:text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
                 SSL Aktif (Aman)
@@ -107,8 +109,8 @@ export default function WebsiteSayaPage() {
         </div>
         <button
           onClick={() => {
-            navigator.clipboard?.writeText(`https://${subdomain}.fiihost.my.id`);
-            toast.success("Link disalin!", `https://${subdomain}.fiihost.my.id`);
+            navigator.clipboard?.writeText(`https://${subdomain}.${APP_DOMAIN}`);
+            toast.success("Link disalin!", `https://${subdomain}.${APP_DOMAIN}`);
           }}
           className="skeu-button-secondary text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1 self-start md:self-auto shrink-0"
         >
@@ -143,7 +145,7 @@ export default function WebsiteSayaPage() {
                   className="p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none w-36 sm:w-48 font-mono font-bold text-xs"
                 />
                 <span className="p-2.5 bg-slate-200 text-slate-600 rounded-r-xl font-mono text-xs border-l border-slate-300">
-                  .fiihost.my.id
+                  .{APP_DOMAIN}
                 </span>
               </div>
             </div>
