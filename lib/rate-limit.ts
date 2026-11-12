@@ -21,9 +21,10 @@ function cleanup() {
   const now = Date.now();
   if (now - lastCleanup < 5 * 60 * 1000) return;
   lastCleanup = now;
-  for (const [key, entry] of store.entries()) {
+  // Array.from() agar kompatibel dengan semua TypeScript target
+  Array.from(store.entries()).forEach(([key, entry]) => {
     if (entry.resetAt < now) store.delete(key);
-  }
+  });
 }
 
 export interface RateLimitConfig {
