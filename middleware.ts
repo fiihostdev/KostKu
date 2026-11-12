@@ -9,13 +9,18 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const pathname = request.nextUrl.pathname;
 
+  // ── Redirect manajementkost.my.id (apex) ke fiihost.my.id ────────────────
+  // manajementkost.my.id hanya berfungsi untuk SUBDOMAIN kost (*.manajementkost.my.id)
+  // Apex domain-nya redirect ke platform utama
+  if (hostname === APP_DOMAIN || hostname === `www.${APP_DOMAIN}`) {
+    return NextResponse.redirect(`${APP_URL}${pathname}`, { status: 308 });
+  }
+
   // ── Subdomain routing ─────────────────────────────────────────────────────
-  // Platform utama: fiihost.my.id, www.fiihost.my.id, manajementkost.my.id, *.vercel.app
+  // Platform utama: fiihost.my.id, www.fiihost.my.id, *.vercel.app
   const isApexDomain =
     hostname === PLATFORM_DOMAIN ||
     hostname === `www.${PLATFORM_DOMAIN}` ||
-    hostname === APP_DOMAIN ||
-    hostname === `www.${APP_DOMAIN}` ||
     hostname.endsWith(".vercel.app");
 
   // Subdomain kost: bisa dari fiihost.my.id ATAU manajementkost.my.id
