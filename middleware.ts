@@ -1,26 +1,45 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_DOMAIN = "manajementkost.my.id";
-const APP_URL = "https://manajementkost.my.id";
+const APP_DOMAIN = "manajementkost.my.id";   // Domain untuk subdomain kost publik
+const PLATFORM_DOMAIN = "fiihost.my.id";     // Domain platform utama (login, admin)
+const APP_URL = "https://fiihost.my.id";     // URL platform utama
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const pathname = request.nextUrl.pathname;
 
   // ── Subdomain routing ─────────────────────────────────────────────────────
+  // Platform utama: fiihost.my.id, www.fiihost.my.id, manajementkost.my.id, *.vercel.app
   const isApexDomain =
+    hostname === PLATFORM_DOMAIN ||
+    hostname === `www.${PLATFORM_DOMAIN}` ||
     hostname === APP_DOMAIN ||
     hostname === `www.${APP_DOMAIN}` ||
     hostname.endsWith(".vercel.app");
 
-  const isSubdomain =
+  // Subdomain kost: bisa dari fiihost.my.id ATAU manajementkost.my.id
+  const isSubdomainOfFiihost =
+    !isApexDomain &&
+    hostname.endsWith(`.${PLATFORM_DOMAIN}`) &&
+    !hostname.startsWith("www.");
+
+  const isSubdomainOfManajemen =
     !isApexDomain &&
     hostname.endsWith(`.${APP_DOMAIN}`) &&
     !hostname.startsWith("www.");
 
+  const isSubdomain = isSubdomainOfFiihost || isSubdomainOfManajemen;
+
+  // Ambil nama subdomain dari hostname yang sesuai
+  const subdomainValue = isSubdomainOfFiihost
+    ? hostname.slice(0, hostname.length - PLATFORM_DOMAIN.length - 1)
+    : isSubdomainOfManajemen
+    ? hostname.slice(0, hostname.length - APP_DOMAIN.length - 1)
+    : "";
+
   if (isSubdomain) {
-    const subdomain = hostname.slice(0, hostname.length - APP_DOMAIN.length - 1);
+    const subdomain = subdomainValue;
 
     if (!subdomain || subdomain === "www") {
       return NextResponse.next();
