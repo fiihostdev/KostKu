@@ -42,7 +42,7 @@ export default function LaporanKeuanganPage() {
   const totalMasuk  = filteredCF.filter((c) => c.tipe === "Masuk").reduce((s, c) => s + c.nominal, 0);
   const totalKeluar = filteredCF.filter((c) => c.tipe === "Keluar").reduce((s, c) => s + c.nominal, 0);
   const labaBersih  = totalMasuk - totalKeluar;
-  const margin      = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
+  const marginPct   = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
 
   const bulanOptions = [
     "Januari","Februari","Maret","April","Mei","Juni",
@@ -184,7 +184,7 @@ export default function LaporanKeuanganPage() {
           <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">
             Rp {(labaBersih / 1000000).toFixed(2)} Jt
           </div>
-          <span className="text-[10px] text-emerald-800 font-bold mt-2 block">Margin: {margin}%</span>
+          <span className="text-[10px] text-emerald-800 font-bold mt-2 block">Margin: {marginPct}%</span>
         </div>
         <div className="skeu-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
           <span className="text-[10px] sm:text-xs text-primary font-semibold uppercase truncate">Potensi Tagihan</span>
