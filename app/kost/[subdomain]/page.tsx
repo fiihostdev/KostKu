@@ -18,6 +18,9 @@ interface Room {
   harga: number;
   status: string;
   fasilitas: string[];
+  foto_urls?: string[];
+  deskripsi?: string;
+  luas_m2?: number;
 }
 
 interface KostProfile {
@@ -70,7 +73,7 @@ async function getKostData(subdomain: string): Promise<{
 
   const { data: roomsData } = await supabase
     .from("rooms")
-    .select("id, nomor, lantai, tipe, harga, status, fasilitas")
+    .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
     .eq("kost_id", profile.id)
     .order("nomor", { ascending: true });
 
@@ -309,11 +312,30 @@ export default async function PublicKostPage({
                       </div>
                       <div className="text-xs text-slate-500 mb-2">
                         Tipe: <span className="font-bold text-slate-800">{room.tipe}</span>
+                        {room.luas_m2 && <span className="ml-2 text-slate-400">· {room.luas_m2} m²</span>}
                       </div>
-                      <div className="text-xl font-black text-primary mb-4">
+                      <div className="text-xl font-black text-primary mb-3">
                         Rp {room.harga.toLocaleString("id-ID")}
                         <span className="text-xs font-normal text-slate-500"> / bulan</span>
                       </div>
+
+                      {/* Foto kamar dari data Supabase */}
+                      {room.foto_urls && room.foto_urls.length > 0 ? (
+                        <div className="rounded-xl overflow-hidden mb-3 aspect-video bg-slate-100">
+                          <img
+                            src={room.foto_urls[0]}
+                            alt={`Foto Kamar ${room.nomor}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-xl bg-slate-100 mb-3 aspect-video flex items-center justify-center">
+                          <span className="material-symbols-outlined text-slate-300 text-[36px]">bedroom_parent</span>
+                        </div>
+                      )}
+                      {room.deskripsi && (
+                        <p className="text-[11px] text-slate-500 mb-3 leading-relaxed line-clamp-2">{room.deskripsi}</p>
+                      )}
                       <div className="flex flex-wrap gap-1 mb-4">
                         {(room.fasilitas || []).map((f: string, i: number) => (
                           <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">

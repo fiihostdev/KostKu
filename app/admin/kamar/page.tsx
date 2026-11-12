@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import RoomPhotoUploader from "@/components/admin/RoomPhotoUploader";
 import type { Room } from "@/lib/store";
 
 type RoomForm = {
@@ -417,6 +418,15 @@ export default function DataKamarPage() {
             </div>
             <form onSubmit={handleEditRoom}>
               <RoomFormFields form={editForm} onChange={setEditForm} showStatus={true} />
+
+              {/* Upload foto kamar */}
+              <div className="mt-4 pt-4 border-t border-white/60">
+                <RoomPhotoUploader
+                  roomId={editRoom.id}
+                  currentPhotos={editRoom.fotoUrls || []}
+                  onPhotosChange={(photos) => setEditRoom({ ...editRoom, fotoUrls: photos })}
+                />
+              </div>
               <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-white/60">
                 <button type="button" onClick={() => setEditRoom(null)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold text-xs">
                   Batal

@@ -14,6 +14,9 @@ export interface Room {
   status: "Terisi" | "Kosong" | "Perawatan";
   penyewa?: string;
   fasilitas: string[];
+  fotoUrls?: string[];
+  deskripsi?: string;
+  luasM2?: number;
 }
 
 export interface Tenant {
@@ -117,14 +120,17 @@ const KostContext = createContext<KostContextType | undefined>(undefined);
 
 function mapRoom(r: Record<string, unknown>): Room {
   return {
-    id: r.id as string,
-    nomor: r.nomor as string,
-    lantai: r.lantai as number,
-    tipe: r.tipe as Room["tipe"],
-    harga: Number(r.harga),
-    status: r.status as Room["status"],
-    penyewa: (r.penyewa as string) || undefined,
+    id:        r.id as string,
+    nomor:     r.nomor as string,
+    lantai:    r.lantai as number,
+    tipe:      r.tipe as Room["tipe"],
+    harga:     Number(r.harga),
+    status:    r.status as Room["status"],
+    penyewa:   (r.penyewa as string) || undefined,
     fasilitas: (r.fasilitas as string[]) || [],
+    fotoUrls:  (r.foto_urls as string[]) || [],
+    deskripsi: (r.deskripsi as string) || undefined,
+    luasM2:    r.luas_m2 ? Number(r.luas_m2) : undefined,
   };
 }
 
@@ -381,13 +387,16 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   // ── updateRoom ─────────────────────────────────────────────────────────────
   const updateRoom = async (id: string, roomData: Partial<Omit<Room, "id">>) => {
     const updatePayload: Record<string, unknown> = {};
-    if (roomData.nomor    !== undefined) updatePayload.nomor    = roomData.nomor;
-    if (roomData.lantai   !== undefined) updatePayload.lantai   = roomData.lantai;
-    if (roomData.tipe     !== undefined) updatePayload.tipe     = roomData.tipe;
-    if (roomData.harga    !== undefined) updatePayload.harga    = roomData.harga;
-    if (roomData.status   !== undefined) updatePayload.status   = roomData.status;
-    if (roomData.penyewa  !== undefined) updatePayload.penyewa  = roomData.penyewa || null;
-    if (roomData.fasilitas !== undefined) updatePayload.fasilitas = roomData.fasilitas;
+    if (roomData.nomor     !== undefined) updatePayload.nomor      = roomData.nomor;
+    if (roomData.lantai    !== undefined) updatePayload.lantai     = roomData.lantai;
+    if (roomData.tipe      !== undefined) updatePayload.tipe       = roomData.tipe;
+    if (roomData.harga     !== undefined) updatePayload.harga      = roomData.harga;
+    if (roomData.status    !== undefined) updatePayload.status     = roomData.status;
+    if (roomData.penyewa   !== undefined) updatePayload.penyewa    = roomData.penyewa || null;
+    if (roomData.fasilitas !== undefined) updatePayload.fasilitas  = roomData.fasilitas;
+    if (roomData.fotoUrls  !== undefined) updatePayload.foto_urls  = roomData.fotoUrls;
+    if (roomData.deskripsi !== undefined) updatePayload.deskripsi  = roomData.deskripsi || null;
+    if (roomData.luasM2    !== undefined) updatePayload.luas_m2    = roomData.luasM2 || null;
 
     const { error } = await supabase.from("rooms").update(updatePayload).eq("id", id);
     if (!error) {
