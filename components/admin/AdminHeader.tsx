@@ -42,7 +42,7 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
         {/* Website publik */}
         {profile.subdomain && (
           <a
-            href={`https://${profile.subdomain}.fiihost.my.id`}
+            href={`https://${profile.subdomain}.${process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}`}
             target="_blank"
             rel="noopener noreferrer"
             className="skeu-button-secondary text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hidden sm:flex"

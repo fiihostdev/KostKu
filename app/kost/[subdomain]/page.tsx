@@ -89,7 +89,7 @@ export default async function PublicKostPage({
 }: {
   params: { subdomain: string };
 }) {
-  const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "fiihost.my.id";
+  const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
   const subdomain = params.subdomain;
 
   const { profile, rooms } = await getKostData(subdomain);
@@ -128,7 +128,7 @@ export default async function PublicKostPage({
               Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform
             </span>
           </div>
-          <Link href={`${process.env.NEXT_PUBLIC_APP_URL || "https://fiihost.my.id"}/login`} className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
+          <Link href={`${process.env.NEXT_PUBLIC_APP_URL || "https://manajementkost.my.id"}/login`} className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
             Panel Pemilik →
           </Link>
         </div>

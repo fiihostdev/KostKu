@@ -139,7 +139,7 @@ export default function PaymentGatewayTab() {
     }
   };
 
-  const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : "https://fiihost.my.id"}/api/payment/webhook?provider=${activeProvider}`;
+  const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : "https://manajementkost.my.id"}/api/payment/webhook?provider=${activeProvider}`;
 
   if (loading) {
     return (

@@ -121,7 +121,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Kost Aktif</p>
               <p className="text-xs font-black text-primary truncate">{profile.nama}</p>
               <p className="text-[10px] text-slate-500 font-mono truncate">
-                {profile.subdomain}.fiihost.my.id
+                {profile.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}
               </p>
             </div>
           )}
