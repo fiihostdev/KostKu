@@ -5,8 +5,8 @@ import { Suspense } from "react";
 
 function FinishContent() {
   const params = useSearchParams();
-  const orderId = params.get("orderId") || params.get("external_id") || params.get("order_id") || "";
-  const status  = params.get("transaction_status") || params.get("status") || "settlement";
+  const orderId = params?.get("orderId") || params?.get("external_id") || params?.get("order_id") || "";
+  const status  = params?.get("transaction_status") || params?.get("status") || "settlement";
   const isPaid  = ["settlement","capture","PAID","SETTLED"].includes(status);
 
   return (

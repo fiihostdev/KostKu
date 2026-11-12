@@ -21,9 +21,9 @@ const PLAN_LABELS: Record<string, string> = {
 function Step4Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const subdomain = searchParams.get("subdomain") || "kostsaya";
-  const plan = searchParams.get("plan") || "pro";
-  const namaKost = searchParams.get("nama") || "Kost Saya";
+  const subdomain = searchParams?.get("subdomain") || "kostsaya";
+  const plan = searchParams?.get("plan") || "pro";
+  const namaKost = searchParams?.get("nama") || "Kost Saya";
 
   const planPrice = PLAN_PRICES[plan] || 199000;
   const planLabel = PLAN_LABELS[plan] || "Paket Pro";

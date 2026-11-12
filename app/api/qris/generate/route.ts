@@ -3,6 +3,19 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { injectAmountToQRIS, isValidQRIS } from "@/lib/qris";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
+// Type declaration untuk qrcode (tidak butuh @types/qrcode)
+interface QRCodeLib {
+  toBuffer(text: string, options?: {
+    type?: string; width?: number; margin?: number;
+    errorCorrectionLevel?: string; color?: { dark?: string; light?: string };
+  }): Promise<Buffer>;
+  toDataURL(text: string, options?: {
+    width?: number; margin?: number; errorCorrectionLevel?: string;
+  }): Promise<string>;
+}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRCode = require("qrcode") as QRCodeLib;
+
 /**
  * GET /api/qris/generate?kostId=xxx&amount=1500000
  * Rate limited: 30 req/menit per IP
@@ -55,9 +68,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate QR code image (PNG)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const QRCode = require("qrcode") as typeof import("qrcode");
-
     const qrBuffer: Buffer = await QRCode.toBuffer(dynamicQris, {
       type:          "png",
       width:         400,
@@ -122,8 +132,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Gagal generate QRIS dinamis" }, { status: 500 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const QRCode = require("qrcode") as typeof import("qrcode");
     const qrBase64: string = await QRCode.toDataURL(dynamicQris, {
       width:  400,
       margin: 2,

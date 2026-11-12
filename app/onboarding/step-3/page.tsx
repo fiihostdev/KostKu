@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase-browser";
 function Step3Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") || "pro";
+  const plan = searchParams?.get("plan") || "pro";
 
   const [subdomain, setSubdomain] = useState("kostsaya");
   const [namaKost, setNamaKost] = useState("");

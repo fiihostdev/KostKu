@@ -129,8 +129,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           {/* Navigation */}
           <nav className="space-y-0.5">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
+              const isActive = pathname === item.href;              return (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -158,7 +157,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 href="/superadmin/dashboard"
                 onClick={onClose}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  pathname.startsWith("/superadmin")
+                  pathname?.startsWith("/superadmin")
                     ? "skeu-button text-white shadow-md"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
