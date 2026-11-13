@@ -88,8 +88,7 @@ export default function LaporanKeuanganPage() {
   };
 
   // Export CSV nyata
-  const handleExportCSV = () => {
-    if (filteredCF.length === 0) { toast.info("Tidak ada data", "Tidak ada transaksi pada periode ini."); return; }
+  const handleExportCSV = () => {    if (filteredCF.length === 0) { toast.info("Tidak ada data", "Tidak ada transaksi pada periode ini."); return; }
     const header = "Tanggal,Keterangan,Kategori,Tipe,Nominal,Saldo\n";
     const rows = filteredCF.map((c) =>
       `"${c.tgl}","${c.ket}","${c.kat}","${c.tipe}",${c.nominal},${c.saldo}`
@@ -104,7 +103,6 @@ export default function LaporanKeuanganPage() {
     URL.revokeObjectURL(url);
     toast.success("Diekspor!", `File CSV ${bulanOptions[filterBulan]} ${filterTahun} siap didownload.`);
   };
-  const margin = totalMasuk > 0 ? Math.round((labaBersih / totalMasuk) * 100) : 0;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">

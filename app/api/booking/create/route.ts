@@ -18,11 +18,26 @@ export async function POST(request: NextRequest) {
   }
   try {
     const body = await request.json();
-    const { kostId, kamar, nama, phone, email, noKtp, nominal, nominalAsli, refCode, metode } = body;
+    const { kostId, kamar, nama, phone, email, noKtp, nominal, nominalAsli, metode } = body;
+    // refCode SELALU server-generated — tidak percaya client
+    const refCode = "REF-" + Math.random().toString(36).toUpperCase().slice(2, 10) + Date.now().toString(36).toUpperCase();
 
-    if (!kostId || !kamar || !nama || !phone || !nominal || !refCode) {
+    // Validasi input
+    if (!kostId || !kamar || !nama || !phone || !nominal) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     }
+
+    // Validasi format UUID kostId
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(kostId)) {
+      return NextResponse.json({ error: "kostId tidak valid" }, { status: 400 });
+    }
+
+    // Sanitasi input string — cegah injection
+    const safeName  = String(nama).trim().slice(0, 100).replace(/[<>]/g, "");
+    const safePhone = String(phone).trim().replace(/[^0-9+\-\s]/g, "").slice(0, 20);
+    const safeKamar = String(kamar).trim().slice(0, 50).replace(/[<>]/g, "");
+    const safeEmail = email ? String(email).trim().slice(0, 100) : null;
+    const safeNoKtp = noKtp ? String(noKtp).replace(/[^0-9]/g, "").slice(0, 16) : null;
 
     // Validasi kost ada
     const supabase = createServiceClient(
@@ -61,11 +76,11 @@ export async function POST(request: NextRequest) {
       .from("bookings")
       .insert({
         kost_id:      kostId,
-        kamar,
-        nama:         nama.trim(),
-        phone:        phone.trim(),
-        email:        email || null,
-        no_ktp:       noKtp || null,
+        kamar:        safeKamar,
+        nama:         safeName,
+        phone:        safePhone,
+        email:        safeEmail,
+        no_ktp:       safeNoKtp,
         nominal,
         nominal_asli: nominalAsli,
         ref_code:     refCode,
@@ -87,9 +102,9 @@ export async function POST(request: NextRequest) {
       const adminPhone = kost.telepon.replace(/[^0-9]/g, "").replace(/^0/, "62");
       const msg =
         `🏠 *Booking Baru!*\n*${kost.nama}*\n\n` +
-        `Kamar: *${kamar}*\n` +
-        `Nama: *${nama}*\n` +
-        `HP: ${phone}\n` +
+        `Kamar: *${safeKamar}*\n` +
+        `Nama: *${safeName}*\n` +
+        `HP: ${safePhone}\n` +
         `Metode: ${metode}\n` +
         `Nominal: *Rp ${nominal.toLocaleString("id-ID")}*\n` +
         `Kode: \`${refCode}\`\n\n` +

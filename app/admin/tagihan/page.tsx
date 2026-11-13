@@ -72,10 +72,13 @@ export default function TagihanPage() {
     toast.success("Pembayaran berhasil!", "Invoice telah ditandai Lunas.");
   };
 
-  // Tandai lunas manual (tanpa gateway — tunai/transfer)
-  const handleLunasManual = (inv: Invoice) => {
-    payInvoice(inv.id);
-    toast.success("Invoice ditandai Lunas!", `${inv.noInvoice} · ${inv.penyewa} telah dilunaskan.`);
+  const handleLunasManual = async (inv: Invoice) => {
+    try {
+      await payInvoice(inv.id);
+      toast.success("Invoice ditandai Lunas!", `${inv.noInvoice} · ${inv.penyewa} telah dilunaskan.`);
+    } catch {
+      toast.error("Gagal menandai lunas", "Periksa koneksi.");
+    }
   };
 
   // Hapus invoice

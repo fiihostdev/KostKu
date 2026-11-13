@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -33,7 +33,7 @@ export default function BookingPage() {
   const [rejectTarget, setRejectTarget] = useState<Booking | null>(null);
   const [catatanAdmin, setCatatanAdmin] = useState("");
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const loadBookings = useCallback(async () => {
     if (!kostId) return;

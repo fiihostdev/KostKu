@@ -137,11 +137,18 @@ async function handleMidtrans(
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  // Ambil server key dari DB berdasarkan orderId (format: KOSTKU-{invoiceId}-{timestamp})
-  const parts     = orderId.split("-");
-  const invoiceId = parts[1];
+  // Format orderId: KOSTKU-{invoiceId}-{timestamp}
+  // invoiceId adalah UUID yang mengandung '-', jadi ambil bagian antara "KOSTKU-" dan "-{timestamp}"
+  // Timestamp = bagian terakhir setelah '-' terakhir (13 digit epoch)
+  const kostKuPrefix = "KOSTKU-";
+  if (!orderId.startsWith(kostKuPrefix)) {
+    return NextResponse.json({ error: "Invalid order_id format" }, { status: 400 });
+  }
+  const withoutPrefix = orderId.slice(kostKuPrefix.length); // "{uuid}-{timestamp}"
+  const lastDashIdx = withoutPrefix.lastIndexOf("-");
+  const invoiceId = lastDashIdx > 0 ? withoutPrefix.slice(0, lastDashIdx) : "";
 
-  if (!invoiceId) {
+  if (!invoiceId || invoiceId.length < 36) {
     return NextResponse.json({ error: "Invalid order_id format" }, { status: 400 });
   }
 
@@ -205,9 +212,11 @@ async function handleTripay(
     return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
-  const parts     = merchantRef.split("-");
+  const parts     = merchantRef.startsWith("KOSTKU-")
+    ? (() => { const wo = merchantRef.slice(7); const idx = wo.lastIndexOf("-"); return [merchantRef, idx > 0 ? wo.slice(0, idx) : ""]; })()
+    : ["", ""];
   const invoiceId = parts[1];
-  if (!invoiceId) return NextResponse.json({ error: "Invalid merchant_ref" }, { status: 400 });
+  if (!invoiceId || invoiceId.length < 36) return NextResponse.json({ error: "Invalid merchant_ref" }, { status: 400 });
 
   const { data: inv } = await supabase
     .from("invoices").select("kost_id").eq("id", invoiceId).single();

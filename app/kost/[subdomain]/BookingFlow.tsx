@@ -57,7 +57,7 @@ function BookingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [done,       setDone]       = useState(false);
-  const [refCode]                   = useState(genRef);
+  const [refCode,  setRefCode]   = useState(""); // Diisi server setelah submit
   const [nominal]                   = useState(() => uniqueAmount(harga));
   const [qrSrc,      setQrSrc]      = useState<string | null>(null);
   const [qrLoading,  setQrLoading]  = useState(false);
@@ -111,12 +111,16 @@ function BookingModal({
           kostId, kamar: kamarNomor,
           nama: form.nama, phone: form.phone,
           email: form.email || null, noKtp: form.noKtp || null,
-          nominal, nominalAsli: harga, refCode,
+          nominal, nominalAsli: harga,
+          refCode: undefined, // Server yang generate refCode
           metode: metode === "qris" ? "QRIS" : "WhatsApp",
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Gagal submit"); return; }
+
+      // refCode sekarang dari server
+      if (data.refCode) setRefCode(data.refCode);
 
       setDone(true);
       if (metode === "wa") {
