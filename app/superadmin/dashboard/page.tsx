@@ -57,10 +57,28 @@ interface ActivityLog {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  starter: "bg-slate-100 text-slate-800",
-  pro: "bg-primary/10 text-primary",
-  enterprise: "bg-amber-100 text-amber-800",
+  starter:          "bg-slate-100 text-slate-800",
+  "paket starter":  "bg-slate-100 text-slate-800",
+  pro:              "bg-primary/10 text-primary",
+  "paket pro":      "bg-primary/10 text-primary",
+  enterprise:       "bg-amber-100 text-amber-800",
+  "paket enterprise":"bg-amber-100 text-amber-800",
 };
+
+/** Normalize paket slug → display label */
+function planLabel(paket: string): string {
+  const p = paket.toLowerCase().trim().replace("paket ", "");
+  if (p === "starter")    return "Paket Starter";
+  if (p === "pro")        return "Paket Pro";
+  if (p === "enterprise") return "Paket Enterprise";
+  // If name was stored instead of slug, return as-is
+  return paket;
+}
+
+/** Normalize to base slug for color lookup */
+function planSlug(paket: string): string {
+  return paket.toLowerCase().trim().replace("paket ", "");
+}
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
@@ -270,7 +288,7 @@ export default function SuperadminDashboardPage() {
     if (error) {
       showToast("error", "Gagal menyimpan: " + error.message);
     } else {
-      addLog("EDIT", editTenant.nama, `Paket: ${editTenant.paket} · Max kamar: ${editTenant.max_kamar}`);
+      addLog("EDIT", editTenant.nama, `Paket: ${planLabel(editTenant.paket)} · Max kamar: ${editTenant.max_kamar}`);
       showToast("success", "Data kost berhasil diperbarui!");
       setEditTenant(null);
       loadData();
@@ -313,7 +331,7 @@ export default function SuperadminDashboardPage() {
       t.nama.toLowerCase().includes(searchQ.toLowerCase()) ||
       t.subdomain.toLowerCase().includes(searchQ.toLowerCase()) ||
       t.email.toLowerCase().includes(searchQ.toLowerCase());
-    const matchPaket = filterPaket === "Semua" || t.paket.toLowerCase().includes(filterPaket.toLowerCase());
+    const matchPaket = filterPaket === "Semua" || planSlug(t.paket) === filterPaket.toLowerCase();
     const matchStatus =
       filterStatus === "Semua" ||
       (filterStatus === "Aktif" && !t.is_suspended) ||
@@ -428,7 +446,7 @@ export default function SuperadminDashboardPage() {
           {/* Revenue by Paket */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {["starter", "pro", "enterprise"].map((slug) => {
-              const planTenants = tenants.filter((t) => t.paket.toLowerCase().includes(slug));
+              const planTenants = tenants.filter((t) => planSlug(t.paket) === slug);
               const rev = planTenants.reduce((s, t) => s + t.pendapatanLunas, 0);
               const plan = plans.find((p) => p.slug === slug);
               return (
@@ -475,8 +493,8 @@ export default function SuperadminDashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PLAN_COLORS[t.paket.toLowerCase().replace("paket ", "")] || "bg-slate-100 text-slate-800"}`}>
-                      {t.paket}
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PLAN_COLORS[planSlug(t.paket)] || "bg-slate-100 text-slate-800"}`}>
+                      {planLabel(t.paket)}
                     </span>
                     {t.is_suspended && (
                       <span className="text-[10px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Suspended</span>
@@ -557,8 +575,8 @@ export default function SuperadminDashboardPage() {
                         </a>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${PLAN_COLORS[t.paket.toLowerCase().replace("paket ", "")] || "bg-slate-100 text-slate-800"}`}>
-                          {t.paket}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${PLAN_COLORS[planSlug(t.paket)] || "bg-slate-100 text-slate-800"}`}>
+                          {planLabel(t.paket)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -648,7 +666,7 @@ export default function SuperadminDashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {plans.map((plan) => {
-              const countTenants = tenants.filter((t) => t.paket.toLowerCase().includes(plan.slug)).length;
+              const countTenants = tenants.filter((t) => planSlug(t.paket) === plan.slug).length;
               return (
                 <div key={plan.id} className={`skeu-card p-6 rounded-2xl flex flex-col justify-between ${!plan.is_active ? "opacity-60" : ""}`}>
                   <div>
@@ -919,10 +937,20 @@ export default function SuperadminDashboardPage() {
                   onChange={(e) => setEditTenant({ ...editTenant, paket: e.target.value })}
                   className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold cursor-pointer"
                 >
+                  {/* Simpan slug (bukan name) agar getPlanLimits() match dengan benar */}
                   {plans.map((p) => (
-                    <option key={p.id} value={p.name}>{p.name} — Rp {p.price_monthly.toLocaleString("id-ID")}/bln</option>
+                    <option key={p.id} value={p.slug}>{p.name} — Rp {p.price_monthly.toLocaleString("id-ID")}/bln</option>
                   ))}
+                  {/* Fallback jika platform_plans kosong */}
+                  {plans.length === 0 && (
+                    <>
+                      <option value="starter">Paket Starter — Rp 99.000/bln</option>
+                      <option value="pro">Paket Pro — Rp 199.000/bln</option>
+                      <option value="enterprise">Paket Enterprise — Rp 399.000/bln</option>
+                    </>
+                  )}
                 </select>
+                <p className="text-[10px] text-slate-400 mt-1">Perubahan paket langsung aktif realtime di dashboard admin kost.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
