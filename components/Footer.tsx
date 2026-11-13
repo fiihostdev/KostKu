@@ -36,8 +36,8 @@ export default function Footer() {
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900 mb-3 uppercase tracking-wider">Hubungi Kami</h4>
-            <p className="text-xs sm:text-sm text-slate-600 mb-1">Email: support@kostku.id</p>
-            <p className="text-xs sm:text-sm text-slate-600 mb-3">WhatsApp: +62 812-3456-7890</p>
+            <p className="text-xs sm:text-sm text-slate-600 mb-1">Email: fiihostdev@gmail.com</p>
+            <p className="text-xs sm:text-sm text-slate-600 mb-3">WhatsApp: +62 895-3864-27676</p>
             <span className="inline-block px-3 py-1 bg-white/80 rounded-full text-[11px] font-bold text-primary border border-slate-200">
               Multi-Tenant SaaS v1.0
             </span>
