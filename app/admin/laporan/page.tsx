@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { usePlanLimits } from "@/lib/use-plan-limits";
 import type { CashFlow } from "@/lib/store";
 
 export default function LaporanKeuanganPage() {
   const { stats, cashFlows, addCashFlow, deleteCashFlow, loading } = useKost();
   const toast = useToast();
+  const planStatus = usePlanLimits();
 
   // Filter bulan/tahun
   const now = new Date();
@@ -87,8 +89,16 @@ export default function LaporanKeuanganPage() {
     }
   };
 
+  // Cek apakah paket mendukung export CSV
+  const canExportCSV = planStatus.limits?.hasLaporanExpor ?? false;
+
   // Export CSV nyata
-  const handleExportCSV = () => {    if (filteredCF.length === 0) { toast.info("Tidak ada data", "Tidak ada transaksi pada periode ini."); return; }
+  const handleExportCSV = () => {
+    if (!canExportCSV) {
+      toast.info("Fitur Pro", "Ekspor CSV/Excel hanya tersedia di Paket Pro ke atas. Upgrade untuk mengakses fitur ini.");
+      return;
+    }
+    if (filteredCF.length === 0) { toast.info("Tidak ada data", "Tidak ada transaksi pada periode ini."); return; }
     const header = "Tanggal,Keterangan,Kategori,Tipe,Nominal,Saldo\n";
     const rows = filteredCF.map((c) =>
       `"${c.tgl}","${c.ket}","${c.kat}","${c.tipe}",${c.nominal},${c.saldo}`
@@ -149,12 +159,23 @@ export default function LaporanKeuanganPage() {
             <span className="material-symbols-outlined text-[16px]">add</span>
             <span>Catat Transaksi</span>
           </button>
-          {/* Export CSV nyata */}
+          {/* Export CSV nyata — Pro+ only */}
           <button
             onClick={handleExportCSV}
-            className="skeu-button text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md flex-1 sm:flex-none justify-center">
-            <span className="material-symbols-outlined text-[16px]">download</span>
+            title={canExportCSV ? "Ekspor laporan ke CSV" : "Tersedia di Paket Pro ke atas"}
+            className={`text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md flex-1 sm:flex-none justify-center transition-all ${
+              canExportCSV
+                ? "skeu-button"
+                : "skeu-button-secondary text-slate-400 cursor-not-allowed"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {canExportCSV ? "download" : "lock"}
+            </span>
             <span>Ekspor CSV</span>
+            {!canExportCSV && (
+              <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold ml-0.5">PRO</span>
+            )}
           </button>
         </div>
       </div>

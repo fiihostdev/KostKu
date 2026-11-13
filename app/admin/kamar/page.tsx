@@ -5,6 +5,7 @@ import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import RoomPhotoUploader from "@/components/admin/RoomPhotoUploader";
+import { usePlanLimits } from "@/lib/use-plan-limits";
 import type { Room } from "@/lib/store";
 
 type RoomForm = {
@@ -124,6 +125,7 @@ function RoomFormFields({
 export default function DataKamarPage() {
   const { rooms, addRoom, updateRoom, deleteRoom, profile, loading, kostId } = useKost();
   const toast = useToast();
+  const planStatus = usePlanLimits(); // ← cek limit paket
 
   const [filter, setFilter] = useState<string>("Semua");
 
@@ -153,6 +155,16 @@ export default function DataKamarPage() {
   // ── Tambah kamar ───────────────────────────────────────────────────────────
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ── Validasi limit paket sebelum tambah kamar ──────────────────────────
+    if (!planStatus.canAddRoom) {
+      toast.error(
+        "Batas kamar tercapai!",
+        `Paket ${planStatus.paket} hanya memperbolehkan ${planStatus.limits?.maxKamar} kamar. Upgrade paket untuk menambah lebih banyak.`
+      );
+      return;
+    }
+
     setAddLoading(true);
     try {
       await addRoom({
@@ -166,8 +178,9 @@ export default function DataKamarPage() {
       setShowAddModal(false);
       setNewRoom(emptyForm);
       toast.success("Kamar berhasil ditambahkan!", `Kamar ${newRoom.nomor} telah tersimpan.`);
-    } catch {
-      toast.error("Gagal menambahkan kamar", "Coba lagi atau periksa koneksi.");
+      planStatus.refresh(); // refresh usage count
+    } catch (err) {
+      toast.error("Gagal menambahkan kamar", err instanceof Error ? err.message : "Coba lagi atau periksa koneksi.");
     } finally {
       setAddLoading(false);
     }
@@ -247,6 +260,35 @@ export default function DataKamarPage() {
         </div>
       )}
 
+      {/* ── Plan Status Banner ── */}
+      {planStatus.suspended && (
+        <div className="p-3 bg-red-50 border-2 border-red-300 rounded-2xl flex items-center gap-3 text-xs">
+          <span className="material-symbols-outlined text-red-600 text-[20px]">block</span>
+          <div>
+            <p className="font-black text-red-800">Akun Disuspend</p>
+            <p className="text-red-700">Hubungi admin platform untuk informasi lebih lanjut.</p>
+          </div>
+        </div>
+      )}
+      {planStatus.expired && (
+        <div className="p-3 bg-orange-50 border-2 border-orange-300 rounded-2xl flex items-center gap-3 text-xs">
+          <span className="material-symbols-outlined text-orange-600 text-[20px]">schedule</span>
+          <div>
+            <p className="font-black text-orange-800">Paket Kadaluarsa</p>
+            <p className="text-orange-700">Perpanjang langganan untuk mengakses semua fitur.</p>
+          </div>
+        </div>
+      )}
+      {!planStatus.canAddRoom && !planStatus.suspended && !planStatus.expired && (
+        <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl flex items-center gap-3 text-xs">
+          <span className="material-symbols-outlined text-amber-600 text-[20px]">warning</span>
+          <div className="flex-1">
+            <p className="font-black text-amber-800">Batas Kamar Paket {planStatus.paket} Tercapai ({rooms.length}/{planStatus.limits?.maxKamar})</p>
+            <p className="text-amber-700">Upgrade paket untuk menambah lebih banyak kamar.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -262,11 +304,28 @@ export default function DataKamarPage() {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Kamar</h1>
         </div>
         <button
-          onClick={() => { setShowAddModal(true); setNewRoom(emptyForm); }}
-          className="skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md w-full sm:w-auto"
+          onClick={() => {
+            if (!planStatus.canAddRoom) {
+              toast.error("Batas kamar tercapai!", `Paket ${planStatus.paket} maks ${planStatus.limits?.maxKamar} kamar. Upgrade untuk menambah lebih.`);
+              return;
+            }
+            setShowAddModal(true);
+            setNewRoom(emptyForm);
+          }}
+          disabled={planStatus.suspended || planStatus.expired}
+          className={`skeu-button text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-md w-full sm:w-auto ${
+            !planStatus.canAddRoom ? "opacity-60 cursor-not-allowed" : ""
+          }`}
         >
-          <span className="material-symbols-outlined text-[18px]">add_circle</span>
-          <span>Tambah Kamar Baru</span>
+          <span className="material-symbols-outlined text-[18px]">
+            {!planStatus.canAddRoom ? "lock" : "add_circle"}
+          </span>
+          <span>
+            {!planStatus.canAddRoom
+              ? `Batas Tercapai (${rooms.length}/${planStatus.limits?.maxKamar})`
+              : "Tambah Kamar Baru"
+            }
+          </span>
         </button>
       </div>
 
@@ -287,6 +346,33 @@ export default function DataKamarPage() {
           </div>
         ))}
       </div>
+
+      {/* Kuota Paket */}
+      {planStatus.limits && (
+        <div className="skeu-card p-3 rounded-xl flex items-center gap-3 text-xs">
+          <span className="material-symbols-outlined text-primary text-[18px] shrink-0">sell</span>
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-bold text-slate-700">Kuota Kamar — {planStatus.paket}</span>
+              <span className={`font-black ${planStatus.canAddRoom ? "text-emerald-700" : "text-red-700"}`}>
+                {rooms.length} / {planStatus.limits.maxKamar}
+              </span>
+            </div>
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  !planStatus.canAddRoom ? "bg-red-500" :
+                  planStatus.roomsRemaining <= 3 ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+                style={{ width: `${Math.min(100, (rooms.length / planStatus.limits.maxKamar) * 100)}%` }}
+              />
+            </div>
+          </div>
+          {!planStatus.canAddRoom && (
+            <span className="shrink-0 text-[10px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">PENUH</span>
+          )}
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/60">
@@ -419,13 +505,24 @@ export default function DataKamarPage() {
             <form onSubmit={handleEditRoom}>
               <RoomFormFields form={editForm} onChange={setEditForm} showStatus={true} />
 
-              {/* Upload foto kamar */}
+              {/* Upload foto kamar — Pro+ only */}
               <div className="mt-4 pt-4 border-t border-white/60">
-                <RoomPhotoUploader
-                  roomId={editRoom.id}
-                  currentPhotos={editRoom.fotoUrls || []}
-                  onPhotosChange={(photos) => setEditRoom({ ...editRoom, fotoUrls: photos })}
-                />
+                {planStatus.limits?.hasFotoKamar ? (
+                  <RoomPhotoUploader
+                    roomId={editRoom.id}
+                    currentPhotos={editRoom.fotoUrls || []}
+                    onPhotosChange={(photos) => setEditRoom({ ...editRoom, fotoUrls: photos })}
+                  />
+                ) : (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+                    <span className="material-symbols-outlined text-amber-500 text-[20px] shrink-0">photo_camera</span>
+                    <div className="flex-1">
+                      <p className="font-bold text-amber-800">Upload Foto Kamar (Pro)</p>
+                      <p className="text-amber-700 text-[11px] mt-0.5">Upgrade ke Paket Pro untuk mengunggah foto kamar.</p>
+                    </div>
+                    <span className="text-[9px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-bold shrink-0">PRO</span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-white/60">
                 <button type="button" onClick={() => setEditRoom(null)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold text-xs">

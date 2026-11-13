@@ -6,11 +6,14 @@ import WABotTab from "@/components/admin/WABotTab";
 import LogoUploader from "@/components/admin/LogoUploader";
 import PaymentGatewayTab from "@/components/admin/PaymentGatewayTab";
 import QRISManager from "@/components/admin/QRISManager";
+import { LockedFeatureCard } from "@/components/admin/PlanLimitBanner";
+import { usePlanLimits } from "@/lib/use-plan-limits";
 import { useToast } from "@/components/ui/Toast";
 
 export default function PengaturanPage() {
   const { profile, setProfile } = useKost();
   const [activeTab, setActiveTab] = useState("midtrans");
+  const planStatus = usePlanLimits();
 
   // Midtrans — dipindah ke PaymentGatewayTab (tersimpan di Supabase, bukan localStorage)
   // State lama dihapus: isProduction, merchantId, clientKey, serverKey, showServerKey
@@ -176,11 +179,11 @@ export default function PengaturanPage() {
       {/* Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/60">
         {[
-          { id: "midtrans", label: "Payment Gateway", icon: "credit_card" },
-          { id: "qris",     label: "QRIS Dinamis",    icon: "qr_code_2"  },
-          { id: "profil",   label: "Identitas Kost",  icon: "apartment"  },
-          { id: "whatsapp", label: "Notifikasi WA",   icon: "chat"       },
-          { id: "keamanan", label: "Keamanan & Backup", icon: "security" },
+          { id: "midtrans", label: "Payment Gateway", icon: "credit_card", pro: !planStatus.limits?.hasPaymentGateway },
+          { id: "qris",     label: "QRIS Dinamis",    icon: "qr_code_2",  pro: !planStatus.limits?.hasQrisDinamis },
+          { id: "profil",   label: "Identitas Kost",  icon: "apartment",  pro: false },
+          { id: "whatsapp", label: "Notifikasi WA",   icon: "chat",       pro: !planStatus.limits?.hasWaNotifikasi },
+          { id: "keamanan", label: "Keamanan & Backup", icon: "security", pro: false },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -193,26 +196,47 @@ export default function PengaturanPage() {
           >
             <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
             <span>{tab.label}</span>
+            {tab.pro && (
+              <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black ${
+                activeTab === tab.id ? "bg-white/30 text-white" : "bg-amber-100 text-amber-700"
+              }`}>PRO</span>
+            )}
           </button>
         ))}
       </div>
 
       {/* ── TAB: MIDTRANS ── */}
       {activeTab === "midtrans" && (
-        <PaymentGatewayTab />
+        planStatus.limits?.hasPaymentGateway ? (
+          <PaymentGatewayTab />
+        ) : (
+          <LockedFeatureCard
+            feature="Payment Gateway"
+            description="Integrasi Midtrans, Tripay, dan Xendit untuk pembayaran otomatis (Virtual Account, QRIS, e-wallet)."
+            minPlan="Pro"
+          />
+        )
       )}
 
       {/* ── TAB: QRIS DINAMIS ── */}
       {activeTab === "qris" && (
-        <div className="space-y-2">
-          <div className="pb-2">
-            <h2 className="text-sm font-black text-slate-900">QRIS Dinamis</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Upload QR statis (GoPay/DANA/BRI/BCA) → sistem inject nominal otomatis saat penyewa bayar.
-            </p>
+        planStatus.limits?.hasQrisDinamis ? (
+          <div className="space-y-2">
+            <div className="pb-2">
+              <h2 className="text-sm font-black text-slate-900">QRIS Dinamis</h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Upload QR statis (GoPay/DANA/BRI/BCA) → sistem inject nominal otomatis saat penyewa bayar.
+              </p>
+            </div>
+            <QRISManager />
           </div>
-          <QRISManager />
-        </div>
+        ) : (
+          <LockedFeatureCard
+            feature="QRIS Dinamis"
+            description="Upload QR statis (GoPay/DANA/BRI/BCA) → sistem inject nominal otomatis saat penyewa bayar."
+            minPlan="Pro"
+          />
+        )
       )}
 
       {/* ── TAB: PROFIL IDENTITAS KOST ── */}
@@ -313,15 +337,23 @@ export default function PengaturanPage() {
 
       {/* ── TAB: NOTIFIKASI WHATSAPP ── */}
       {activeTab === "whatsapp" && (
-        <WABotTab
-          waTemplate={waTemplate}
-          setWaTemplate={setWaTemplate}
-          waReminderDays={waReminderDays}
-          setWaReminderDays={setWaReminderDays}
-          waBotEnabled={waBotEnabled}
-          setWaBotEnabled={setWaBotEnabled}
-          onSave={handleSaveWA}
-        />
+        planStatus.limits?.hasWaNotifikasi ? (
+          <WABotTab
+            waTemplate={waTemplate}
+            setWaTemplate={setWaTemplate}
+            waReminderDays={waReminderDays}
+            setWaReminderDays={setWaReminderDays}
+            waBotEnabled={waBotEnabled}
+            setWaBotEnabled={setWaBotEnabled}
+            onSave={handleSaveWA}
+          />
+        ) : (
+          <LockedFeatureCard
+            feature="Notifikasi WhatsApp"
+            description="Kirim tagihan dan pengingat otomatis via WhatsApp Bot ke penyewa yang belum membayar."
+            minPlan="Pro"
+          />
+        )
       )}
 
       {/* ── TAB: KEAMANAN & BACKUP ── */}

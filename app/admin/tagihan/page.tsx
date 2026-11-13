@@ -6,10 +6,12 @@ import type { Invoice } from "@/lib/store";
 import PaymentModal from "@/components/payment/PaymentModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/Toast";
+import { usePlanLimits } from "@/lib/use-plan-limits";
 
 export default function TagihanPage() {
   const { invoices, addInvoice, deleteInvoice, payInvoice, tenants, rooms } = useKost();
   const toast = useToast();
+  const planStatus = usePlanLimits();
   const [filter, setFilter] = useState("Semua");
   const [showModal,        setShowModal]        = useState(false);
   const [showPayment,      setShowPayment]      = useState(false);
@@ -97,6 +99,11 @@ export default function TagihanPage() {
   };
 
   const handleBroadcastWA = async () => {
+    // Cek paket: WA notifikasi hanya Pro+
+    if (!planStatus.limits?.hasWaNotifikasi) {
+      toast.info("Fitur Pro", "Broadcast WA otomatis hanya tersedia di Paket Pro ke atas. Upgrade untuk menggunakannya.");
+      return;
+    }
     const unpaid = invoices.filter((i) => i.status !== "Lunas");
     if (unpaid.length === 0) {
       toast.info("Semua tagihan sudah lunas!", "Tidak ada tagihan tertunda yang perlu diingatkan.");
@@ -198,13 +205,19 @@ export default function TagihanPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleBroadcastWA}
-            disabled={broadcastLoading}
-            className="skeu-button-secondary text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-emerald-800 flex-1 sm:flex-none disabled:opacity-60"
+            disabled={broadcastLoading || !planStatus.limits?.hasWaNotifikasi}
+            title={planStatus.limits?.hasWaNotifikasi ? "Kirim pengingat ke semua penyewa" : "Tersedia di Paket Pro ke atas"}
+            className={`text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm flex-1 sm:flex-none disabled:opacity-60 ${
+              planStatus.limits?.hasWaNotifikasi ? "skeu-button-secondary text-emerald-800" : "skeu-card text-slate-400 cursor-not-allowed"
+            }`}
           >
-            <span className={`material-symbols-outlined text-[16px] text-emerald-600 ${broadcastLoading ? "animate-spin" : ""}`}>
-              {broadcastLoading ? "sync" : "forward_to_inbox"}
+            <span className={`material-symbols-outlined text-[16px] ${broadcastLoading ? "animate-spin" : ""} ${!planStatus.limits?.hasWaNotifikasi ? "text-slate-400" : "text-emerald-600"}`}>
+              {broadcastLoading ? "sync" : !planStatus.limits?.hasWaNotifikasi ? "lock" : "forward_to_inbox"}
             </span>
             <span>{broadcastLoading ? "Mengirim..." : "Broadcast WA"}</span>
+            {!planStatus.limits?.hasWaNotifikasi && (
+              <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+            )}
           </button>
           <button
             onClick={() => setShowModal(true)}

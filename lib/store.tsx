@@ -352,25 +352,32 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   }, [profile.subdomain]);
 
   // ── addRoom ────────────────────────────────────────────────────────────────
+  // Panggil /api/rooms/add untuk server-side plan validation (tidak bisa di-bypass)
   const addRoom = async (roomData: Omit<Room, "id">) => {
     if (!kostId) return;
-    const { data, error } = await supabase
-      .from("rooms")
-      .insert({
-        kost_id: kostId,
-        nomor: roomData.nomor,
-        lantai: roomData.lantai,
-        tipe: roomData.tipe,
-        harga: roomData.harga,
-        status: roomData.status,
-        penyewa: roomData.penyewa || null,
-        fasilitas: roomData.fasilitas,
-      })
-      .select()
-      .single();
 
-    if (!error && data) {
-      setRooms((prev) => [mapRoom(data as Record<string, unknown>), ...prev]);
+    const res = await fetch("/api/rooms/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nomor:     roomData.nomor,
+        lantai:    roomData.lantai,
+        tipe:      roomData.tipe,
+        harga:     roomData.harga,
+        status:    roomData.status,
+        penyewa:   roomData.penyewa || null,
+        fasilitas: roomData.fasilitas,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Gagal menambahkan kamar");
+    }
+
+    if (data.room) {
+      setRooms((prev) => [mapRoom(data.room as Record<string, unknown>), ...prev]);
       triggerRevalidate(); // Invalidate cache halaman publik
     }
   };
