@@ -32,9 +32,13 @@ const defaultStatus: PlanStatus = {
  * Hook untuk cek limit paket admin yang sedang login.
  *
  * - Fetch pertama saat mount via /api/plan/check
- * - Subscribe Supabase Realtime pada kost_profiles untuk user ini
- *   → ketika superadmin mengubah paket/max_kamar/is_suspended di DB,
- *     hook langsung re-fetch tanpa perlu refresh halaman (realtime)
+ * - Subscribe Supabase Realtime pada baris kost_profiles milik user ini
+ *   → ketika superadmin mengubah paket/max_kamar/is_suspended/expires_at,
+ *     hook langsung re-fetch tanpa perlu refresh halaman
+ *
+ * Prasyarat DB (sudah dijalankan):
+ *   ALTER TABLE kost_profiles REPLICA IDENTITY FULL;
+ *   ALTER PUBLICATION supabase_realtime ADD TABLE kost_profiles;
  */
 export function usePlanLimits() {
   const [status, setStatus] = useState<PlanStatus>(defaultStatus);
@@ -54,7 +58,7 @@ export function usePlanLimits() {
         return;
       }
       if (!res.ok) {
-        setStatus((prev) => ({ ...prev, loading: false, error: data.error }));
+        setStatus((prev) => ({ ...prev, loading: false, error: data.error ?? "Gagal cek paket" }));
         return;
       }
 
@@ -74,52 +78,49 @@ export function usePlanLimits() {
     }
   }, []);
 
-  // ── Realtime subscription ──────────────────────────────────────────────────
-  // Listen for ANY UPDATE on kost_profiles for this user's row.
-  // When superadmin changes paket, max_kamar, is_suspended, expires_at → re-fetch.
   useEffect(() => {
     // Initial fetch
     check();
 
-    // Set up realtime subscription
     const supabase = createClient();
-    let kostProfileId: string | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // Get the kost_profile id for the current user to filter the subscription
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
+    // 1. Get this user's kost_profile ID, then subscribe filtered to that row only
+    supabase.auth.getUser().then(({ data: authData }) => {
+      if (!authData.user) return;
 
       supabase
         .from("kost_profiles")
         .select("id")
-        .eq("user_id", data.user.id)
+        .eq("user_id", authData.user.id)
         .single()
         .then(({ data: profile }) => {
-          if (!profile) return;
-          kostProfileId = profile.id;
+          if (!profile?.id) return;
+
+          // 2. Subscribe only to UPDATE on this specific profile row
+          //    filter: id=eq.<profile_id>  — only fires for this user's row
+          channel = supabase
+            .channel(`plan-limits-${profile.id}`)
+            .on(
+              "postgres_changes",
+              {
+                event:  "UPDATE",
+                schema: "public",
+                table:  "kost_profiles",
+                filter: `id=eq.${profile.id}`,
+              },
+              (_payload) => {
+                // Superadmin changed paket, max_kamar, is_suspended, or expires_at
+                // Re-fetch immediately so UI updates without page refresh
+                check();
+              }
+            )
+            .subscribe();
         });
     });
 
-    // Subscribe to ALL updates on kost_profiles table (filtered by user_id on server via RLS)
-    const channel = supabase
-      .channel("plan-limits-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "kost_profiles",
-        },
-        (payload) => {
-          // Re-fetch whenever any field on this user's kost_profile changes
-          // (paket, max_kamar, is_suspended, expires_at, etc.)
-          check();
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [check]);
 
