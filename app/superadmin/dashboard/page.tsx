@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +44,17 @@ interface PlatformPlan {
   is_active: boolean;
 }
 
-type ActiveTab = "overview" | "tenants" | "plans" | "settings";
+type ActiveTab = "overview" | "tenants" | "plans" | "settings" | "logs";
+
+// ── Activity Log type ──────────────────────────────────────────────────────────
+interface ActivityLog {
+  id: string;
+  action: string;
+  target: string;
+  detail: string;
+  timestamp: string;
+  by: string;
+}
 
 const PLAN_COLORS: Record<string, string> = {
   starter: "bg-slate-100 text-slate-800",
@@ -53,7 +65,8 @@ const PLAN_COLORS: Record<string, string> = {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function SuperadminDashboardPage() {
-  const supabase = createClient();
+  // useMemo agar supabase stabil — tidak re-create setiap render
+  const supabase = useMemo(() => createClient(), []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [tenants, setTenants] = useState<KostTenant[]>([]);
@@ -63,16 +76,40 @@ export default function SuperadminDashboardPage() {
   const [filterPaket, setFilterPaket] = useState("Semua");
   const [filterStatus, setFilterStatus] = useState("Semua");
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   // Modal states
   const [editTenant, setEditTenant] = useState<KostTenant | null>(null);
   const [editPlan, setEditPlan] = useState<PlatformPlan | null>(null);
   const [showAddPlan, setShowAddPlan] = useState(false);
 
+  // Suspend modal — ganti prompt() native
+  const [suspendTarget, setSuspendTarget] = useState<KostTenant | null>(null);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspendLoading, setSuspendLoading] = useState(false);
+
+  // Delete modal — ganti confirm() native
+  const [deleteTarget, setDeleteTarget] = useState<KostTenant | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
   const showToast = (type: "success" | "error", msg: string) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // Helper: tambah activity log
+  const addLog = useCallback((action: string, target: string, detail: string) => {
+    const log: ActivityLog = {
+      id: Date.now().toString(),
+      action,
+      target,
+      detail,
+      timestamp: new Date().toISOString(),
+      by: "superadmin",
+    };
+    setActivityLogs((prev) => [log, ...prev].slice(0, 50)); // simpan 50 log terakhir
+  }, []);
 
   // ── Load semua data platform ────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -158,31 +195,63 @@ export default function SuperadminDashboardPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── Suspend / Aktifkan tenant ──────────────────────────────────────────────
-  const toggleSuspend = async (tenant: KostTenant) => {
-    const reason = tenant.is_suspended
-      ? null
-      : prompt(`Alasan suspend kost "${tenant.nama}":`);
+  // ── Buka modal suspend ─────────────────────────────────────────────────────
+  const openSuspendModal = (tenant: KostTenant) => {
+    setSuspendTarget(tenant);
+    setSuspendReason("");
+  };
 
-    if (!tenant.is_suspended && reason === null) return; // user cancel
+  // ── Konfirmasi suspend/aktifkan ────────────────────────────────────────────
+  const confirmToggleSuspend = async () => {
+    if (!suspendTarget) return;
+    setSuspendLoading(true);
+    try {
+      const willSuspend = !suspendTarget.is_suspended;
+      const { error } = await supabase
+        .from("kost_profiles")
+        .update({
+          is_suspended: willSuspend,
+          suspended_reason: willSuspend ? suspendReason.trim() || "Pelanggaran kebijakan" : null,
+        })
+        .eq("id", suspendTarget.id);
 
-    const { error } = await supabase
-      .from("kost_profiles")
-      .update({
-        is_suspended: !tenant.is_suspended,
-        suspended_reason: reason,
-      })
-      .eq("id", tenant.id);
+      if (error) throw error;
 
-    if (error) {
-      showToast("error", "Gagal mengubah status: " + error.message);
-    } else {
-      showToast("success", tenant.is_suspended ? `Kost "${tenant.nama}" diaktifkan.` : `Kost "${tenant.nama}" disuspend.`);
+      addLog(
+        willSuspend ? "SUSPEND" : "AKTIFKAN",
+        suspendTarget.nama,
+        willSuspend ? `Alasan: ${suspendReason || "tidak disebutkan"}` : "Kost diaktifkan kembali"
+      );
+      showToast("success", willSuspend ? `Kost "${suspendTarget.nama}" disuspend.` : `Kost "${suspendTarget.nama}" diaktifkan.`);
+      setSuspendTarget(null);
       loadData();
+    } catch (err) {
+      showToast("error", "Gagal: " + String(err));
+    } finally {
+      setSuspendLoading(false);
     }
   };
 
-  // ── Update tenant (paket, max_kamar, harga, notes) ─────────────────────────
+  // ── Konfirmasi hapus tenant ─────────────────────────────────────────────────
+  const confirmDeleteTenant = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase.from("kost_profiles").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      addLog("HAPUS", deleteTarget.nama, `Subdomain: ${deleteTarget.subdomain}`);
+      showToast("success", "Kost berhasil dihapus permanen.");
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+      loadData();
+    } catch (err) {
+      showToast("error", "Gagal hapus: " + String(err));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // ── Update tenant ─────────────────────────────────────────────────────────
   const saveTenantEdit = async () => {
     if (!editTenant) return;
     const { error } = await supabase
@@ -201,6 +270,7 @@ export default function SuperadminDashboardPage() {
     if (error) {
       showToast("error", "Gagal menyimpan: " + error.message);
     } else {
+      addLog("EDIT", editTenant.nama, `Paket: ${editTenant.paket} · Max kamar: ${editTenant.max_kamar}`);
       showToast("success", "Data kost berhasil diperbarui!");
       setEditTenant(null);
       loadData();
@@ -223,12 +293,10 @@ export default function SuperadminDashboardPage() {
     }
   };
 
-  // ── Hapus tenant ────────────────────────────────────────────────────────────
-  const deleteTenant = async (tenant: KostTenant) => {
-    if (!confirm(`HAPUS PERMANEN kost "${tenant.nama}"? Data kamar, penyewa, dan invoice akan ikut terhapus!`)) return;
-    const { error } = await supabase.from("kost_profiles").delete().eq("id", tenant.id);
-    if (error) showToast("error", "Gagal hapus: " + error.message);
-    else { showToast("success", "Kost berhasil dihapus."); loadData(); }
+  // ── Hapus tenant — buka modal konfirmasi ──────────────────────────────────
+  const deleteTenant = (tenant: KostTenant) => {
+    setDeleteTarget(tenant);
+    setDeleteConfirmText("");
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -336,6 +404,7 @@ export default function SuperadminDashboardPage() {
           { id: "overview", label: "Overview", icon: "dashboard" },
           { id: "tenants", label: "Kelola Kost", icon: "domain" },
           { id: "plans", label: "Kelola Paket", icon: "sell" },
+          { id: "logs", label: `Activity Log ${activityLogs.length > 0 ? `(${activityLogs.length})` : ""}`, icon: "history" },
           { id: "settings", label: "Platform Settings", icon: "settings" },
         ].map((tab) => (
           <button
@@ -524,7 +593,7 @@ export default function SuperadminDashboardPage() {
                           </button>
                           {/* Suspend/Aktif */}
                           <button
-                            onClick={() => toggleSuspend(t)}
+                            onClick={() => openSuspendModal(t)}
                             className={`p-1.5 rounded-lg skeu-card ${t.is_suspended ? "text-emerald-600" : "text-amber-600"}`}
                             title={t.is_suspended ? "Aktifkan" : "Suspend"}
                           >
@@ -681,8 +750,157 @@ export default function SuperadminDashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* MODAL: Edit Tenant */}
+      {/* TAB: ACTIVITY LOG */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "logs" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-slate-900 text-base">Activity Log Superadmin</h2>
+            <button onClick={() => setActivityLogs([])} className="text-xs text-red-600 font-bold hover:underline flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+              Bersihkan Log
+            </button>
+          </div>
+          {activityLogs.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-sm">
+              <span className="material-symbols-outlined text-[40px] block mb-2">history</span>
+              Belum ada aktivitas dalam sesi ini.
+            </div>
+          ) : (
+            <div className="skeu-card rounded-2xl overflow-hidden">
+              <div className="divide-y divide-white/40">
+                {activityLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 p-4 hover:bg-white/50 transition-colors">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-[11px] ${
+                      log.action === "SUSPEND" ? "bg-red-100 text-red-700" :
+                      log.action === "AKTIFKAN" ? "bg-emerald-100 text-emerald-700" :
+                      log.action === "HAPUS" ? "bg-red-200 text-red-900" :
+                      "bg-blue-100 text-blue-700"
+                    }`}>
+                      <span className="material-symbols-outlined text-[16px]">
+                        {log.action === "SUSPEND" ? "pause_circle" :
+                         log.action === "AKTIFKAN" ? "play_circle" :
+                         log.action === "HAPUS" ? "delete" : "edit"}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-xs text-slate-900">{log.action}</span>
+                        <span className="font-bold text-xs text-primary">{log.target}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{log.detail}</p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                      {new Date(log.timestamp).toLocaleTimeString("id-ID")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* MODAL: Suspend/Aktifkan */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {suspendTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="skeu-card p-6 rounded-2xl max-w-md w-full shadow-2xl text-xs space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-white/60">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${suspendTarget.is_suspended ? "bg-emerald-100" : "bg-red-100"}`}>
+                <span className={`material-symbols-outlined text-[22px] ${suspendTarget.is_suspended ? "text-emerald-600" : "text-red-600"}`}>
+                  {suspendTarget.is_suspended ? "play_circle" : "pause_circle"}
+                </span>
+              </div>
+              <div>
+                <h3 className="font-black text-sm text-slate-900">
+                  {suspendTarget.is_suspended ? "Aktifkan Kost" : "Suspend Kost"}
+                </h3>
+                <p className="text-slate-500">{suspendTarget.nama}</p>
+              </div>
+            </div>
+
+            {!suspendTarget.is_suspended && (
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Alasan Suspend</label>
+                <textarea rows={3} value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  placeholder="Contoh: Pembayaran bermasalah, pelanggaran ToS..."
+                  className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none" />
+              </div>
+            )}
+
+            {suspendTarget.is_suspended && suspendTarget.suspended_reason && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+                <p className="font-bold text-[11px]">Alasan suspend sebelumnya:</p>
+                <p className="text-[11px]">{suspendTarget.suspended_reason}</p>
+              </div>
+            )}
+
+            <div className={`p-3 rounded-xl text-[11px] font-bold flex items-center gap-2 ${
+              suspendTarget.is_suspended ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-red-50 text-red-800 border border-red-200"
+            }`}>
+              <span className="material-symbols-outlined text-[16px]">{suspendTarget.is_suspended ? "check_circle" : "warning"}</span>
+              {suspendTarget.is_suspended
+                ? `Kost "${suspendTarget.nama}" akan diaktifkan kembali. Admin dapat login dan mengelola kost.`
+                : `Kost "${suspendTarget.nama}" akan disuspend. Admin tidak dapat mengakses dashboard.`
+              }
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setSuspendTarget(null)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold">Batal</button>
+              <button onClick={confirmToggleSuspend} disabled={suspendLoading}
+                className={`px-5 py-2 rounded-xl font-bold shadow-md text-white disabled:opacity-70 ${suspendTarget.is_suspended ? "bg-emerald-600" : "bg-red-600"}`}>
+                {suspendLoading ? "Memproses..." : suspendTarget.is_suspended ? "Ya, Aktifkan" : "Ya, Suspend"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* MODAL: Hapus Permanen */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="skeu-card p-6 rounded-2xl max-w-md w-full shadow-2xl text-xs space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-white/60">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-red-600 text-[22px]">delete_forever</span>
+              </div>
+              <div>
+                <h3 className="font-black text-sm text-red-900">Hapus Permanen</h3>
+                <p className="text-slate-500">{deleteTarget.nama}</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-[11px] space-y-1">
+              <p className="font-bold">⚠️ Tindakan ini TIDAK DAPAT dibatalkan!</p>
+              <p>Semua data akan dihapus: kamar, penyewa, invoice, arus kas, booking, foto.</p>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                Ketik nama kost untuk konfirmasi: <strong className="text-red-600">{deleteTarget.nama}</strong>
+              </label>
+              <input type="text" value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={deleteTarget.nama}
+                className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold" />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setDeleteTarget(null)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold">Batal</button>
+              <button onClick={confirmDeleteTenant}
+                disabled={deleteLoading || deleteConfirmText !== deleteTarget.nama}
+                className="px-5 py-2 rounded-xl font-bold text-white bg-red-600 disabled:opacity-50 shadow-md">
+                {deleteLoading ? "Menghapus..." : "Hapus Permanen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {editTenant && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="skeu-card p-6 rounded-2xl max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
