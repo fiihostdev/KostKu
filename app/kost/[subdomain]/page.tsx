@@ -71,10 +71,13 @@ async function getKostData(subdomain: string): Promise<{
 
     profile.has_qris = (qrisCount || 0) > 0;
 
+    // ── Kost utama: hanya tampilkan kamar yang TIDAK dikaitkan ke cabang
+    // (branch_id IS NULL = kamar milik kost utama, bukan milik cabang tertentu)
     const { data: roomsData } = await supabase
       .from("rooms")
       .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
       .eq("kost_id", profile.id)
+      .is("branch_id", null)
       .order("nomor", { ascending: true });
 
     return { profile, rooms: (roomsData || []) as Room[], isBranch: false };
@@ -120,11 +123,13 @@ async function getKostData(subdomain: string): Promise<{
 
     profile.has_qris = (qrisCount || 0) > 0;
 
-    // Cabang berbagi kamar dengan kost utama (rooms linked to kost_id)
+    // ── Cabang: hanya tampilkan kamar milik cabang INI (branch_id = branch.id)
+    // BUKAN semua kamar dari kost induk
     const { data: roomsData } = await supabase
       .from("rooms")
       .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
       .eq("kost_id", branch.kost_id)
+      .eq("branch_id", branch.id)      // ← KRITIS: filter per cabang
       .order("nomor", { ascending: true });
 
     return { profile, rooms: (roomsData || []) as Room[], isBranch: true };
