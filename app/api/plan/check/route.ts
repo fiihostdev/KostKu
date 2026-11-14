@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { getPlanLimits, canAddRoom } from "@/lib/plan-limits";
+import { getPlanLimits } from "@/lib/plan-limits";
 
 /**
  * GET /api/plan/check
@@ -45,7 +45,9 @@ export async function GET() {
       .select("*", { count: "exact", head: true })
       .eq("kost_id", profile.id);
 
-    const paket = profile.paket || "Starter";
+    const rawPaket = profile.paket || "starter";
+    // Normalize: "Paket Pro" → "pro", "paket starter" → "starter"
+    const paket = rawPaket.toLowerCase().trim().replace("paket ", "");
     // Gunakan max_kamar dari DB jika diset superadmin, otherwise dari plan limits
     const limits = getPlanLimits(paket);
     const effectiveMaxKamar = profile.max_kamar || limits.maxKamar;

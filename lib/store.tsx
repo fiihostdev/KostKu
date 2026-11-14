@@ -209,6 +209,10 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   const [branches,       setBranches]       = useState<Branch[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
 
+  // useRef agar loadData bisa baca nilai terkini tanpa perlu masuk ke deps
+  const activeBranchIdRef = React.useRef<string | null>(null);
+  activeBranchIdRef.current = activeBranchId;
+
   // ── Operational data — filtered by active branch ──────────────────────────
   const [rooms,      setRooms]      = useState<Room[]>([]);
   const [tenants,    setTenants]    = useState<Tenant[]>([]);
@@ -216,7 +220,8 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   const [cashFlows,  setCashFlows]  = useState<CashFlow[]>([]);
   const [loading,    setLoading]    = useState(true);
 
-  // ── Load data, optionally filtered by branch ──────────────────────────────
+  // ── Load data: branchId param opsional, fallback ke ref ──────────────────
+  // Tidak ada activeBranchId di deps → loadData stabil, tidak loop
   const loadData = useCallback(async (branchId?: string | null) => {
     setLoading(true);
     try {
@@ -246,7 +251,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         logoUrl:      profileData.logo_url || "",
       });
 
-      // 2. Daftar semua cabang milik kost ini
+      // 2. Daftar semua cabang milik kost ini (hanya yang aktif)
       const { data: branchesData } = await supabase
         .from("kost_branches")
         .select("id, nama, subdomain, alamat, telepon, tagline, is_active, logo_url")
@@ -255,39 +260,36 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: true });
       setBranches((branchesData || []) as Branch[]);
 
-      // 3. Tentukan filter branch
-      //    - activeBranchId = null  → load data kost UTAMA (branch_id IS NULL)
-      //    - activeBranchId = uuid  → load data CABANG tersebut (branch_id = uuid)
-      const targetBranchId = branchId !== undefined ? branchId : activeBranchId;
+      // 3. Tentukan filter branch:
+      //    - Jika param branchId diberikan eksplisit → gunakan itu
+      //    - Jika tidak → baca dari ref (nilai terkini activeBranchId)
+      //    - null  → load data kost UTAMA (branch_id IS NULL)
+      //    - uuid  → load data CABANG (branch_id = uuid)
+      const targetBranchId = branchId !== undefined ? branchId : activeBranchIdRef.current;
 
-      const buildQuery = (table: string) => {
-        let q = supabase.from(table).select("*").eq("kost_id", kId);
-        if (targetBranchId) {
-          q = q.eq("branch_id", targetBranchId);
-        } else {
-          q = q.is("branch_id", null);
-        }
-        return q;
-      };
-
-      // 4. Rooms
-      const { data: roomsData } = await buildQuery("rooms")
-        .order("nomor", { ascending: true });
+      // 4–7. Load semua data operasional
+      const baseRooms = supabase.from("rooms").select("*").eq("kost_id", kId);
+      const { data: roomsData } = await (targetBranchId
+        ? baseRooms.eq("branch_id", targetBranchId)
+        : baseRooms.is("branch_id", null)).order("nomor", { ascending: true });
       setRooms((roomsData || []).map(mapRoom));
 
-      // 5. Tenants
-      const { data: tenantsData } = await buildQuery("tenants")
-        .order("created_at", { ascending: false });
+      const baseTenants = supabase.from("tenants").select("*").eq("kost_id", kId);
+      const { data: tenantsData } = await (targetBranchId
+        ? baseTenants.eq("branch_id", targetBranchId)
+        : baseTenants.is("branch_id", null)).order("created_at", { ascending: false });
       setTenants((tenantsData || []).map(mapTenant));
 
-      // 6. Invoices
-      const { data: invoicesData } = await buildQuery("invoices")
-        .order("created_at", { ascending: false });
+      const baseInvoices = supabase.from("invoices").select("*").eq("kost_id", kId);
+      const { data: invoicesData } = await (targetBranchId
+        ? baseInvoices.eq("branch_id", targetBranchId)
+        : baseInvoices.is("branch_id", null)).order("created_at", { ascending: false });
       setInvoices((invoicesData || []).map(mapInvoice));
 
-      // 7. Cash flows
-      const { data: cashData } = await buildQuery("cash_flows")
-        .order("created_at", { ascending: false });
+      const baseCash = supabase.from("cash_flows").select("*").eq("kost_id", kId);
+      const { data: cashData } = await (targetBranchId
+        ? baseCash.eq("branch_id", targetBranchId)
+        : baseCash.is("branch_id", null)).order("created_at", { ascending: false });
       setCashFlows((cashData || []).map(mapCashFlow));
 
     } catch (err) {
@@ -295,7 +297,9 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, activeBranchId]);
+  // PENTING: activeBranchId TIDAK masuk deps — dibaca via ref.
+  // Ini mencegah loadData berubah setiap branch switch → mencegah loop.
+  }, [supabase]);
 
   // ── Initial load + auth listener ──────────────────────────────────────────
   useEffect(() => {
@@ -313,18 +317,19 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe();
   }, [loadData]);
 
-  // ── Realtime — re-scoped when branch changes ──────────────────────────────
+  // ── Realtime — fires on any change to this kost's data ───────────────────
+  // loadData akan membaca activeBranchIdRef.current → selalu filter yang benar
   useEffect(() => {
     if (!kostId) return;
     const channel = supabase
-      .channel(`kost_${kostId}_branch_${activeBranchId || "main"}`)
+      .channel(`kost_${kostId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "rooms",      filter: `kost_id=eq.${kostId}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "tenants",    filter: `kost_id=eq.${kostId}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices",   filter: `kost_id=eq.${kostId}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_flows", filter: `kost_id=eq.${kostId}` }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [kostId, activeBranchId]);
+  }, [kostId, loadData]); // activeBranchId TIDAK di deps — loadData baca via ref
 
   // ── Branch switcher — reload data when user switches branch ──────────────
   const handleSetActiveBranch = useCallback((branchId: string | null) => {
