@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useKost } from "@/lib/store";
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 import { useToast } from "@/components/ui/Toast";
 import LogoUploader from "@/components/admin/LogoUploader";
+
+// Fix: const must come AFTER all imports (not between them)
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
+
+const ALL_FASILITAS = ["AC Kamar", "WiFi Cepat", "K. Mandi Dalam", "Parkir Luas", "Dapur Bersama", "CCTV 24 Jam"];
 
 export default function WebsiteSayaPage() {
   const { profile, setProfile, rooms } = useKost();
@@ -18,8 +21,14 @@ export default function WebsiteSayaPage() {
   const [alamat,     setAlamat]     = useState(profile.alamat);
   const [kontakWa,   setKontakWa]   = useState(profile.telepon);
   const [logoUrl,    setLogoUrl]    = useState(profile.logoUrl || "");
+  // Facility state — read from profile.fasilitas if available, else default all checked
+  const [fasilitas, setFasilitas]   = useState<string[]>(
+    (profile as { fasilitas?: string[] }).fasilitas?.length
+      ? (profile as { fasilitas?: string[] }).fasilitas!
+      : [...ALL_FASILITAS]
+  );
 
-  // Sync saat profile dari store berubah (misalnya setelah realtime update)
+  // Sync saat profile dari store berubah
   useEffect(() => {
     setSubdomain(profile.subdomain);
     setNamaKost(profile.nama);
@@ -27,7 +36,15 @@ export default function WebsiteSayaPage() {
     setAlamat(profile.alamat);
     setKontakWa(profile.telepon);
     setLogoUrl(profile.logoUrl || "");
+    const pf = profile as { fasilitas?: string[] };
+    if (pf.fasilitas?.length) setFasilitas(pf.fasilitas);
   }, [profile]);
+
+  const toggleFasilitas = (f: string) => {
+    setFasilitas((prev) =>
+      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
+    );
+  };
 
   const handleSave = () => {
     setProfile({
@@ -42,16 +59,10 @@ export default function WebsiteSayaPage() {
     toast.success("Website berhasil disimpan!", "Perubahan profil kost telah diperbarui.");
   };
 
-  // Callback saat logo berhasil diupload — update local state + store langsung
   const handleLogoUploaded = (newLogoUrl: string) => {
     setLogoUrl(newLogoUrl);
-    // Update store langsung tanpa tombol Simpan (realtime)
     setProfile({ ...profile, subdomain, nama: namaKost, tagline, alamat, telepon: kontakWa, logoUrl: newLogoUrl });
-    if (newLogoUrl) {
-      toast.success("Logo berhasil diupload!", "Logo kost telah diperbarui di website publik.");
-    } else {
-      toast.success("Logo dihapus.", "Website publik kembali menggunakan ikon default.");
-    }
+    toast.success(newLogoUrl ? "Logo berhasil diupload!" : "Logo dihapus.", newLogoUrl ? "Logo kost diperbarui di website publik." : "Website menggunakan ikon default.");
   };
 
   const sampleAvailableRoom = rooms.find((r) => r.status === "Kosong") || rooms[0];
@@ -99,11 +110,11 @@ export default function WebsiteSayaPage() {
                 https://{subdomain}.{APP_DOMAIN}
               </span>
               <span className="text-[9px] sm:text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
-                SSL Aktif (Aman)
+                SSL Aktif
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-              Subdomain publik siap dibagikan ke calon penyewa melalui Instagram / WhatsApp Bio.
+              Subdomain publik siap dibagikan ke calon penyewa. Untuk ganti subdomain, buka tab <strong>Subdomain</strong> di Pengaturan.
             </p>
           </div>
         </div>
@@ -128,30 +139,9 @@ export default function WebsiteSayaPage() {
             Informasi Profil Kost
           </h2>
 
-          {/* ── LOGO UPLOADER ── */}
-          <LogoUploader
-            currentLogoUrl={logoUrl}
-            onUploadSuccess={handleLogoUploaded}
-          />
+          <LogoUploader currentLogoUrl={logoUrl} onUploadSuccess={handleLogoUploaded} />
 
-          <div className="pt-1 border-t border-white/60">
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Subdomain Kost</label>
-              <div className="flex items-center max-w-full">
-                <input
-                  type="text"
-                  value={subdomain}
-                  onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                  className="p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none w-36 sm:w-48 font-mono font-bold text-xs"
-                />
-                <span className="p-2.5 bg-slate-200 text-slate-600 rounded-r-xl font-mono text-xs border-l border-slate-300">
-                  .{APP_DOMAIN}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div>
+          <div className="border-t border-white/60 pt-3">
             <label className="font-bold text-slate-700 block mb-1">Nama Properti Kost</label>
             <input
               type="text"
@@ -192,12 +182,21 @@ export default function WebsiteSayaPage() {
             </div>
           </div>
 
-          <div className="pt-2">
-            <label className="font-bold text-slate-700 block mb-2">Fasilitas Kost yang Ditampilkan</label>
+          {/* Fasilitas — now has real state */}
+          <div>
+            <label className="font-bold text-slate-700 block mb-2">
+              Fasilitas Kost yang Ditampilkan
+              <span className="text-slate-400 font-normal ml-1">({fasilitas.length} dipilih)</span>
+            </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {["AC Kamar", "WiFi Cepat", "K. Mandi Dalam", "Parkir Luas", "Dapur Bersama", "CCTV 24 Jam"].map((f, i) => (
-                <label key={i} className="flex items-center gap-2 p-2 rounded-lg skeu-inset cursor-pointer">
-                  <input type="checkbox" defaultChecked className="rounded text-primary shrink-0" />
+              {ALL_FASILITAS.map((f) => (
+                <label key={f} className="flex items-center gap-2 p-2 rounded-lg skeu-inset cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fasilitas.includes(f)}
+                    onChange={() => toggleFasilitas(f)}
+                    className="rounded text-primary shrink-0 cursor-pointer"
+                  />
                   <span className="text-slate-800 text-[11px] font-bold truncate">{f}</span>
                 </label>
               ))}
@@ -216,56 +215,46 @@ export default function WebsiteSayaPage() {
             {/* Mobile frame */}
             <div className="skeu-card p-4 rounded-3xl border-4 border-slate-300 max-w-[270px] mx-auto shadow-inner">
               <div className="w-14 h-2.5 bg-slate-300 rounded-full mx-auto mb-3"></div>
-
               <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
-                {/* Logo / Icon */}
                 <div className="w-14 h-14 rounded-xl mx-auto mb-2 overflow-hidden flex items-center justify-center bg-primary/10 shadow-sm">
                   {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt="Logo"
-                      className="w-full h-full object-contain p-1"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   ) : (
                     <span className="material-symbols-outlined text-primary text-[28px]">apartment</span>
                   )}
                 </div>
-
                 <h3 className="font-bold text-slate-900 text-xs leading-snug">{namaKost}</h3>
                 <p className="text-[10px] text-slate-500 mt-1 line-clamp-2 leading-tight">{tagline}</p>
                 <div className="text-[9px] text-slate-400 mt-2 flex items-center justify-center gap-1">
                   <span className="material-symbols-outlined text-[12px]">location_on</span>
                   <span className="truncate">{alamat}</span>
                 </div>
-
+                {/* Fasilitas chips preview */}
+                {fasilitas.length > 0 && (
+                  <div className="flex flex-wrap gap-1 justify-center mt-2">
+                    {fasilitas.slice(0, 4).map((f) => (
+                      <span key={f} className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">{f}</span>
+                    ))}
+                    {fasilitas.length > 4 && <span className="text-[8px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">+{fasilitas.length - 4}</span>}
+                  </div>
+                )}
                 {sampleAvailableRoom && (
                   <div className="mt-3 p-2 bg-slate-50 rounded-xl border border-slate-100 text-left">
                     <span className="text-[8px] font-bold text-emerald-600 block uppercase">
-                      {sampleAvailableRoom.status === "Kosong" ? "Kamar Tersedia" : "Contoh Tipe Kamar"}
+                      {sampleAvailableRoom.status === "Kosong" ? "Kamar Tersedia" : "Contoh Kamar"}
                     </span>
-                    <p className="text-[11px] font-bold text-slate-800">
-                      {sampleAvailableRoom.tipe} {sampleAvailableRoom.nomor}
-                    </p>
-                    <p className="text-[10px] font-bold text-primary mt-0.5">
-                      Rp {sampleAvailableRoom.harga.toLocaleString("id-ID")} / bln
-                    </p>
+                    <p className="text-[11px] font-bold text-slate-800">{sampleAvailableRoom.tipe} {sampleAvailableRoom.nomor}</p>
+                    <p className="text-[10px] font-bold text-primary mt-0.5">Rp {sampleAvailableRoom.harga.toLocaleString("id-ID")} / bln</p>
                   </div>
                 )}
-
-                <a
-                  href={`https://wa.me/${kontakWa.replace(/[^0-9]/g, "")}`}
-                  target="_blank"
-                  className="skeu-button text-white text-[10px] font-bold py-2 w-full rounded-xl mt-3 block"
-                >
+                <a href={`https://wa.me/${kontakWa.replace(/[^0-9]/g, "")}`} target="_blank" className="skeu-button text-white text-[10px] font-bold py-2 w-full rounded-xl mt-3 block">
                   Hubungi via WhatsApp
                 </a>
               </div>
             </div>
           </div>
-
           <div className="text-center pt-3 text-[11px] text-slate-500">
-            Logo otomatis tampil di header & halaman publik kost Anda.
+            Logo & fasilitas otomatis tampil di halaman publik kost Anda.
           </div>
         </div>
       </div>

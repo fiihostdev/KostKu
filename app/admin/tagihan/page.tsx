@@ -40,22 +40,26 @@ export default function TagihanPage() {
     return inv.status === filter;
   });
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    addInvoice({
-      penyewa: newInv.penyewa,
-      kamar: newInv.kamar,
-      nominal: Number(newInv.nominal),
-      jatuhTempo: newInv.jatuhTempo || (() => {
-        const d = new Date();
-        d.setDate(d.getDate() + 14);
-        return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-      })(),
-      metode: newInv.metode,
-      status: "Menunggu",
-    });
-    setShowModal(false);
-    setNewInv({ penyewa: "", kamar: "", nominal: 1800000, jatuhTempo: "", metode: "Midtrans Payment Gateway" });
+    try {
+      await addInvoice({
+        penyewa: newInv.penyewa,
+        kamar: newInv.kamar,
+        nominal: Number(newInv.nominal),
+        jatuhTempo: newInv.jatuhTempo || (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 14);
+          return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+        })(),
+        metode: newInv.metode,
+        status: "Menunggu",
+      });
+      setShowModal(false);
+      setNewInv({ penyewa: "", kamar: "", nominal: 1800000, jatuhTempo: "", metode: "Midtrans Payment Gateway" });
+    } catch {
+      toast.error("Gagal membuat tagihan", "Periksa koneksi dan coba lagi.");
+    }
   };
 
   const handleBayar = (invId: string, invNo: string, nominal: number, kamar: string, penyewa: string) => {

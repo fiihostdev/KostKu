@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_DOMAIN = "manajementkost.my.id";   // Domain untuk subdomain kost publik
-const PLATFORM_DOMAIN = "fiihost.my.id";     // Domain platform utama (login, admin)
-const APP_URL = "https://fiihost.my.id";     // URL platform utama
+const APP_DOMAIN      = process.env.NEXT_PUBLIC_APP_DOMAIN   || "manajementkost.my.id";
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "fiihost.my.id";
+const APP_URL         = process.env.NEXT_PUBLIC_APP_URL      || "https://fiihost.my.id";
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
