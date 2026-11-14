@@ -30,25 +30,18 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // ── Enrich tiap cabang dengan statistik rooms & tenants ──────────────────
-    // Catatan: cabang berbagi kost_id yang sama dengan profil utama.
-    // Statistik rooms menggunakan field cabang_id (branch_id) jika ada,
-    // atau filter berdasarkan nomor kamar prefix cabang.
-    // Untuk versi ini kita hitung total kamar/penyewa dari kost_id (shared pool)
-    // dan tandai di response bahwa ini adalah shared pool.
-    // Per-cabang stats dapat diimplementasi nanti dengan kolom branch_id pada rooms.
+    // ── Enrich tiap cabang dengan statistik rooms & tenants (by branch_id) ──
     const enriched = await Promise.all((branches || []).map(async (b) => {
-      // Hitung rooms yang merujuk ke cabang ini (future: by branch_id column)
-      // Untuk saat ini return 0 karena rooms belum punya kolom branch_id
-      return {
-        ...b,
-        stats: {
-          totalKamar:  0,
-          kamarTerisi: 0,
-          totalPenyewa: 0,
-          okupansi: 0,
-        },
-      };
+      const [roomsRes, tenantsRes] = await Promise.all([
+        supabase.from("rooms").select("status").eq("kost_id", profile.id).eq("branch_id", b.id),
+        supabase.from("tenants").select("id", { count: "exact", head: true }).eq("kost_id", profile.id).eq("branch_id", b.id),
+      ]);
+      const rooms      = roomsRes.data || [];
+      const totalKamar = rooms.length;
+      const kamarTerisi = rooms.filter((r) => r.status === "Terisi").length;
+      const totalPenyewa = tenantsRes.count || 0;
+      const okupansi = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
+      return { ...b, stats: { totalKamar, kamarTerisi, totalPenyewa, okupansi } };
     }));
 
     const limits = getPlanLimits(profile.paket || "starter");

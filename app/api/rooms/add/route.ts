@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Parse body dan insert kamar
     const body = await request.json();
-    const { nomor, lantai, tipe, harga, status, penyewa, fasilitas, deskripsi, luasM2 } = body;
+    const { nomor, lantai, tipe, harga, status, penyewa, fasilitas, deskripsi, luasM2, branch_id } = body;
 
     if (!nomor || !tipe || !harga) {
       return NextResponse.json({ error: "nomor, tipe, dan harga wajib diisi" }, { status: 400 });
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       .from("rooms")
       .insert({
         kost_id:    profile.id,
+        branch_id:  branch_id || null,
         nomor:      String(nomor).trim().slice(0, 20),
         lantai:     Number(lantai) || 1,
         tipe,

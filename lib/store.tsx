@@ -17,6 +17,7 @@ export interface Room {
   fotoUrls?: string[];
   deskripsi?: string;
   luasM2?: number;
+  branchId?: string | null;
 }
 
 export interface Tenant {
@@ -32,6 +33,7 @@ export interface Tenant {
   akhirSewa: string;
   statusBayar: "Belum Bayar" | "Lunas" | "Jatuh Tempo" | "Tertunggak";
   ktpVerified: boolean;
+  branchId?: string | null;
 }
 
 export interface Invoice {
@@ -43,6 +45,7 @@ export interface Invoice {
   jatuhTempo: string;
   metode: string;
   status: "Lunas" | "Menunggu" | "Jatuh Tempo";
+  branchId?: string | null;
 }
 
 export interface CashFlow {
@@ -53,6 +56,7 @@ export interface CashFlow {
   tipe: "Masuk" | "Keluar";
   nominal: number;
   saldo: number;
+  branchId?: string | null;
 }
 
 export interface KostProfile {
@@ -67,25 +71,49 @@ export interface KostProfile {
   logoUrl: string;
 }
 
+export interface Branch {
+  id: string;
+  nama: string;
+  subdomain: string;
+  alamat: string | null;
+  telepon: string | null;
+  tagline: string | null;
+  is_active: boolean;
+  logo_url: string | null;
+}
+
 interface KostContextType {
-  kostId: string | null;
-  profile: KostProfile;
-  setProfile: (p: KostProfile) => Promise<void>;
-  rooms: Room[];
-  addRoom: (r: Omit<Room, "id">) => Promise<void>;
-  updateRoom: (id: string, r: Partial<Omit<Room, "id">>) => Promise<void>;
-  deleteRoom: (id: string) => Promise<void>;
-  tenants: Tenant[];
-  addTenant: (t: Omit<Tenant, "id">) => Promise<void>;
-  updateTenant: (id: string, t: Partial<Omit<Tenant, "id">>) => Promise<void>;
-  deleteTenant: (id: string) => Promise<void>;
-  invoices: Invoice[];
-  addInvoice: (inv: Omit<Invoice, "id" | "noInvoice">) => Promise<void>;
+  kostId:            string | null;
+  profile:           KostProfile;
+  setProfile:        (p: KostProfile) => Promise<void>;
+
+  // ── Multi-branch: cabang switcher ──────────────────────────────────────
+  branches:          Branch[];
+  activeBranchId:    string | null;             // null = kost utama
+  activeBranch:      Branch | null;             // objek cabang aktif
+  setActiveBranch:   (branchId: string | null) => void;
+  activeNama:        string;                    // nama yg ditampilkan di header
+  activeSubdomain:   string;                    // subdomain aktif
+
+  rooms:         Room[];
+  addRoom:       (r: Omit<Room, "id" | "branchId">) => Promise<void>;
+  updateRoom:    (id: string, r: Partial<Omit<Room, "id">>) => Promise<void>;
+  deleteRoom:    (id: string) => Promise<void>;
+
+  tenants:       Tenant[];
+  addTenant:     (t: Omit<Tenant, "id" | "branchId">) => Promise<void>;
+  updateTenant:  (id: string, t: Partial<Omit<Tenant, "id">>) => Promise<void>;
+  deleteTenant:  (id: string) => Promise<void>;
+
+  invoices:      Invoice[];
+  addInvoice:    (inv: Omit<Invoice, "id" | "noInvoice" | "branchId">) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
-  payInvoice: (id: string) => Promise<void>;
-  cashFlows: CashFlow[];
-  addCashFlow: (cf: Omit<CashFlow, "id" | "saldo">) => Promise<void>;
-  deleteCashFlow: (id: string) => Promise<void>;
+  payInvoice:    (id: string) => Promise<void>;
+
+  cashFlows:     CashFlow[];
+  addCashFlow:   (cf: Omit<CashFlow, "id" | "saldo" | "branchId">) => Promise<void>;
+  deleteCashFlow:(id: string) => Promise<void>;
+
   loading: boolean;
   stats: {
     totalKamar: number;
@@ -98,25 +126,16 @@ interface KostContextType {
   };
 }
 
-// ─── Default fallback (tampil sebelum data Supabase dimuat) ──────────────────
+// ─── Defaults ────────────────────────────────────────────────────────────────
 
 const defaultProfile: KostProfile = {
-  nama: "",
-  subdomain: "",
-  tagline: "",
-  alamat: "",
-  telepon: "",
-  paket: "",
-  bankPenerima: "BCA",
-  noRekening: "",
-  logoUrl: "",
+  nama: "", subdomain: "", tagline: "", alamat: "", telepon: "",
+  paket: "", bankPenerima: "BCA", noRekening: "", logoUrl: "",
 };
-
-// ─── Context ─────────────────────────────────────────────────────────────────
 
 const KostContext = createContext<KostContextType | undefined>(undefined);
 
-// ─── Helper: map Supabase row → app types ────────────────────────────────────
+// ─── Map helpers ─────────────────────────────────────────────────────────────
 
 function mapRoom(r: Record<string, unknown>): Room {
   return {
@@ -131,6 +150,7 @@ function mapRoom(r: Record<string, unknown>): Room {
     fotoUrls:  (r.foto_urls as string[]) || [],
     deskripsi: (r.deskripsi as string) || undefined,
     luasM2:    r.luas_m2 ? Number(r.luas_m2) : undefined,
+    branchId:  (r.branch_id as string) || null,
   };
 }
 
@@ -148,114 +168,125 @@ function mapTenant(t: Record<string, unknown>): Tenant {
     akhirSewa:   t.akhir_sewa as string,
     statusBayar: (t.status_bayar as Tenant["statusBayar"]) || "Belum Bayar",
     ktpVerified: Boolean(t.ktp_verified),
+    branchId:    (t.branch_id as string) || null,
   };
 }
 
 function mapInvoice(i: Record<string, unknown>): Invoice {
   return {
-    id: i.id as string,
-    noInvoice: i.no_invoice as string,
-    penyewa: i.penyewa as string,
-    kamar: i.kamar as string,
-    nominal: Number(i.nominal),
+    id:         i.id as string,
+    noInvoice:  i.no_invoice as string,
+    penyewa:    i.penyewa as string,
+    kamar:      i.kamar as string,
+    nominal:    Number(i.nominal),
     jatuhTempo: i.jatuh_tempo as string,
-    metode: (i.metode as string) || "Midtrans Payment Gateway",
-    status: i.status as Invoice["status"],
+    metode:     (i.metode as string) || "Midtrans Payment Gateway",
+    status:     i.status as Invoice["status"],
+    branchId:   (i.branch_id as string) || null,
   };
 }
 
 function mapCashFlow(c: Record<string, unknown>): CashFlow {
   return {
-    id: c.id as string,
-    tgl: c.tgl as string,
-    ket: c.ket as string,
-    kat: c.kat as string,
-    tipe: c.tipe as CashFlow["tipe"],
-    nominal: Number(c.nominal),
-    saldo: Number(c.saldo),
+    id:       c.id as string,
+    tgl:      c.tgl as string,
+    ket:      c.ket as string,
+    kat:      c.kat as string,
+    tipe:     c.tipe as CashFlow["tipe"],
+    nominal:  Number(c.nominal),
+    saldo:    Number(c.saldo),
+    branchId: (c.branch_id as string) || null,
   };
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
 export function KostProvider({ children }: { children: React.ReactNode }) {
-  // ── KRITIS: useMemo agar instance Supabase stabil — tidak baru setiap render ──
-  // Tanpa ini: supabase baru → loadData baru → useEffect loop → infinite re-render
   const supabase = useMemo(() => createClient(), []);
 
-  const [kostId, setKostId] = useState<string | null>(null);
-  const [profile, setProfileState] = useState<KostProfile>(defaultProfile);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [cashFlows, setCashFlows] = useState<CashFlow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [kostId,         setKostId]         = useState<string | null>(null);
+  const [profile,        setProfileState]   = useState<KostProfile>(defaultProfile);
+  const [branches,       setBranches]       = useState<Branch[]>([]);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
 
-  // ── Load semua data milik user yang login ──────────────────────────────────
-  const loadData = useCallback(async () => {
+  // ── Operational data — filtered by active branch ──────────────────────────
+  const [rooms,      setRooms]      = useState<Room[]>([]);
+  const [tenants,    setTenants]    = useState<Tenant[]>([]);
+  const [invoices,   setInvoices]   = useState<Invoice[]>([]);
+  const [cashFlows,  setCashFlows]  = useState<CashFlow[]>([]);
+  const [loading,    setLoading]    = useState(true);
+
+  // ── Load data, optionally filtered by branch ──────────────────────────────
+  const loadData = useCallback(async (branchId?: string | null) => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) { setLoading(false); return; }
 
-      // 1. Ambil profil kost
+      // 1. Profil kost utama
       const { data: profileData } = await supabase
         .from("kost_profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (!profileData) {
-        setLoading(false);
-        return;
-      }
+      if (!profileData) { setLoading(false); return; }
 
       const kId = profileData.id as string;
       setKostId(kId);
       setProfileState({
-        nama: profileData.nama,
-        subdomain: profileData.subdomain,
-        tagline: profileData.tagline || "",
-        alamat: profileData.alamat || "",
-        telepon: profileData.telepon || "",
-        paket: profileData.paket || "Pro Plan",
+        nama:         profileData.nama,
+        subdomain:    profileData.subdomain,
+        tagline:      profileData.tagline || "",
+        alamat:       profileData.alamat || "",
+        telepon:      profileData.telepon || "",
+        paket:        profileData.paket ? profileData.paket.toLowerCase().trim().replace("paket ", "") : "starter",
         bankPenerima: profileData.bank_penerima || "BCA",
-        noRekening: profileData.no_rekening || "",
-        logoUrl: profileData.logo_url || "",
+        noRekening:   profileData.no_rekening || "",
+        logoUrl:      profileData.logo_url || "",
       });
 
-      // 2. Ambil kamar
-      const { data: roomsData } = await supabase
-        .from("rooms")
-        .select("*")
+      // 2. Daftar semua cabang milik kost ini
+      const { data: branchesData } = await supabase
+        .from("kost_branches")
+        .select("id, nama, subdomain, alamat, telepon, tagline, is_active, logo_url")
         .eq("kost_id", kId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+      setBranches((branchesData || []) as Branch[]);
+
+      // 3. Tentukan filter branch
+      //    - activeBranchId = null  → load data kost UTAMA (branch_id IS NULL)
+      //    - activeBranchId = uuid  → load data CABANG tersebut (branch_id = uuid)
+      const targetBranchId = branchId !== undefined ? branchId : activeBranchId;
+
+      const buildQuery = (table: string) => {
+        let q = supabase.from(table).select("*").eq("kost_id", kId);
+        if (targetBranchId) {
+          q = q.eq("branch_id", targetBranchId);
+        } else {
+          q = q.is("branch_id", null);
+        }
+        return q;
+      };
+
+      // 4. Rooms
+      const { data: roomsData } = await buildQuery("rooms")
         .order("nomor", { ascending: true });
       setRooms((roomsData || []).map(mapRoom));
 
-      // 3. Ambil penyewa
-      const { data: tenantsData } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("kost_id", kId)
+      // 5. Tenants
+      const { data: tenantsData } = await buildQuery("tenants")
         .order("created_at", { ascending: false });
       setTenants((tenantsData || []).map(mapTenant));
 
-      // 4. Ambil invoice
-      const { data: invoicesData } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("kost_id", kId)
+      // 6. Invoices
+      const { data: invoicesData } = await buildQuery("invoices")
         .order("created_at", { ascending: false });
       setInvoices((invoicesData || []).map(mapInvoice));
 
-      // 5. Ambil arus kas
-      const { data: cashData } = await supabase
-        .from("cash_flows")
-        .select("*")
-        .eq("kost_id", kId)
+      // 7. Cash flows
+      const { data: cashData } = await buildQuery("cash_flows")
         .order("created_at", { ascending: false });
       setCashFlows((cashData || []).map(mapCashFlow));
 
@@ -264,68 +295,79 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [supabase]); // supabase stabil via useMemo — tidak akan trigger ulang
+  }, [supabase, activeBranchId]);
 
-  // Load saat mount + saat auth state berubah
+  // ── Initial load + auth listener ──────────────────────────────────────────
   useEffect(() => {
     loadData();
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      // TOKEN_REFRESHED TIDAK trigger loadData — hanya update session di background
-      // Hanya SIGNED_IN (login baru) yang perlu load ulang
-      if (event === "SIGNED_IN") {
-        loadData();
-      }
+      if (event === "SIGNED_IN") loadData();
       if (event === "SIGNED_OUT") {
         setKostId(null);
         setProfileState(defaultProfile);
-        setRooms([]);
-        setTenants([]);
-        setInvoices([]);
-        setCashFlows([]);
+        setBranches([]);
+        setActiveBranchId(null);
+        setRooms([]); setTenants([]); setInvoices([]); setCashFlows([]);
       }
     });
     return () => listener.subscription.unsubscribe();
-  }, [loadData]); // supabase.auth stabil — tidak perlu di deps
+  }, [loadData]);
 
-  // ── Realtime subscriptions ─────────────────────────────────────────────────
+  // ── Realtime — re-scoped when branch changes ──────────────────────────────
   useEffect(() => {
     if (!kostId) return;
-
     const channel = supabase
-      .channel(`kost_${kostId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `kost_id=eq.${kostId}` },
-        () => loadData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "tenants", filter: `kost_id=eq.${kostId}` },
-        () => loadData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `kost_id=eq.${kostId}` },
-        () => loadData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_flows", filter: `kost_id=eq.${kostId}` },
-        () => loadData())
+      .channel(`kost_${kostId}_branch_${activeBranchId || "main"}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms",      filter: `kost_id=eq.${kostId}` }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenants",    filter: `kost_id=eq.${kostId}` }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices",   filter: `kost_id=eq.${kostId}` }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_flows", filter: `kost_id=eq.${kostId}` }, () => loadData())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
-  }, [kostId]); // supabase & loadData stabil via useMemo/useCallback — tidak perlu di deps
+  }, [kostId, activeBranchId]);
 
-  // ── setProfile → upsert ke Supabase ───────────────────────────────────────
+  // ── Branch switcher — reload data when user switches branch ──────────────
+  const handleSetActiveBranch = useCallback((branchId: string | null) => {
+    setActiveBranchId(branchId);
+    loadData(branchId);
+  }, [loadData]);
+
+  // ── Computed: nama dan subdomain aktif ────────────────────────────────────
+  const activeBranch = branches.find((b) => b.id === activeBranchId) || null;
+  const activeNama      = activeBranch ? activeBranch.nama      : profile.nama;
+  const activeSubdomain = activeBranch ? activeBranch.subdomain : profile.subdomain;
+
+  // ── revalidate halaman publik ─────────────────────────────────────────────
+  const triggerRevalidate = useCallback(async () => {
+    const sub = activeBranch ? activeBranch.subdomain : profile.subdomain;
+    if (!sub) return;
+    try {
+      await fetch("/api/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subdomain: sub }),
+      });
+    } catch {}
+  }, [activeBranch, profile.subdomain]);
+
+  // ── setProfile ────────────────────────────────────────────────────────────
   const setProfile = async (newProfile: KostProfile) => {
     setProfileState(newProfile);
     if (!kostId) return;
     await supabase
       .from("kost_profiles")
       .update({
-        nama: newProfile.nama,
-        subdomain: newProfile.subdomain,
-        tagline: newProfile.tagline,
-        alamat: newProfile.alamat,
-        telepon: newProfile.telepon,
-        paket: newProfile.paket,
-        bank_penerima: newProfile.bankPenerima,
-        no_rekening: newProfile.noRekening,
-        logo_url: newProfile.logoUrl || null,
+        nama:         newProfile.nama,
+        subdomain:    newProfile.subdomain,
+        tagline:      newProfile.tagline,
+        alamat:       newProfile.alamat,
+        telepon:      newProfile.telepon,
+        paket:        newProfile.paket,
+        bank_penerima:newProfile.bankPenerima,
+        no_rekening:  newProfile.noRekening,
+        logo_url:     newProfile.logoUrl || null,
       })
       .eq("id", kostId);
-
-    // Profil berubah → update halaman publik
     if (newProfile.subdomain) {
       try {
         await fetch("/api/revalidate", {
@@ -337,25 +379,9 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ── Helper: trigger revalidate halaman publik kost ────────────────────────
-  const triggerRevalidate = useCallback(async () => {
-    if (!profile.subdomain) return;
-    try {
-      await fetch("/api/revalidate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subdomain: profile.subdomain }),
-      });
-    } catch {
-      // silent fail — revalidate bukan critical path
-    }
-  }, [profile.subdomain]);
-
-  // ── addRoom ────────────────────────────────────────────────────────────────
-  // Panggil /api/rooms/add untuk server-side plan validation (tidak bisa di-bypass)
-  const addRoom = async (roomData: Omit<Room, "id">) => {
+  // ── addRoom ───────────────────────────────────────────────────────────────
+  const addRoom = async (roomData: Omit<Room, "id" | "branchId">) => {
     if (!kostId) return;
-
     const res = await fetch("/api/rooms/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -367,63 +393,54 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         status:    roomData.status,
         penyewa:   roomData.penyewa || null,
         fasilitas: roomData.fasilitas,
+        branch_id: activeBranchId || null,   // ← inject branch context
       }),
     });
-
     const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Gagal menambahkan kamar");
-    }
-
+    if (!res.ok) throw new Error(data.error || "Gagal menambahkan kamar");
     if (data.room) {
       setRooms((prev) => [mapRoom(data.room as Record<string, unknown>), ...prev]);
-      triggerRevalidate(); // Invalidate cache halaman publik
+      triggerRevalidate();
     }
   };
 
-  // ── deleteRoom ─────────────────────────────────────────────────────────────
+  // ── deleteRoom ────────────────────────────────────────────────────────────
   const deleteRoom = async (id: string) => {
     const { error } = await supabase.from("rooms").delete().eq("id", id);
-    if (!error) {
-      setRooms((prev) => prev.filter((r) => r.id !== id));
-      triggerRevalidate();
-    }
+    if (!error) { setRooms((prev) => prev.filter((r) => r.id !== id)); triggerRevalidate(); }
   };
 
-  // ── updateRoom ─────────────────────────────────────────────────────────────
+  // ── updateRoom ────────────────────────────────────────────────────────────
   const updateRoom = async (id: string, roomData: Partial<Omit<Room, "id">>) => {
-    const updatePayload: Record<string, unknown> = {};
-    if (roomData.nomor     !== undefined) updatePayload.nomor      = roomData.nomor;
-    if (roomData.lantai    !== undefined) updatePayload.lantai     = roomData.lantai;
-    if (roomData.tipe      !== undefined) updatePayload.tipe       = roomData.tipe;
-    if (roomData.harga     !== undefined) updatePayload.harga      = roomData.harga;
-    if (roomData.status    !== undefined) updatePayload.status     = roomData.status;
-    if (roomData.penyewa   !== undefined) updatePayload.penyewa    = roomData.penyewa || null;
-    if (roomData.fasilitas !== undefined) updatePayload.fasilitas  = roomData.fasilitas;
-    if (roomData.fotoUrls  !== undefined) updatePayload.foto_urls  = roomData.fotoUrls;
-    if (roomData.deskripsi !== undefined) updatePayload.deskripsi  = roomData.deskripsi || null;
-    if (roomData.luasM2    !== undefined) updatePayload.luas_m2    = roomData.luasM2 || null;
-
-    const { error } = await supabase.from("rooms").update(updatePayload).eq("id", id);
-    if (!error) {
-      setRooms((prev) => prev.map((r) => r.id === id ? { ...r, ...roomData } : r));
-      triggerRevalidate();
-    }
+    const p: Record<string, unknown> = {};
+    if (roomData.nomor     !== undefined) p.nomor     = roomData.nomor;
+    if (roomData.lantai    !== undefined) p.lantai    = roomData.lantai;
+    if (roomData.tipe      !== undefined) p.tipe      = roomData.tipe;
+    if (roomData.harga     !== undefined) p.harga     = roomData.harga;
+    if (roomData.status    !== undefined) p.status    = roomData.status;
+    if (roomData.penyewa   !== undefined) p.penyewa   = roomData.penyewa || null;
+    if (roomData.fasilitas !== undefined) p.fasilitas = roomData.fasilitas;
+    if (roomData.fotoUrls  !== undefined) p.foto_urls = roomData.fotoUrls;
+    if (roomData.deskripsi !== undefined) p.deskripsi = roomData.deskripsi || null;
+    if (roomData.luasM2    !== undefined) p.luas_m2   = roomData.luasM2 || null;
+    const { error } = await supabase.from("rooms").update(p).eq("id", id);
+    if (!error) { setRooms((prev) => prev.map((r) => r.id === id ? { ...r, ...roomData } : r)); triggerRevalidate(); }
   };
 
-  // ── addTenant ──────────────────────────────────────────────────────────────
-  const addTenant = async (tenantData: Omit<Tenant, "id">) => {    if (!kostId) return;
+  // ── addTenant ─────────────────────────────────────────────────────────────
+  const addTenant = async (tenantData: Omit<Tenant, "id" | "branchId">) => {
+    if (!kostId) return;
     const { data, error } = await supabase
       .from("tenants")
       .insert({
         kost_id:      kostId,
+        branch_id:    activeBranchId || null,   // ← inject branch context
         nama:         tenantData.nama,
         phone:        tenantData.phone,
-        email:        tenantData.email        || null,
-        no_ktp:       tenantData.noKtp        || null,
-        pekerjaan:    tenantData.pekerjaan    || null,
-        alamat_asal:  tenantData.alamatAsal   || null,
+        email:        tenantData.email       || null,
+        no_ktp:       tenantData.noKtp       || null,
+        pekerjaan:    tenantData.pekerjaan   || null,
+        alamat_asal:  tenantData.alamatAsal  || null,
         kamar:        tenantData.kamar,
         mulai_sewa:   tenantData.mulaiSewa,
         akhir_sewa:   tenantData.akhirSewa,
@@ -435,56 +452,41 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data) {
       setTenants((prev) => [mapTenant(data as Record<string, unknown>), ...prev]);
-
-      // Update status kamar → Terisi
+      // Update kamar → Terisi
       const roomNomor = tenantData.kamar.replace(/^kamar\s*/i, "").trim();
-      const room = rooms.find(
-        (r) => r.nomor.toLowerCase() === roomNomor.toLowerCase()
-      );
+      const room = rooms.find((r) => r.nomor.toLowerCase() === roomNomor.toLowerCase());
       if (room) {
-        await supabase
-          .from("rooms")
-          .update({ status: "Terisi", penyewa: tenantData.nama })
-          .eq("id", room.id);
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, status: "Terisi", penyewa: tenantData.nama } : r
-          )
-        );
-        triggerRevalidate(); // Kamar status berubah → update halaman publik
+        await supabase.from("rooms").update({ status: "Terisi", penyewa: tenantData.nama }).eq("id", room.id);
+        setRooms((prev) => prev.map((r) => r.id === room.id ? { ...r, status: "Terisi", penyewa: tenantData.nama } : r));
+        triggerRevalidate();
       }
     }
   };
 
-  // ── updateTenant ───────────────────────────────────────────────────────────
+  // ── updateTenant ──────────────────────────────────────────────────────────
   const updateTenant = async (id: string, tenantData: Partial<Omit<Tenant, "id">>) => {
-    const updatePayload: Record<string, unknown> = {};
-    if (tenantData.nama        !== undefined) updatePayload.nama         = tenantData.nama;
-    if (tenantData.phone       !== undefined) updatePayload.phone        = tenantData.phone;
-    if (tenantData.email       !== undefined) updatePayload.email        = tenantData.email || null;
-    if (tenantData.noKtp       !== undefined) updatePayload.no_ktp       = tenantData.noKtp || null;
-    if (tenantData.pekerjaan   !== undefined) updatePayload.pekerjaan    = tenantData.pekerjaan || null;
-    if (tenantData.alamatAsal  !== undefined) updatePayload.alamat_asal  = tenantData.alamatAsal || null;
-    if (tenantData.kamar       !== undefined) updatePayload.kamar        = tenantData.kamar;
-    if (tenantData.mulaiSewa   !== undefined) updatePayload.mulai_sewa   = tenantData.mulaiSewa;
-    if (tenantData.akhirSewa   !== undefined) updatePayload.akhir_sewa   = tenantData.akhirSewa;
-    if (tenantData.statusBayar !== undefined) updatePayload.status_bayar = tenantData.statusBayar;
-    if (tenantData.ktpVerified !== undefined) updatePayload.ktp_verified = tenantData.ktpVerified;
-
-    const { error } = await supabase.from("tenants").update(updatePayload).eq("id", id);
-    if (!error) {
-      setTenants((prev) => prev.map((t) => t.id === id ? { ...t, ...tenantData } : t));
-    }
+    const p: Record<string, unknown> = {};
+    if (tenantData.nama        !== undefined) p.nama         = tenantData.nama;
+    if (tenantData.phone       !== undefined) p.phone        = tenantData.phone;
+    if (tenantData.email       !== undefined) p.email        = tenantData.email || null;
+    if (tenantData.noKtp       !== undefined) p.no_ktp       = tenantData.noKtp || null;
+    if (tenantData.pekerjaan   !== undefined) p.pekerjaan    = tenantData.pekerjaan || null;
+    if (tenantData.alamatAsal  !== undefined) p.alamat_asal  = tenantData.alamatAsal || null;
+    if (tenantData.kamar       !== undefined) p.kamar        = tenantData.kamar;
+    if (tenantData.mulaiSewa   !== undefined) p.mulai_sewa   = tenantData.mulaiSewa;
+    if (tenantData.akhirSewa   !== undefined) p.akhir_sewa   = tenantData.akhirSewa;
+    if (tenantData.statusBayar !== undefined) p.status_bayar = tenantData.statusBayar;
+    if (tenantData.ktpVerified !== undefined) p.ktp_verified = tenantData.ktpVerified;
+    const { error } = await supabase.from("tenants").update(p).eq("id", id);
+    if (!error) setTenants((prev) => prev.map((t) => t.id === id ? { ...t, ...tenantData } : t));
   };
 
-  // ── deleteTenant ───────────────────────────────────────────────────────────
+  // ── deleteTenant ──────────────────────────────────────────────────────────
   const deleteTenant = async (id: string) => {
     const tenant = tenants.find((t) => t.id === id);
     const { error } = await supabase.from("tenants").delete().eq("id", id);
     if (!error) {
       setTenants((prev) => prev.filter((t) => t.id !== id));
-
-      // Bebaskan kamar jika penyewa dihapus
       if (tenant?.kamar) {
         const roomNomor = tenant.kamar.replace(/^kamar\s*/i, "").trim();
         const room = rooms.find((r) => r.nomor.toLowerCase() === roomNomor.toLowerCase());
@@ -497,163 +499,113 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ── addInvoice ─────────────────────────────────────────────────────────────
-  const addInvoice = async (invData: Omit<Invoice, "id" | "noInvoice">) => {    if (!kostId) return;
+  // ── addInvoice ────────────────────────────────────────────────────────────
+  const addInvoice = async (invData: Omit<Invoice, "id" | "noInvoice" | "branchId">) => {
+    if (!kostId) return;
     const now = new Date();
-    const year = now.getFullYear();
+    const year  = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
+    // Nomor invoice per-cabang: INV/YYYY/MM/BRANCHPREFIX/SEQ
+    const prefix = activeBranchId ? `C${activeBranchId.slice(-4).toUpperCase()}` : "M";
     const seq = String(invoices.length + 1).padStart(3, "0");
-    const noInvoice = `INV/${year}/${month}/${seq}`;
+    const noInvoice = `INV/${year}/${month}/${prefix}/${seq}`;
 
     const { data, error } = await supabase
       .from("invoices")
       .insert({
-        kost_id: kostId,
+        kost_id:    kostId,
+        branch_id:  activeBranchId || null,   // ← inject branch context
         no_invoice: noInvoice,
-        penyewa: invData.penyewa,
-        kamar: invData.kamar,
-        nominal: invData.nominal,
-        jatuh_tempo: invData.jatuhTempo,
-        metode: invData.metode,
-        status: invData.status,
+        penyewa:    invData.penyewa,
+        kamar:      invData.kamar,
+        nominal:    invData.nominal,
+        jatuh_tempo:invData.jatuhTempo,
+        metode:     invData.metode,
+        status:     invData.status,
       })
       .select()
       .single();
 
-    if (!error && data) {
-      setInvoices((prev) => [mapInvoice(data as Record<string, unknown>), ...prev]);
-    }
+    if (!error && data) setInvoices((prev) => [mapInvoice(data as Record<string, unknown>), ...prev]);
   };
 
-  // ── addCashFlow manual (catat pengeluaran/pemasukan manual) ──────────────
-  const addCashFlow = async (cfData: Omit<CashFlow, "id" | "saldo">) => {
-    if (!kostId) return;
-    const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 0;
-    const newSaldo = cfData.tipe === "Masuk"
-      ? currentSaldo + cfData.nominal
-      : currentSaldo - cfData.nominal;
-
-    const { data, error } = await supabase
-      .from("cash_flows")
-      .insert({
-        kost_id: kostId,
-        tgl:     cfData.tgl,
-        ket:     cfData.ket,
-        kat:     cfData.kat,
-        tipe:    cfData.tipe,
-        nominal: cfData.nominal,
-        saldo:   newSaldo,
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setCashFlows((prev) => [mapCashFlow(data as Record<string, unknown>), ...prev]);
-    }
-  };
-
-  // ── deleteCashFlow ──────────────────────────────────────────────────────────
-  const deleteCashFlow = async (id: string) => {
-    const { error } = await supabase.from("cash_flows").delete().eq("id", id);
-    if (!error) {
-      setCashFlows((prev) => prev.filter((c) => c.id !== id));
-    }
-  };
-
-  // ── deleteInvoice ──────────────────────────────────────────────────────────
+  // ── deleteInvoice ─────────────────────────────────────────────────────────
   const deleteInvoice = async (id: string) => {
     const { error } = await supabase.from("invoices").delete().eq("id", id);
-    if (!error) {
-      setInvoices((prev) => prev.filter((i) => i.id !== id));
-    }
+    if (!error) setInvoices((prev) => prev.filter((i) => i.id !== id));
   };
 
-  // ── payInvoice ─────────────────────────────────────────────────────────────
-  const payInvoice = async (id: string) => {    const inv = invoices.find((i) => i.id === id);
+  // ── payInvoice ────────────────────────────────────────────────────────────
+  const payInvoice = async (id: string) => {
+    const inv = invoices.find((i) => i.id === id);
     if (!inv || !kostId) return;
-
-    // Update invoice → Lunas
-    const { error } = await supabase
-      .from("invoices")
-      .update({ status: "Lunas", paid_at: new Date().toISOString() })
-      .eq("id", id);
-
+    const { error } = await supabase.from("invoices").update({ status: "Lunas", paid_at: new Date().toISOString() }).eq("id", id);
     if (error) return;
-
-    setInvoices((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, status: "Lunas" as const } : i))
-    );
-
-    // Tambah entri arus kas
+    setInvoices((prev) => prev.map((i) => i.id === id ? { ...i, status: "Lunas" as const } : i));
     const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 0;
-    const tgl = new Date().toLocaleDateString("id-ID", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
+    const tgl = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
     const { data: cfData } = await supabase
       .from("cash_flows")
       .insert({
-        kost_id: kostId,
+        kost_id:   kostId,
+        branch_id: activeBranchId || null,   // ← inject branch context
         tgl,
-        ket: `Pembayaran ${inv.kamar} (${inv.penyewa})`,
-        kat: "Pendapatan Sewa",
-        tipe: "Masuk",
-        nominal: inv.nominal,
-        saldo: currentSaldo + inv.nominal,
+        ket:       `Pembayaran ${inv.kamar} (${inv.penyewa})`,
+        kat:       "Pendapatan Sewa",
+        tipe:      "Masuk",
+        nominal:   inv.nominal,
+        saldo:     currentSaldo + inv.nominal,
       })
       .select()
       .single();
-
-    if (cfData) {
-      setCashFlows((prev) => [mapCashFlow(cfData as Record<string, unknown>), ...prev]);
-    }
+    if (cfData) setCashFlows((prev) => [mapCashFlow(cfData as Record<string, unknown>), ...prev]);
   };
 
-  // ── Derived stats ──────────────────────────────────────────────────────────
-  const totalKamar = rooms.length;
-  const kamarTerisi = rooms.filter((r) => r.status === "Terisi").length;
-  const kamarKosong = rooms.filter((r) => r.status === "Kosong").length;
-  const kamarPerawatan = rooms.filter((r) => r.status === "Perawatan").length;
-  const okupansi = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
-  const pendapatanBulanIni = invoices
-    .filter((i) => i.status === "Lunas")
-    .reduce((s, i) => s + i.nominal, 0);
-  const tagihanTertunda = invoices
-    .filter((i) => i.status !== "Lunas")
-    .reduce((s, i) => s + i.nominal, 0);
+  // ── addCashFlow ───────────────────────────────────────────────────────────
+  const addCashFlow = async (cfData: Omit<CashFlow, "id" | "saldo" | "branchId">) => {
+    if (!kostId) return;
+    const currentSaldo = cashFlows.length > 0 ? cashFlows[0].saldo : 0;
+    const newSaldo = cfData.tipe === "Masuk" ? currentSaldo + cfData.nominal : currentSaldo - cfData.nominal;
+    const { data, error } = await supabase
+      .from("cash_flows")
+      .insert({
+        kost_id:   kostId,
+        branch_id: activeBranchId || null,   // ← inject branch context
+        tgl: cfData.tgl, ket: cfData.ket, kat: cfData.kat,
+        tipe: cfData.tipe, nominal: cfData.nominal, saldo: newSaldo,
+      })
+      .select()
+      .single();
+    if (!error && data) setCashFlows((prev) => [mapCashFlow(data as Record<string, unknown>), ...prev]);
+  };
+
+  // ── deleteCashFlow ────────────────────────────────────────────────────────
+  const deleteCashFlow = async (id: string) => {
+    const { error } = await supabase.from("cash_flows").delete().eq("id", id);
+    if (!error) setCashFlows((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // ── Derived stats (scoped ke active branch/main) ──────────────────────────
+  const totalKamar          = rooms.length;
+  const kamarTerisi         = rooms.filter((r) => r.status === "Terisi").length;
+  const kamarKosong         = rooms.filter((r) => r.status === "Kosong").length;
+  const kamarPerawatan      = rooms.filter((r) => r.status === "Perawatan").length;
+  const okupansi            = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
+  const pendapatanBulanIni  = invoices.filter((i) => i.status === "Lunas").reduce((s, i) => s + i.nominal, 0);
+  const tagihanTertunda     = invoices.filter((i) => i.status !== "Lunas").reduce((s, i) => s + i.nominal, 0);
 
   return (
-    <KostContext.Provider
-      value={{
-        kostId,
-        profile,
-        setProfile,
-        rooms,
-        addRoom,
-        updateRoom,
-        deleteRoom,
-        tenants,
-        addTenant,
-        updateTenant,
-        deleteTenant,
-        invoices,
-        addInvoice,
-        deleteInvoice,
-        payInvoice,
-        cashFlows,
-        addCashFlow,
-        deleteCashFlow,
-        loading,
-        stats: {
-          totalKamar,
-          kamarTerisi,
-          kamarKosong,
-          kamarPerawatan,
-          okupansi,
-          pendapatanBulanIni,
-          tagihanTertunda,
-        },
-      }}
-    >
+    <KostContext.Provider value={{
+      kostId, profile, setProfile,
+      branches, activeBranchId, activeBranch, setActiveBranch: handleSetActiveBranch,
+      activeNama, activeSubdomain,
+      rooms, addRoom, updateRoom, deleteRoom,
+      tenants, addTenant, updateTenant, deleteTenant,
+      invoices, addInvoice, deleteInvoice, payInvoice,
+      cashFlows, addCashFlow, deleteCashFlow,
+      loading,
+      stats: { totalKamar, kamarTerisi, kamarKosong, kamarPerawatan, okupansi, pendapatanBulanIni, tagihanTertunda },
+    }}>
       {children}
     </KostContext.Provider>
   );

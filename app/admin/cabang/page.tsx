@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePlanLimits } from "@/lib/use-plan-limits";
+import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import { LockedFeatureCard } from "@/components/admin/PlanLimitBanner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface BranchStats {
@@ -60,6 +62,8 @@ function BranchSkeleton() {
 export default function CabangPage() {
   const planStatus = usePlanLimits();
   const toast      = useToast();
+  const { setActiveBranch, activeBranchId } = useKost();
+  const router     = useRouter();
 
   const [branches,    setBranches]    = useState<Branch[]>([]);
   const [limits,      setLimits]      = useState<{ maxCabang: number; hasMultiCabang: boolean } | null>(null);
@@ -595,6 +599,21 @@ export default function CabangPage() {
                   <span className="truncate">{b.subdomain}.{APP_DOMAIN}</span>
                 </a>
 
+                {/* Stats chips */}
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
+                    {b.stats.totalKamar} Kamar
+                  </span>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                    {b.stats.kamarTerisi} Terisi
+                  </span>
+                  {b.stats.totalPenyewa > 0 && (
+                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      {b.stats.totalPenyewa} Penyewa
+                    </span>
+                  )}
+                </div>
+
                 {/* Tagline */}
                 {b.tagline && (
                   <p className="text-xs text-slate-500 italic mb-2 leading-relaxed line-clamp-2">"{b.tagline}"</p>
@@ -623,47 +642,40 @@ export default function CabangPage() {
               </div>
 
               {/* ── Actions ── */}
-              <div className="pt-3 mt-3 border-t border-white/60 flex items-center gap-1.5">
-                {/* Edit */}
+              <div className="pt-3 mt-3 border-t border-white/60 space-y-2">
+                {/* Kelola cabang — primary action */}
                 <button
-                  onClick={() => openEdit(b)}
-                  className="flex-1 skeu-button-secondary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-white transition-colors"
-                  title="Edit informasi cabang"
-                >
-                  <span className="material-symbols-outlined text-[15px]">edit</span>
-                  Edit
-                </button>
-
-                {/* Copy link */}
-                <button
-                  onClick={() => copyLink(b)}
-                  className="px-2.5 py-2 rounded-xl skeu-card text-slate-500 hover:text-primary transition-colors"
-                  title="Salin link cabang"
-                >
-                  <span className="material-symbols-outlined text-[17px]">content_copy</span>
-                </button>
-
-                {/* Toggle aktif */}
-                <button
-                  onClick={() => toggleActive(b)}
-                  className={`px-2.5 py-2 rounded-xl skeu-card transition-colors ${
-                    b.is_active ? "text-amber-600 hover:text-amber-800" : "text-emerald-600 hover:text-emerald-800"
+                  onClick={() => {
+                    setActiveBranch(b.id);
+                    router.push("/admin/dashboard");
+                    toast.success(`Beralih ke ${b.nama}`, "Semua data sekarang menampilkan cabang ini.");
+                  }}
+                  className={`w-full skeu-button text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm ${
+                    activeBranchId === b.id ? "opacity-100 ring-2 ring-primary/40" : ""
                   }`}
-                  title={b.is_active ? "Nonaktifkan cabang" : "Aktifkan cabang"}
                 >
-                  <span className="material-symbols-outlined text-[17px]">
-                    {b.is_active ? "pause_circle" : "play_circle"}
+                  <span className="material-symbols-outlined text-[15px]">
+                    {activeBranchId === b.id ? "check_circle" : "dashboard"}
                   </span>
+                  {activeBranchId === b.id ? "Sedang Aktif" : "Kelola Cabang Ini"}
                 </button>
 
-                {/* Hapus */}
-                <button
-                  onClick={() => { setDelTarget(b); setDelConfText(""); }}
-                  className="px-2.5 py-2 rounded-xl skeu-card text-red-500 hover:text-red-700 transition-colors"
-                  title="Hapus cabang permanen"
-                >
-                  <span className="material-symbols-outlined text-[17px]">delete_forever</span>
-                </button>
+                {/* Secondary actions */}
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => openEdit(b)} className="flex-1 skeu-button-secondary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-white transition-colors" title="Edit informasi cabang">
+                    <span className="material-symbols-outlined text-[15px]">edit</span>
+                    Edit
+                  </button>
+                  <button onClick={() => copyLink(b)} className="px-2.5 py-2 rounded-xl skeu-card text-slate-500 hover:text-primary transition-colors" title="Salin link cabang">
+                    <span className="material-symbols-outlined text-[17px]">content_copy</span>
+                  </button>
+                  <button onClick={() => toggleActive(b)} className={`px-2.5 py-2 rounded-xl skeu-card transition-colors ${b.is_active ? "text-amber-600 hover:text-amber-800" : "text-emerald-600 hover:text-emerald-800"}`} title={b.is_active ? "Nonaktifkan cabang" : "Aktifkan cabang"}>
+                    <span className="material-symbols-outlined text-[17px]">{b.is_active ? "pause_circle" : "play_circle"}</span>
+                  </button>
+                  <button onClick={() => { setDelTarget(b); setDelConfText(""); }} className="px-2.5 py-2 rounded-xl skeu-card text-red-500 hover:text-red-700 transition-colors" title="Hapus cabang permanen">
+                    <span className="material-symbols-outlined text-[17px]">delete_forever</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
