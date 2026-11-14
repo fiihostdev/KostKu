@@ -34,9 +34,10 @@ interface BranchForm {
   alamat:    string;
   telepon:   string;
   tagline:   string;
+  logo_url:  string;
 }
 
-const emptyForm: BranchForm = { nama: "", subdomain: "", alamat: "", telepon: "", tagline: "" };
+const emptyForm: BranchForm = { nama: "", subdomain: "", alamat: "", telepon: "", tagline: "", logo_url: "" };
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ export default function CabangPage() {
   // ── Edit cabang ───────────────────────────────────────────────────────────
   const openEdit = (b: Branch) => {
     setEditTarget(b);
-    setEditForm({ nama: b.nama, subdomain: b.subdomain, alamat: b.alamat || "", telepon: b.telepon || "", tagline: b.tagline || "" });
+    setEditForm({ nama: b.nama, subdomain: b.subdomain, alamat: b.alamat || "", telepon: b.telepon || "", tagline: b.tagline || "", logo_url: b.logo_url || "" });
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -176,7 +177,7 @@ export default function CabangPage() {
     try {
       const res  = await fetch(`/api/branches/${editTarget.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nama: editForm.nama, alamat: editForm.alamat, telepon: editForm.telepon, tagline: editForm.tagline }),
+        body: JSON.stringify({ nama: editForm.nama, alamat: editForm.alamat, telepon: editForm.telepon, tagline: editForm.tagline, logo_url: editForm.logo_url || null }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error("Gagal menyimpan", data.error); return; }
@@ -554,14 +555,24 @@ export default function CabangPage() {
               <div>
                 {/* Status + nama */}
                 <div className="flex items-start justify-between mb-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${b.is_active ? "bg-emerald-500" : "bg-slate-300"}`}></span>
-                      <span className={`text-[10px] font-bold ${b.is_active ? "text-emerald-700" : "text-slate-400"}`}>
-                        {b.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {/* Logo / icon */}
+                    <div className="w-10 h-10 rounded-xl skeu-inset flex items-center justify-center overflow-hidden shrink-0">
+                      {b.logo_url ? (
+                        <img src={b.logo_url} alt={b.nama} className="w-full h-full object-contain p-1" />
+                      ) : (
+                        <span className="material-symbols-outlined text-primary text-[20px]">apartment</span>
+                      )}
                     </div>
-                    <h3 className="font-black text-slate-900 text-base leading-tight truncate pr-2">{b.nama}</h3>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${b.is_active ? "bg-emerald-500" : "bg-slate-300"}`}></span>
+                        <span className={`text-[10px] font-bold ${b.is_active ? "text-emerald-700" : "text-slate-400"}`}>
+                          {b.is_active ? "Aktif" : "Nonaktif"}
+                        </span>
+                      </div>
+                      <h3 className="font-black text-slate-900 text-sm leading-tight truncate">{b.nama}</h3>
+                    </div>
                   </div>
                   {/* Quick copy button */}
                   <button
@@ -895,6 +906,38 @@ export default function CabangPage() {
             </div>
 
             <form onSubmit={handleEdit} className="space-y-4 text-xs">
+              {/* Logo Cabang */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-2">Logo / Foto Cabang</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-xl skeu-inset flex items-center justify-center overflow-hidden shrink-0">
+                    {editForm.logo_url ? (
+                      <img src={editForm.logo_url} alt="Logo cabang" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="material-symbols-outlined text-slate-300 text-[28px]">apartment</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="url"
+                      placeholder="https://contoh.com/logo.png (URL gambar)"
+                      value={editForm.logo_url}
+                      onChange={(e) => setEditForm({ ...editForm, logo_url: e.target.value })}
+                      className="w-full p-2 rounded-lg skeu-inset text-slate-800 outline-none text-[11px] font-mono"
+                    />
+                    {editForm.logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, logo_url: "" })}
+                        className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">delete</span> Hapus Logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1.5">Masukkan URL gambar logo cabang. Logo tampil di halaman publik cabang.</p>
+              </div>
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Nama Cabang <span className="text-red-500">*</span></label>
                 <input

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { PlanLimits } from "./plan-limits";
 
@@ -29,24 +29,28 @@ const defaultStatus: PlanStatus = {
 };
 
 /**
- * Hook untuk cek limit paket admin yang sedang login.
+ * usePlanLimits — hook untuk cek limit paket admin yang sedang login.
  *
- * - Fetch pertama saat mount via /api/plan/check
- * - Subscribe Supabase Realtime pada baris kost_profiles milik user ini
- *   → ketika superadmin mengubah paket/max_kamar/is_suspended/expires_at,
- *     hook langsung re-fetch tanpa perlu refresh halaman
+ * Realtime: subscribe ke UPDATE pada baris kost_profiles milik user ini.
+ * Ketika superadmin mengubah paket/max_kamar/is_suspended/expires_at di DB,
+ * hook langsung re-fetch tanpa perlu refresh halaman.
  *
- * Prasyarat DB (sudah dijalankan):
+ * Prasyarat DB:
  *   ALTER TABLE kost_profiles REPLICA IDENTITY FULL;
  *   ALTER PUBLICATION supabase_realtime ADD TABLE kost_profiles;
  */
 export function usePlanLimits() {
   const [status, setStatus] = useState<PlanStatus>(defaultStatus);
 
+  // useRef agar cleanup selalu bisa akses channel yang sebenarnya
+  // (menghindari race condition antara async .then() dan cleanup sync)
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+
   const check = useCallback(async () => {
     setStatus((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch("/api/plan/check", { cache: "no-store" });
+      const res  = await fetch("/api/plan/check", { cache: "no-store" });
       const data = await res.json();
 
       if (res.status === 403) {
@@ -83,9 +87,9 @@ export function usePlanLimits() {
     check();
 
     const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    supabaseRef.current = supabase;
 
-    // 1. Get this user's kost_profile ID, then subscribe filtered to that row only
+    // Get this user's profile ID, then subscribe to realtime updates on that row only
     supabase.auth.getUser().then(({ data: authData }) => {
       if (!authData.user) return;
 
@@ -97,9 +101,8 @@ export function usePlanLimits() {
         .then(({ data: profile }) => {
           if (!profile?.id) return;
 
-          // 2. Subscribe only to UPDATE on this specific profile row
-          //    filter: id=eq.<profile_id>  — only fires for this user's row
-          channel = supabase
+          // Store channel in ref so cleanup can always access it
+          channelRef.current = supabase
             .channel(`plan-limits-${profile.id}`)
             .on(
               "postgres_changes",
@@ -109,9 +112,8 @@ export function usePlanLimits() {
                 table:  "kost_profiles",
                 filter: `id=eq.${profile.id}`,
               },
-              (_payload) => {
-                // Superadmin changed paket, max_kamar, is_suspended, or expires_at
-                // Re-fetch immediately so UI updates without page refresh
+              () => {
+                // DB row changed — re-fetch plan status immediately
                 check();
               }
             )
@@ -119,8 +121,12 @@ export function usePlanLimits() {
         });
     });
 
+    // Cleanup: remove channel on unmount
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channelRef.current && supabaseRef.current) {
+        supabaseRef.current.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [check]);
 

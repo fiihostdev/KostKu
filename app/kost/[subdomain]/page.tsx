@@ -45,39 +45,92 @@ function getSupabase() {
 async function getKostData(subdomain: string): Promise<{
   profile: KostProfile | null;
   rooms: Room[];
+  isBranch: boolean;
 }> {
   // Pastikan tidak ada caching di level Next.js maupun fetch
   noStore();
 
   const supabase = getSupabase();
-  if (!supabase) return { profile: null, rooms: [] };
+  if (!supabase) return { profile: null, rooms: [], isBranch: false };
 
+  // ── 1. Cek kost_profiles (kost utama) ────────────────────────────────────
   const { data: profiles } = await supabase
     .from("kost_profiles")
     .select("id, nama, subdomain, tagline, alamat, telepon, logo_url")
     .eq("subdomain", subdomain)
     .limit(1);
 
-  if (!profiles || profiles.length === 0) return { profile: null, rooms: [] };
+  if (profiles && profiles.length > 0) {
+    const profile = profiles[0] as KostProfile;
 
-  const profile = profiles[0] as KostProfile;
+    const { count: qrisCount } = await supabase
+      .from("qris_configs")
+      .select("*", { count: "exact", head: true })
+      .eq("kost_id", profile.id)
+      .eq("is_active", true);
 
-  // Cek apakah kost ini punya QRIS dikonfigurasi
-  const { count: qrisCount } = await supabase
-    .from("qris_configs")
-    .select("*", { count: "exact", head: true })
-    .eq("kost_id", profile.id)
-    .eq("is_active", true);
+    profile.has_qris = (qrisCount || 0) > 0;
 
-  profile.has_qris = (qrisCount || 0) > 0;
+    const { data: roomsData } = await supabase
+      .from("rooms")
+      .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
+      .eq("kost_id", profile.id)
+      .order("nomor", { ascending: true });
 
-  const { data: roomsData } = await supabase
-    .from("rooms")
-    .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
-    .eq("kost_id", profile.id)
-    .order("nomor", { ascending: true });
+    return { profile, rooms: (roomsData || []) as Room[], isBranch: false };
+  }
 
-  return { profile, rooms: (roomsData || []) as Room[] };
+  // ── 2. Cek kost_branches (cabang) ─────────────────────────────────────────
+  // Cabang punya subdomain sendiri tapi berbagi kost_id dengan profil utama
+  const { data: branches } = await supabase
+    .from("kost_branches")
+    .select("id, kost_id, nama, subdomain, tagline, alamat, telepon, logo_url, is_active")
+    .eq("subdomain", subdomain)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (branches && branches.length > 0) {
+    const branch = branches[0];
+
+    // Ambil profil utama untuk QRIS dan data lain yang shared
+    const { data: parentProfiles } = await supabase
+      .from("kost_profiles")
+      .select("id, nama, logo_url")
+      .eq("id", branch.kost_id)
+      .limit(1);
+
+    const parentProfile = parentProfiles?.[0];
+
+    const profile: KostProfile = {
+      id:        branch.kost_id, // gunakan kost_id untuk query rooms
+      nama:      branch.nama,
+      subdomain: branch.subdomain,
+      tagline:   branch.tagline || "",
+      alamat:    branch.alamat || "",
+      telepon:   branch.telepon || (parentProfile ? "" : ""),
+      logo_url:  branch.logo_url || parentProfile?.logo_url || undefined,
+      has_qris:  false,
+    };
+
+    const { count: qrisCount } = await supabase
+      .from("qris_configs")
+      .select("*", { count: "exact", head: true })
+      .eq("kost_id", branch.kost_id)
+      .eq("is_active", true);
+
+    profile.has_qris = (qrisCount || 0) > 0;
+
+    // Cabang berbagi kamar dengan kost utama (rooms linked to kost_id)
+    const { data: roomsData } = await supabase
+      .from("rooms")
+      .select("id, nomor, lantai, tipe, harga, status, fasilitas, foto_urls, deskripsi, luas_m2")
+      .eq("kost_id", branch.kost_id)
+      .order("nomor", { ascending: true });
+
+    return { profile, rooms: (roomsData || []) as Room[], isBranch: true };
+  }
+
+  return { profile: null, rooms: [], isBranch: false };
 }
 
 // Komponen booking button — harus client karena ada window.open
@@ -92,7 +145,7 @@ export default async function PublicKostPage({
   const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
   const subdomain = params.subdomain;
 
-  const { profile, rooms } = await getKostData(subdomain);
+  const { profile, rooms, isBranch } = await getKostData(subdomain);
 
   // Not found
   if (!profile) {
@@ -123,11 +176,12 @@ export default async function PublicKostPage({
       <div className="bg-slate-900 text-white text-[11px] py-2 px-4">
         <div className="flex items-center max-w-7xl mx-auto w-full justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-            <span className="truncate">
-              Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform
-            </span>
-          </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+              <span className="truncate">
+                Website Resmi <strong>{profile.subdomain}.{APP_DOMAIN}</strong> · KOSTKU Platform
+                {isBranch && <span className="ml-1 opacity-70">· Cabang</span>}
+              </span>
+            </div>
           <Link href={`${process.env.NEXT_PUBLIC_APP_URL || "https://manajementkost.my.id"}/login`} className="text-emerald-400 hover:underline font-bold text-[10px] shrink-0 ml-2">
             Panel Pemilik →
           </Link>

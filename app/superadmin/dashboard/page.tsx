@@ -174,7 +174,7 @@ export default function SuperadminDashboardPage() {
               email: p.user_email || "",
               nama: p.nama,
               subdomain: p.subdomain,
-              paket: p.paket || "Pro Plan",
+              paket: p.paket ? p.paket.toLowerCase().trim().replace("paket ", "") : "starter",
               telepon: p.telepon || "",
               alamat: p.alamat || "",
               role: p.role || "admin",
@@ -272,10 +272,12 @@ export default function SuperadminDashboardPage() {
   // ── Update tenant ─────────────────────────────────────────────────────────
   const saveTenantEdit = async () => {
     if (!editTenant) return;
+    // Normalize paket to slug before saving
+    const paketSlug = editTenant.paket.toLowerCase().trim().replace("paket ", "");
     const { error } = await supabase
       .from("kost_profiles")
       .update({
-        paket: editTenant.paket,
+        paket: paketSlug,
         max_kamar: editTenant.max_kamar,
         platform_fee_pct: editTenant.platform_fee_pct,
         expires_at: editTenant.expires_at,
@@ -288,7 +290,7 @@ export default function SuperadminDashboardPage() {
     if (error) {
       showToast("error", "Gagal menyimpan: " + error.message);
     } else {
-      addLog("EDIT", editTenant.nama, `Paket: ${planLabel(editTenant.paket)} · Max kamar: ${editTenant.max_kamar}`);
+      addLog("EDIT", editTenant.nama, `Paket: ${planLabel(paketSlug)} · Max kamar: ${editTenant.max_kamar}`);
       showToast("success", "Data kost berhasil diperbarui!");
       setEditTenant(null);
       loadData();
