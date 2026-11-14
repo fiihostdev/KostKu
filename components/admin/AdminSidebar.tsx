@@ -8,14 +8,15 @@ import { createClient } from "@/lib/supabase-browser";
 import { useKost } from "@/lib/store";
 
 const menuItems = [
-  { name: "Dashboard",           href: "/admin/dashboard",  icon: "dashboard" },
-  { name: "Data Kamar",          href: "/admin/kamar",      icon: "meeting_room" },
-  { name: "Data Penyewa",        href: "/admin/penyewa",    icon: "group" },
-  { name: "Booking Masuk",       href: "/admin/booking",    icon: "how_to_reg" },
-  { name: "Tagihan & Keuangan",  href: "/admin/tagihan",    icon: "receipt_long" },
-  { name: "Laporan Keuangan",    href: "/admin/laporan",    icon: "trending_up" },
-  { name: "Website Saya",        href: "/admin/website",    icon: "public" },
-  { name: "Pengaturan",          href: "/admin/pengaturan", icon: "settings" },
+  { name: "Dashboard",           href: "/admin/dashboard",  icon: "dashboard",      pro: false },
+  { name: "Data Kamar",          href: "/admin/kamar",      icon: "meeting_room",   pro: false },
+  { name: "Data Penyewa",        href: "/admin/penyewa",    icon: "group",          pro: false },
+  { name: "Booking Masuk",       href: "/admin/booking",    icon: "how_to_reg",     pro: false },
+  { name: "Tagihan & Keuangan",  href: "/admin/tagihan",    icon: "receipt_long",   pro: false },
+  { name: "Laporan Keuangan",    href: "/admin/laporan",    icon: "trending_up",    pro: false },
+  { name: "Cabang Kost",         href: "/admin/cabang",     icon: "add_home_work",  pro: true  },
+  { name: "Website Saya",        href: "/admin/website",    icon: "public",         pro: false },
+  { name: "Pengaturan",          href: "/admin/pengaturan", icon: "settings",       pro: false },
 ];
 
 interface AdminSidebarProps {
@@ -129,7 +130,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           {/* Navigation */}
           <nav className="space-y-0.5">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href;              return (
+              const isActive = pathname === item.href;
+              return (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -141,7 +143,12 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                   }`}
                 >
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                  <span>{item.name}</span>
+                  <span className="flex-1">{item.name}</span>
+                  {item.pro && (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black shrink-0 ${
+                      isActive ? "bg-white/30 text-white" : "bg-amber-100 text-amber-700"
+                    }`}>PRO</span>
+                  )}
                 </Link>
               );
             })}
