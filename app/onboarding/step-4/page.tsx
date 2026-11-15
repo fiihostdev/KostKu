@@ -40,14 +40,14 @@ function Step4Content() {
     setError(null);
 
     try {
-      // Buat kost_profile di Supabase via API route
+      // 1. Buat kost_profile di Supabase via API route
+      //    paket TIDAK dikirim dari client — server mulai dengan "starter"
       const res = await fetch("/api/onboarding/create-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           namaKost,
           subdomain,
-          paket: planLabel,
           tagline: "Hunian nyaman, bersih, dan strategis",
           telepon: "",
           alamat: "",
@@ -60,6 +60,21 @@ function Step4Content() {
         setError(result.error || "Gagal membuat profil kost. Coba lagi.");
         setIsCreating(false);
         return;
+      }
+
+      // 2. Upgrade paket sesuai pilihan user — setelah payment sukses
+      //    API ini hanya menerima paket yang telah dibayar (server-verified)
+      if (plan !== "starter") {
+        const upgradeRes = await fetch("/api/onboarding/activate-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan }),
+        });
+        // Jika gagal upgrade, tetap lanjut ke dashboard dengan starter
+        // Admin dapat hubungi superadmin untuk upgrade manual
+        if (!upgradeRes.ok) {
+          console.warn("[onboarding] Plan upgrade failed, started as starter");
+        }
       }
 
       // Sukses → arahkan ke dashboard

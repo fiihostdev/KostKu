@@ -37,7 +37,7 @@ function Step3Content() {
     });
   }, [supabase]);
 
-  // Cek ketersediaan subdomain dengan debounce
+  // Cek ketersediaan subdomain dengan debounce — cek kost_profiles DAN kost_branches
   const handleSubdomainChange = (val: string) => {
     const sanitized = val.toLowerCase().replace(/[^a-z0-9-]/g, "");
     setSubdomain(sanitized);
@@ -48,13 +48,16 @@ function Step3Content() {
 
     setIsChecking(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase
-        .from("kost_profiles")
-        .select("id")
-        .eq("subdomain", sanitized)
-        .single();
-      setIsAvailable(!data); // tersedia jika tidak ada data
-      setIsChecking(false);
+      try {
+        // Use the centralized check-subdomain API instead of direct DB query
+        const res  = await fetch(`/api/onboarding/check-subdomain?subdomain=${encodeURIComponent(sanitized)}`);
+        const data = await res.json();
+        setIsAvailable(!!data.available);
+      } catch {
+        setIsAvailable(null);
+      } finally {
+        setIsChecking(false);
+      }
     }, 500);
     setCheckTimeout(t);
   };
