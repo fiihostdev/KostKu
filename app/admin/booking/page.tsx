@@ -23,7 +23,7 @@ interface Booking {
 }
 
 export default function BookingPage() {
-  const { kostId, addTenant, addInvoice } = useKost();
+  const { kostId, addTenant, addInvoice, activeBranchId } = useKost();
   const toast = useToast();
 
   const [bookings,    setBookings]    = useState<Booking[]>([]);
@@ -39,16 +39,25 @@ export default function BookingPage() {
     if (!kostId) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      // Filter bookings by branch context — same pattern as store.tsx loadData
+      let q = supabase
         .from("bookings")
         .select("*")
-        .eq("kost_id", kostId)
-        .order("created_at", { ascending: false });
+        .eq("kost_id", kostId);
+      if (activeBranchId) {
+        q = q.eq("branch_id", activeBranchId);
+      } else {
+        q = q.is("branch_id", null);
+      }
+      const { data, error } = await q.order("created_at", { ascending: false });
+      if (error) throw error;
       setBookings((data || []) as Booking[]);
+    } catch {
+      toast.error("Gagal memuat booking", "Periksa koneksi.");
     } finally {
       setLoading(false);
     }
-  }, [kostId, supabase]);
+  }, [kostId, supabase, activeBranchId]);
 
   useEffect(() => { loadBookings(); }, [loadBookings]);
 

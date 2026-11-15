@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useKost } from "@/lib/store";
 
 export default function DashboardAdminKost() {
-  const { stats, invoices, rooms, profile, loading } = useKost();
+  const { stats, invoices, rooms, profile, loading, activeBranch, activeNama } = useKost();
 
   if (loading) {
     return (
@@ -16,6 +16,14 @@ export default function DashboardAdminKost() {
       </div>
     );
   }
+
+  // Data-driven bar widths — tidak hardcode
+  const totalInvoices    = invoices.length;
+  const lunasCount       = invoices.filter((i) => i.status === "Lunas").length;
+  const tertundaCount    = invoices.filter((i) => i.status !== "Lunas").length;
+  const lunasPercent     = totalInvoices > 0 ? Math.round((lunasCount / totalInvoices) * 100) : 0;
+  const tertundaPercent  = totalInvoices > 0 ? Math.round((tertundaCount / totalInvoices) * 100) : 0;
+  const tersediaPercent  = stats.totalKamar > 0 ? Math.round((stats.kamarKosong / stats.totalKamar) * 100) : 0;
 
   const metricsData = [
     {
@@ -33,7 +41,7 @@ export default function DashboardAdminKost() {
       sub: "Siap Huni",
       icon: "meeting_room",
       color: "text-blue-600",
-      barWidth: `${stats.totalKamar > 0 ? Math.round((stats.kamarKosong / stats.totalKamar) * 100) : 0}%`,
+      barWidth: `${tersediaPercent}%`,
       barColor: "bg-blue-500",
     },
     {
@@ -46,30 +54,31 @@ export default function DashboardAdminKost() {
       barColor: "bg-emerald-600",
     },
     {
+      // Fix L2: gunakan stats.totalPenyewa (jumlah penyewa aktif) bukan kamarTerisi
       label: "PENYEWA AKTIF",
-      val: stats.kamarTerisi.toString(),
-      sub: "Penghuni Aktif",
+      val: stats.totalPenyewa.toString(),
+      sub: "Data Penyewa",
       icon: "group",
       color: "text-indigo-600",
-      barWidth: `${stats.okupansi}%`,
+      barWidth: stats.totalKamar > 0 ? `${Math.round((stats.totalPenyewa / Math.max(stats.totalKamar, 1)) * 100)}%` : "0%",
       barColor: "bg-indigo-500",
     },
     {
       label: "PENDAPATAN",
       val: `Rp ${(stats.pendapatanBulanIni / 1000000).toFixed(1)} Jt`,
-      sub: "Tagihan Lunas",
+      sub: `${lunasCount} Invoice Lunas`,
       icon: "payments",
       color: "text-emerald-700",
-      barWidth: "80%",
+      barWidth: `${lunasPercent}%`,         // % invoice yang lunas
       barColor: "bg-emerald-700",
     },
     {
       label: "TERTUNDA",
       val: `Rp ${(stats.tagihanTertunda / 1000000).toFixed(1)} Jt`,
-      sub: `${invoices.filter((i) => i.status !== "Lunas").length} Tagihan`,
+      sub: `${tertundaCount} Tagihan`,
       icon: "pending_actions",
       color: "text-amber-600",
-      barWidth: "15%",
+      barWidth: `${tertundaPercent}%`,       // % invoice belum lunas
       barColor: "bg-amber-500",
     },
   ];
@@ -90,7 +99,9 @@ export default function DashboardAdminKost() {
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Ringkasan operasional harian untuk{" "}
-            <span className="font-semibold text-slate-700">{profile.nama}</span>.
+            <span className="font-semibold text-slate-700">
+              {activeBranch ? `${activeBranch.nama} (Cabang)` : profile.nama}
+            </span>.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

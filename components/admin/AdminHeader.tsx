@@ -10,7 +10,7 @@ interface AdminHeaderProps {
 }
 
 export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
-  const { stats, loading, activeBranch, activeNama, activeSubdomain, activeBranchId } = useKost();
+  const { stats, loading, activeBranch, activeNama, activeSubdomain, activeBranchId, invoices } = useKost();
 
   return (
     <header className="h-16 bg-surface/90 backdrop-blur-md border-b border-white/60 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -63,16 +63,24 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </a>
         )}
 
-        {/* Notifikasi bell */}
-        <button
-          title={stats.tagihanTertunda > 0 ? `Tagihan tertunda Rp ${stats.tagihanTertunda.toLocaleString("id-ID")}` : "Tidak ada notifikasi"}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl skeu-card flex items-center justify-center text-slate-600 hover:text-slate-950 relative"
-        >
-          <span className="material-symbols-outlined text-[18px] sm:text-[20px]">notifications</span>
-          {stats.tagihanTertunda > 0 && (
-            <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5"></span>
-          )}
-        </button>
+        {/* Notifikasi bell — menampilkan ringkasan tagihan tertunda */}
+        <div className="relative">
+          <button
+            aria-label={`Notifikasi${stats.tagihanTertunda > 0 ? ` — ${invoices?.filter(i => i.status !== "Lunas").length} tagihan tertunda` : ""}`}
+            onClick={() => {
+              if (stats.tagihanTertunda > 0) {
+                window.location.href = "/admin/tagihan";
+              }
+            }}
+            title={stats.tagihanTertunda > 0 ? `${stats.tagihanTertunda.toLocaleString("id-ID")} tertunda — klik untuk lihat tagihan` : "Tidak ada notifikasi baru"}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl skeu-card flex items-center justify-center text-slate-600 hover:text-slate-950 relative"
+          >
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">notifications</span>
+            {stats.tagihanTertunda > 0 && (
+              <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5"></span>
+            )}
+          </button>
+        </div>
 
         {/* Tambah kamar */}
         <Link

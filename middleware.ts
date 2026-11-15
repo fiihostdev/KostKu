@@ -87,8 +87,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Auth protection (hanya untuk apex domain) ────────────────────────────
-
+  // Fail-closed: jika env vars tidak ada, tolak akses ke halaman proteksi
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // Env vars tidak ada → redirect admin ke login (gagal aman, tidak fail-open)
+    if (pathname.startsWith("/admin") || pathname.startsWith("/superadmin")) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
     return NextResponse.next();
   }
 

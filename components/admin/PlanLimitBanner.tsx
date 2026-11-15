@@ -10,10 +10,8 @@ import Link from "next/link";
 export default function PlanLimitBanner() {
   const { paket, limits, usage, canAddRoom, roomsRemaining, suspended, expired, loading } = usePlanLimits();
 
-  if (loading || !limits) return null;
-
-  // Akun suspended — tampil merah bold
-  if (suspended) {
+  // Akun suspended — cek SEBELUM null-check limits (403 path sets limits=null)
+  if (!loading && suspended) {
     return (
       <div className="mx-4 sm:mx-6 lg:mx-8 mb-4">
         <div className="flex items-center gap-3 p-3 bg-red-50 border-2 border-red-300 rounded-2xl text-xs">
@@ -27,8 +25,8 @@ export default function PlanLimitBanner() {
     );
   }
 
-  // Paket kadaluarsa
-  if (expired) {
+  // Paket kadaluarsa — cek SEBELUM null-check limits (402 path sets limits=null)
+  if (!loading && expired) {
     return (
       <div className="mx-4 sm:mx-6 lg:mx-8 mb-4">
         <div className="flex items-center gap-3 p-3 bg-orange-50 border-2 border-orange-300 rounded-2xl text-xs">
@@ -44,6 +42,8 @@ export default function PlanLimitBanner() {
       </div>
     );
   }
+
+  if (loading || !limits) return null;
 
   // Mendekati limit kamar (<=3 sisa atau sudah penuh)
   const isNearLimit = roomsRemaining <= 3;

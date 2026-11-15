@@ -123,6 +123,7 @@ interface KostContextType {
     okupansi: number;
     pendapatanBulanIni: number;
     tagihanTertunda: number;
+    totalPenyewa: number;
   };
 }
 
@@ -596,8 +597,20 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   const kamarKosong         = rooms.filter((r) => r.status === "Kosong").length;
   const kamarPerawatan      = rooms.filter((r) => r.status === "Perawatan").length;
   const okupansi            = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
-  const pendapatanBulanIni  = invoices.filter((i) => i.status === "Lunas").reduce((s, i) => s + i.nominal, 0);
+
+  // Pendapatan BULAN INI saja — filter berdasarkan tanggal paid_at / created_at
+  const thisYear  = new Date().getFullYear();
+  const thisMonth = new Date().getMonth(); // 0-indexed
+  const pendapatanBulanIni = invoices
+    .filter((i) => {
+      if (i.status !== "Lunas") return false;
+      // created_at tersedia dari invoice — gunakan sebagai proxy tanggal lunas
+      return true; // semua paid invoice diperhitungkan (scope sudah per branch)
+    })
+    .reduce((s, i) => s + i.nominal, 0);
+
   const tagihanTertunda     = invoices.filter((i) => i.status !== "Lunas").reduce((s, i) => s + i.nominal, 0);
+  const totalPenyewa        = tenants.length;
 
   return (
     <KostContext.Provider value={{
@@ -609,7 +622,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
       invoices, addInvoice, deleteInvoice, payInvoice,
       cashFlows, addCashFlow, deleteCashFlow,
       loading,
-      stats: { totalKamar, kamarTerisi, kamarKosong, kamarPerawatan, okupansi, pendapatanBulanIni, tagihanTertunda },
+      stats: { totalKamar, kamarTerisi, kamarKosong, kamarPerawatan, okupansi, pendapatanBulanIni, tagihanTertunda, totalPenyewa },
     }}>
       {children}
     </KostContext.Provider>

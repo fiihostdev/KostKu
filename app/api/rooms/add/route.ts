@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { getPlanLimits } from "@/lib/plan-limits"; // static import — not dynamic
 
-/**
- * POST /api/rooms/add
- * Server-side validation sebelum tambah kamar:
- * 1. Cek auth
- * 2. Cek suspended
- * 3. Cek limit paket
- * 4. Insert kamar
- *
- * Ini adalah enforcement server-side yang tidak bisa di-bypass dari browser
- */
+const VALID_TIPE   = ["Standard", "Deluxe", "VIP"] as const;
+const VALID_STATUS = ["Terisi", "Kosong", "Perawatan"] as const;
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Ambil profil + cek status
     const { data: profile } = await supabase
       .from("kost_profiles")
       .select("id, paket, max_kamar, is_suspended, expires_at")
@@ -30,19 +23,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Paket kadaluarsa. Perpanjang untuk melanjutkan." }, { status: 402 });
     }
 
-    // Hitung kamar yang sudah ada
+    // Hitung total kamar (semua branch) untuk enforce plan limit
     const { count: currentCount } = await supabase
       .from("rooms")
       .select("*", { count: "exact", head: true })
       .eq("kost_id", profile.id);
 
-    const roomCount = currentCount || 0;
-    // Pakai max_kamar dari superadmin jika ada, otherwise dari plan limits
-    const { getPlanLimits } = await import("@/lib/plan-limits");
-    const limits = getPlanLimits(profile.paket || "starter");
+    const roomCount  = currentCount || 0;
+    const limits     = getPlanLimits(profile.paket || "starter");
     const effectiveMax = profile.max_kamar || limits.maxKamar;
 
-    // ── ENFORCE LIMIT ──────────────────────────────────────────────────────────
     if (roomCount >= effectiveMax) {
       return NextResponse.json({
         error: `Batas kamar tercapai. Paket ${profile.paket} maksimal ${effectiveMax} kamar. Upgrade paket untuk menambah lebih banyak.`,
@@ -53,22 +43,33 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Parse body dan insert kamar
     const body = await request.json();
     const { nomor, lantai, tipe, harga, status, penyewa, fasilitas, deskripsi, luasM2, branch_id } = body;
 
     if (!nomor || !tipe || !harga) {
       return NextResponse.json({ error: "nomor, tipe, dan harga wajib diisi" }, { status: 400 });
     }
-
-    // Validasi tipe kamar
-    if (!["Standard", "Deluxe", "VIP"].includes(tipe)) {
+    if (!VALID_TIPE.includes(tipe)) {
       return NextResponse.json({ error: "Tipe kamar tidak valid" }, { status: 400 });
     }
-
-    // Validasi harga positif
-    if (Number(harga) <= 0 || Number(harga) > 100000000) {
+    if (status && !VALID_STATUS.includes(status)) {
+      return NextResponse.json({ error: "Status kamar tidak valid" }, { status: 400 });
+    }
+    if (Number(harga) <= 0 || Number(harga) > 100_000_000) {
       return NextResponse.json({ error: "Harga tidak valid" }, { status: 400 });
+    }
+
+    // ── C2 FIX: Validate branch_id belongs to this kost ───────────────────────
+    if (branch_id) {
+      const { data: branchCheck } = await supabase
+        .from("kost_branches")
+        .select("id")
+        .eq("id", branch_id)
+        .eq("kost_id", profile.id)
+        .maybeSingle();
+      if (!branchCheck) {
+        return NextResponse.json({ error: "Cabang tidak valid" }, { status: 400 });
+      }
     }
 
     const { data, error } = await supabase
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Gagal menyimpan kamar" }, { status: 500 });
 
     return NextResponse.json({
       success: true,
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       usage: { rooms: roomCount + 1, maxRooms: effectiveMax },
     }, { status: 201 });
 
-  } catch (err: unknown) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
