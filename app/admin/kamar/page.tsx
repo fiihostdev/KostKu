@@ -15,10 +15,12 @@ type RoomForm = {
   harga: number;
   status: "Terisi" | "Kosong" | "Perawatan";
   fasilitas: string;
+  deskripsi: string;
+  luasM2: string;
 };
 
 const emptyForm: RoomForm = {
-  nomor: "", lantai: 1, tipe: "Standard", harga: 1500000, status: "Kosong", fasilitas: "AC, WiFi, Kasur",
+  nomor: "", lantai: 1, tipe: "Standard", harga: 1500000, status: "Kosong", fasilitas: "AC, WiFi, Kasur", deskripsi: "", luasM2: "",
 };
 
 // ── RoomFormFields — HARUS di luar DataKamarPage agar tidak di-recreate saat re-render ──
@@ -118,6 +120,37 @@ function RoomFormFields({
           ))}
         </div>
       </div>
+
+      {/* Deskripsi & Luas — tampil di halaman publik */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">
+            Luas Kamar <span className="text-slate-400 font-normal">(m²)</span>
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            placeholder="20"
+            value={form.luasM2}
+            onChange={(e) => onChange({ ...form, luasM2: e.target.value })}
+            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="font-bold text-slate-700 block mb-1">
+            Deskripsi Kamar <span className="text-slate-400 font-normal">(opsional)</span>
+          </label>
+          <textarea
+            rows={2}
+            placeholder="Kamar bersih dengan ventilasi baik, cocok untuk mahasiswa..."
+            value={form.deskripsi}
+            onChange={(e) => onChange({ ...form, deskripsi: e.target.value })}
+            className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none leading-relaxed"
+          />
+          <p className="text-[10px] text-slate-400 mt-1">Ditampilkan di halaman publik untuk calon penyewa.</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -174,6 +207,8 @@ export default function DataKamarPage() {
         harga:     Number(newRoom.harga),
         status:    "Kosong",
         fasilitas: newRoom.fasilitas.split(",").map((s) => s.trim()).filter(Boolean),
+        deskripsi: newRoom.deskripsi.trim() || undefined,
+        luasM2:    newRoom.luasM2 ? Number(newRoom.luasM2) : undefined,
       });
       setShowAddModal(false);
       setNewRoom(emptyForm);
@@ -196,6 +231,8 @@ export default function DataKamarPage() {
       harga:     room.harga,
       status:    room.status,
       fasilitas: room.fasilitas.join(", "),
+      deskripsi: room.deskripsi || "",
+      luasM2:    room.luasM2 ? String(room.luasM2) : "",
     });
   };
 
@@ -212,6 +249,8 @@ export default function DataKamarPage() {
         harga:     Number(editForm.harga),
         status:    editForm.status,
         fasilitas: editForm.fasilitas.split(",").map((s: string) => s.trim()).filter(Boolean),
+        deskripsi: editForm.deskripsi?.trim() || undefined,
+        luasM2:    editForm.luasM2 ? Number(editForm.luasM2) : undefined,
       });
 
       setEditRoom(null);

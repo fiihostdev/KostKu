@@ -99,14 +99,14 @@ async function getKostData(subdomain: string): Promise<{
     // Ambil profil utama untuk QRIS dan data lain yang shared
     const { data: parentProfiles } = await supabase
       .from("kost_profiles")
-      .select("id, nama, logo_url")
+      .select("id, nama, logo_url, fasilitas")
       .eq("id", branch.kost_id)
       .limit(1);
 
     const parentProfile = parentProfiles?.[0];
 
     const profile: KostProfile = {
-      id:        branch.kost_id, // gunakan kost_id untuk query rooms
+      id:        branch.kost_id,
       nama:      branch.nama,
       subdomain: branch.subdomain,
       tagline:   branch.tagline || "",
@@ -114,6 +114,7 @@ async function getKostData(subdomain: string): Promise<{
       telepon:   branch.telepon || (parentProfile ? "" : ""),
       logo_url:  branch.logo_url || parentProfile?.logo_url || undefined,
       has_qris:  false,
+      fasilitas: (parentProfile as { fasilitas?: string[] } | undefined)?.fasilitas || [],
     };
 
     const { count: qrisCount } = await supabase
@@ -142,6 +143,8 @@ async function getKostData(subdomain: string): Promise<{
 // Komponen booking button — harus client karena ada window.open
 import BookingButton from "./BookingButton";
 import BookingFlow from "./BookingFlow";
+import RoomFilter from "./RoomFilter";
+import PhotoGallery from "./PhotoGallery";
 
 export default async function PublicKostPage({
   params,
@@ -357,13 +360,13 @@ export default async function PublicKostPage({
               <p className="text-sm font-bold text-slate-500">Belum ada kamar yang dipublikasikan.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rooms.map((room) => {
+            <RoomFilter
+              rooms={rooms}
+              renderRoom={(room) => {
                 const isAvailable = room.status === "Kosong";
                 const bookingText = `Halo pengelola ${profile.nama}, saya tertarik booking kamar ${room.nomor} (${room.tipe}) seharga Rp ${room.harga.toLocaleString("id-ID")}/bulan dari ${profile.subdomain}.${APP_DOMAIN}. Apakah masih tersedia?`;
                 return (
                   <div
-                    key={room.id}
                     className={`skeu-card p-5 rounded-2xl flex flex-col justify-between transition-all ${
                       isAvailable ? "hover:-translate-y-1 border-2 border-emerald-500/20" : "opacity-75"
                     }`}
@@ -389,20 +392,9 @@ export default async function PublicKostPage({
                         <span className="text-xs font-normal text-slate-500"> / bulan</span>
                       </div>
 
-                      {/* Foto kamar dari data Supabase */}
-                      {room.foto_urls && room.foto_urls.length > 0 ? (
-                        <div className="rounded-xl overflow-hidden mb-3 aspect-video bg-slate-100">
-                          <img
-                            src={room.foto_urls[0]}
-                            alt={`Foto Kamar ${room.nomor}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="rounded-xl bg-slate-100 mb-3 aspect-video flex items-center justify-center">
-                          <span className="material-symbols-outlined text-slate-300 text-[36px]">bedroom_parent</span>
-                        </div>
-                      )}
+                      {/* Photo gallery dengan lightbox */}
+                      <PhotoGallery photos={room.foto_urls || []} alt={`Kamar ${room.nomor}`} />
+
                       {room.deskripsi && (
                         <p className="text-[11px] text-slate-500 mb-3 leading-relaxed line-clamp-2">{room.deskripsi}</p>
                       )}
@@ -417,7 +409,6 @@ export default async function PublicKostPage({
                     <div className="pt-3 border-t border-white/60">
                       {isAvailable && waPhone ? (
                         <div className="space-y-2">
-                          {/* Booking Flow — form data diri + pilih metode bayar */}
                           <BookingFlow
                             kostId={profile.id}
                             kostNama={profile.nama}
@@ -428,22 +419,18 @@ export default async function PublicKostPage({
                             hasQris={profile.has_qris ?? false}
                             waPhone={waPhone}
                           />
-                          {/* WhatsApp fallback */}
                           <BookingButton waPhone={waPhone} message={bookingText} />
                         </div>
                       ) : (
-                        <button
-                          disabled
-                          className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed"
-                        >
+                        <button disabled className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed">
                           Kamar Telah Terisi
                         </button>
                       )}
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }}
+            />
           )}
         </div>
       </section>
