@@ -30,20 +30,19 @@ export default function PengaturanPage() {
   const planStatus = usePlanLimits();
   const toast = useToast();
 
-  // Auto-switch to profil if tab is locked and plan loaded
+  // Auto-switch to profil if current tab is locked after plan loads
   useEffect(() => {
-    if (!planStatus.loading) {
-      const lockedTabs = {
-        midtrans: !planStatus.limits?.hasPaymentGateway,
-        qris:     !planStatus.limits?.hasQrisDinamis,
-        whatsapp: !planStatus.limits?.hasWaNotifikasi,
-      };
-      // keep current tab if it's not locked OR if loading just finished on a valid tab
-      if (lockedTabs[activeTab as keyof typeof lockedTabs] === false) return;
-      // If the tab just loaded and it's unlocked, stay
-      if (!lockedTabs[activeTab as keyof typeof lockedTabs]) return;
+    if (planStatus.loading || !planStatus.limits) return;
+    const lockedTabs: Record<string, boolean> = {
+      midtrans: !planStatus.limits.hasPaymentGateway,
+      qris:     !planStatus.limits.hasQrisDinamis,
+      whatsapp: !planStatus.limits.hasWaNotifikasi,
+    };
+    // If currently on a locked tab, redirect to profil
+    if (lockedTabs[activeTab]) {
+      setActiveTab("profil");
     }
-  }, [planStatus.loading]);
+  }, [planStatus.loading, planStatus.limits, activeTab]);
 
   // Profil Kost
   const [namaKost,     setNamaKost]     = useState(profile.nama);

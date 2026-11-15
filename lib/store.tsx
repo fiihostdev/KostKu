@@ -598,14 +598,19 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   const kamarPerawatan      = rooms.filter((r) => r.status === "Perawatan").length;
   const okupansi            = totalKamar > 0 ? Math.round((kamarTerisi / totalKamar) * 100) : 0;
 
-  // Pendapatan BULAN INI saja — filter berdasarkan tanggal paid_at / created_at
-  const thisYear  = new Date().getFullYear();
-  const thisMonth = new Date().getMonth(); // 0-indexed
+  // Pendapatan BULAN INI — filter invoice Lunas yang dibuat bulan ini
+  const now = new Date();
+  const thisYear  = now.getFullYear();
+  const thisMonth = now.getMonth(); // 0-indexed
   const pendapatanBulanIni = invoices
     .filter((i) => {
       if (i.status !== "Lunas") return false;
-      // created_at tersedia dari invoice — gunakan sebagai proxy tanggal lunas
-      return true; // semua paid invoice diperhitungkan (scope sudah per branch)
+      try {
+        const d = new Date(i.jatuhTempo || "");
+        return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+      } catch {
+        return true; // fallback: include all if date invalid
+      }
     })
     .reduce((s, i) => s + i.nominal, 0);
 

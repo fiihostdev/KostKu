@@ -153,7 +153,7 @@ export default function CabangPage() {
     if (!subAvailable) { toast.error("Subdomain tidak tersedia", "Pilih subdomain lain."); return; }
     setAddLoading(true);
     try {
-      const res  = await fetch("/api/branches", {
+      const res = await fetch("/api/branches", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(addForm),
       });

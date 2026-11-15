@@ -32,7 +32,9 @@ export default function TagihanPage() {
     kamar: "",
     nominal: 1800000,
     jatuhTempo: "",
-    metode: "Midtrans Payment Gateway",
+    // Default ke Transfer Manual — metode netral yang tersedia di semua paket
+    // Payment gateway (Midtrans dll) hanya Pro+ dan dikontrol plan gating di bawah
+    metode: "Transfer Manual",
   });
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -56,7 +58,7 @@ export default function TagihanPage() {
         status: "Menunggu",
       });
       setShowModal(false);
-      setNewInv({ penyewa: "", kamar: "", nominal: 1800000, jatuhTempo: "", metode: "Midtrans Payment Gateway" });
+      setNewInv({ penyewa: "", kamar: "", nominal: 1800000, jatuhTempo: "", metode: "Transfer Manual" });
     } catch {
       toast.error("Gagal membuat tagihan", "Periksa koneksi dan coba lagi.");
     }

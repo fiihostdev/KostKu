@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nama, subdomain, alamat, telepon, tagline } = body;
+    const { nama, subdomain, alamat, telepon, tagline, logo_url } = body;
 
     if (!nama?.trim() || !subdomain?.trim()) {
       return NextResponse.json({ error: "Nama dan subdomain wajib diisi" }, { status: 400 });
@@ -148,15 +148,16 @@ export async function POST(request: NextRequest) {
         alamat:    alamat?.trim() || null,
         telepon:   telepon?.trim() || null,
         tagline:   tagline?.trim() || null,
+        logo_url:  logo_url?.trim() || null,
         is_active: true,
       })
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Gagal menyimpan cabang" }, { status: 500 });
 
     return NextResponse.json({ success: true, branch: data }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
