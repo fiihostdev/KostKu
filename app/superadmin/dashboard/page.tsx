@@ -20,7 +20,7 @@ interface KostTenant {
   role: string;
   is_suspended: boolean;
   suspended_reason: string | null;
-  max_kamar: number;
+  max_kamar: number | null;  // null = ikuti batas paket (tidak ada override)
   platform_fee_pct: number;
   expires_at: string | null;
   notes: string | null;
@@ -180,7 +180,7 @@ export default function SuperadminDashboardPage() {
               role: p.role || "admin",
               is_suspended: p.is_suspended || false,
               suspended_reason: p.suspended_reason || null,
-              max_kamar: p.max_kamar || 50,
+              max_kamar: p.max_kamar ?? null,
               platform_fee_pct: p.platform_fee_pct || 0,
               expires_at: p.expires_at || null,
               notes: p.notes || null,
@@ -278,7 +278,7 @@ export default function SuperadminDashboardPage() {
       .from("kost_profiles")
       .update({
         paket: paketSlug,
-        max_kamar: editTenant.max_kamar,
+        max_kamar: editTenant.max_kamar && editTenant.max_kamar > 0 ? editTenant.max_kamar : null,
         platform_fee_pct: editTenant.platform_fee_pct,
         expires_at: editTenant.expires_at,
         notes: editTenant.notes,
@@ -957,13 +957,24 @@ export default function SuperadminDashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Max Kamar</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Max Kamar Override
+                    <span className="text-slate-400 font-normal ml-1">(kosong = ikut paket)</span>
+                  </label>
                   <input
                     type="number"
-                    value={editTenant.max_kamar}
-                    onChange={(e) => setEditTenant({ ...editTenant, max_kamar: Number(e.target.value) })}
+                    min="0"
+                    placeholder="Biarkan kosong = ikuti paket"
+                    value={editTenant.max_kamar ?? ""}
+                    onChange={(e) => setEditTenant({
+                      ...editTenant,
+                      max_kamar: e.target.value === "" ? null : Number(e.target.value)
+                    })}
                     className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Override ke atas batas paket. Starter=15, Pro=50, Enterprise=∞
+                  </p>
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Platform Fee (%)</label>

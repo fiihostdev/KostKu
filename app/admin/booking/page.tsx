@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase-browser";
 
 interface Booking {
   id:           string;
+  kost_id:      string;
+  branch_id:    string | null;
   kamar:        string;
   nama:         string;
   phone:        string;

@@ -31,7 +31,11 @@ export async function POST(request: NextRequest) {
 
     const roomCount  = currentCount || 0;
     const limits     = getPlanLimits(profile.paket || "starter");
-    const effectiveMax = profile.max_kamar || limits.maxKamar;
+    // max_kamar hanya override ke ATAS batas paket (bukan ke bawah)
+    const dbMaxKamar = profile.max_kamar && profile.max_kamar > 0 ? profile.max_kamar : null;
+    const effectiveMax = dbMaxKamar && dbMaxKamar >= limits.maxKamar
+      ? dbMaxKamar
+      : limits.maxKamar;
 
     if (roomCount >= effectiveMax) {
       return NextResponse.json({

@@ -48,9 +48,16 @@ export async function GET() {
     const rawPaket = profile.paket || "starter";
     // Normalize: "Paket Pro" → "pro", "paket starter" → "starter"
     const paket = rawPaket.toLowerCase().trim().replace("paket ", "");
-    // Gunakan max_kamar dari DB jika diset superadmin, otherwise dari plan limits
     const limits = getPlanLimits(paket);
-    const effectiveMaxKamar = profile.max_kamar || limits.maxKamar;
+
+    // max_kamar di DB hanya berlaku jika superadmin SET secara eksplisit (> 0)
+    // DAN nilainya >= batas paket (override ke ATAS, bukan ke bawah)
+    // Jika NULL atau 0 → gunakan batas paket
+    const dbMaxKamar = profile.max_kamar && profile.max_kamar > 0 ? profile.max_kamar : null;
+    const effectiveMaxKamar = dbMaxKamar && dbMaxKamar >= limits.maxKamar
+      ? dbMaxKamar     // superadmin custom override (lebih besar dari plan default)
+      : limits.maxKamar; // gunakan plan limit
+
     const currentRoomCount = roomCount || 0;
 
     return NextResponse.json({
