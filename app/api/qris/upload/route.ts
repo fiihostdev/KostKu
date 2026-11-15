@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { isValidQRIS, extractQRISInfo, injectAmountToQRIS } from "@/lib/qris";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * POST /api/qris/upload
@@ -16,6 +17,8 @@ import { isValidQRIS, extractQRISInfo, injectAmountToQRIS } from "@/lib/qris";
  *   label:       string — nama/label QR
  */
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "qris-upload", RATE_LIMITS.UPLOAD);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

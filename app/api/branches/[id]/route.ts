@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * PATCH /api/branches/[id] — update cabang
@@ -28,6 +29,8 @@ async function getProfileAndBranch(supabase: ReturnType<typeof createClient>, us
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const rl = enforceRateLimit(request, "branch-patch", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,6 +67,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const rl = enforceRateLimit(_request, "branch-delete", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();

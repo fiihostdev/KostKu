@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { injectAmountToQRIS, isValidQRIS } from "@/lib/qris";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Type declaration untuk qrcode (tidak butuh @types/qrcode)
 interface QRCodeLib {
@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
  * Returns: { qrisString, qrImageBase64, amount, merchantName }
  */
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "qris-gen-admin", RATE_LIMITS.QRIS);
+  if (rl) return rl;
   try {
     const body   = await request.json();
     const { kostId, amount } = body;

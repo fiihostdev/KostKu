@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * GET  /api/payment/config — ambil semua config payment kost ini
@@ -38,6 +39,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "payment-config", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase-server";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "revalidate", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();

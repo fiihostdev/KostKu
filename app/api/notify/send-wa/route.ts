@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const BOT_URL    = process.env.NOTIFICATION_BOT_URL?.replace("/api/send-notification", "") || "";
 const BOT_SECRET = process.env.NOTIFICATION_BOT_SECRET || "";
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "send-wa", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

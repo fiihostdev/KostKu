@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Reserved subdomains — same list as branches POST
 const RESERVED = new Set([
@@ -8,6 +9,8 @@ const RESERVED = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "create-profile", RATE_LIMITS.AUTH);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

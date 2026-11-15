@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getPlanLimits } from "@/lib/plan-limits";
-
-/**
- * GET /api/branches  — ambil semua cabang + statistik per cabang
- * POST /api/branches — tambah cabang baru (cek limit paket server-side)
- */
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET() {
   try {
@@ -65,6 +61,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "branches-create", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

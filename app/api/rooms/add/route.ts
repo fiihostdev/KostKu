@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { getPlanLimits } from "@/lib/plan-limits"; // static import — not dynamic
+import { getPlanLimits } from "@/lib/plan-limits";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const VALID_TIPE   = ["Standard", "Deluxe", "VIP"] as const;
 const VALID_STATUS = ["Terisi", "Kosong", "Perawatan"] as const;
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "rooms-add", RATE_LIMITS.MUTATION);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

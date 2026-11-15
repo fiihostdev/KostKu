@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/svg+xml"];
 
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "upload-logo", RATE_LIMITS.UPLOAD);
+  if (rl) return rl;
   try {
     // Auth check
     const supabase = createClient();

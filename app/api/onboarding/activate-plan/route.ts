@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getPlanLimits } from "@/lib/plan-limits";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const ALLOWED_PLANS = ["starter", "pro", "enterprise"] as const;
 type AllowedPlan = typeof ALLOWED_PLANS[number];
 
-/**
- * POST /api/onboarding/activate-plan
- * Aktifkan paket setelah pembayaran onboarding berhasil.
- * Hanya dipanggil dari step-4 setelah Midtrans payment success callback.
- *
- * Security:
- * - User harus authenticated
- * - Harus punya kost_profile
- * - Plan harus valid slug
- *
- * Note: Untuk production yang lebih ketat, verifikasi order ID dari
- * Midtrans di sini sebelum mengupgrade plan.
- */
 export async function POST(request: NextRequest) {
+  const rl = enforceRateLimit(request, "activate-plan", RATE_LIMITS.AUTH);
+  if (rl) return rl;
   try {
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
