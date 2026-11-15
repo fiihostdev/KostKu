@@ -27,7 +27,7 @@ export default function SuperadminLayout({ children }: { children: React.ReactNo
           .from("kost_profiles")
           .select("role")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!profile || profile.role !== "superadmin") {
           await supabase.auth.signOut();

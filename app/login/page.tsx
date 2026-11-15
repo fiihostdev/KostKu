@@ -56,14 +56,21 @@ function LoginForm() {
 
     if (data.user) {
       // Cek profil → tentukan arah redirect
+      // Gunakan maybeSingle agar tidak throw jika belum ada profil
       const { data: profile } = await supabase
         .from("kost_profiles")
-        .select("role")
+        .select("role, is_suspended")
         .eq("user_id", data.user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile) {
-        router.push("/onboarding/step-1");
+        // Belum punya profil → perlu onboarding
+        router.push("/onboarding/step-2");
+      } else if (profile.is_suspended) {
+        await supabase.auth.signOut();
+        setError("Akun Anda telah disuspend. Hubungi admin platform.");
+        setLoading(false);
+        return;
       } else if (profile.role === "superadmin") {
         router.push("/superadmin/dashboard");
       } else {

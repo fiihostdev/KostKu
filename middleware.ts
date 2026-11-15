@@ -135,7 +135,7 @@ export async function middleware(request: NextRequest) {
       .from("kost_profiles")
       .select("role")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
     if (!profile || profile.role !== "superadmin") {
       return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
@@ -146,7 +146,7 @@ export async function middleware(request: NextRequest) {
       .from("kost_profiles")
       .select("role")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
     if (profile?.role === "superadmin") {
       return NextResponse.redirect(new URL("/superadmin/dashboard", request.url));
     }

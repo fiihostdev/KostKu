@@ -37,12 +37,12 @@ export default function SuperadminLoginPage() {
       return;
     }
 
-    // Verifikasi role superadmin
+    // Verifikasi role superadmin — gunakan maybeSingle agar tidak throw
     const { data: profile } = await supabase
       .from("kost_profiles")
       .select("role")
       .eq("user_id", data.user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile || profile.role !== "superadmin") {
       await supabase.auth.signOut();
