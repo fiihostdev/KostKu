@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { usePlanLimits } from "@/lib/use-plan-limits";
 import { useKost } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
@@ -130,7 +130,9 @@ export default function CabangPage() {
     });
   }, [branches, search, filterStatus]);
 
-  // ── Subdomain check ───────────────────────────────────────────────────────
+  // ── Subdomain check with debounce (U7 fix) ───────────────────────────────
+  const subDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const checkSubdomain = useCallback(async (val: string) => {
     const clean = val.toLowerCase().replace(/[^a-z0-9-]/g, "");
     if (clean.length < 3) { setSubAvail(null); return; }
@@ -146,6 +148,13 @@ export default function CabangPage() {
       setCheckingSub(false);
     }
   }, []);
+
+  const debouncedCheckSubdomain = useCallback((val: string) => {
+    if (subDebounceRef.current) clearTimeout(subDebounceRef.current);
+    setCheckingSub(true);
+    setSubAvail(null);
+    subDebounceRef.current = setTimeout(() => checkSubdomain(val), 500);
+  }, [checkSubdomain]);
 
   // ── Add cabang ────────────────────────────────────────────────────────────
   const handleAdd = async (e: React.FormEvent) => {
@@ -195,16 +204,38 @@ export default function CabangPage() {
   };
 
   // ── Toggle aktif/nonaktif ─────────────────────────────────────────────────
+  const [toggleTarget, setToggleTarget] = useState<Branch | null>(null);
+
   const toggleActive = async (b: Branch) => {
+    // U5 FIX: Deactivating takes site offline — require confirmation
+    if (b.is_active) {
+      setToggleTarget(b);
+      return;
+    }
+    // Reactivating: immediate, no confirm needed
     try {
       const res = await fetch(`/api/branches/${b.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !b.is_active }),
+        body: JSON.stringify({ is_active: true }),
       });
       if (!res.ok) throw new Error();
-      toast.success(b.is_active ? "Cabang dinonaktifkan" : "Cabang diaktifkan", `${b.nama} berhasil ${b.is_active ? "dinonaktifkan" : "diaktifkan"}.`);
+      toast.success("Cabang diaktifkan", `${b.nama} sudah dapat diakses kembali.`);
       fetchBranches();
-    } catch { toast.error("Gagal mengubah status", "Coba lagi."); }
+    } catch { toast.error("Gagal mengaktifkan cabang", "Coba lagi."); }
+  };
+
+  const confirmDeactivate = async () => {
+    if (!toggleTarget) return;
+    try {
+      const res = await fetch(`/api/branches/${toggleTarget.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: false }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Cabang dinonaktifkan", `${toggleTarget.nama} tidak lagi dapat diakses publik.`);
+      setToggleTarget(null);
+      fetchBranches();
+    } catch { toast.error("Gagal menonaktifkan", "Coba lagi."); }
   };
 
   // ── Hapus cabang ──────────────────────────────────────────────────────────
@@ -362,6 +393,36 @@ export default function CabangPage() {
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6 sm:space-y-8 max-w-full">
+
+      {/* ── Deactivate Confirm Modal ── */}
+      {toggleTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="skeu-card p-6 rounded-2xl max-w-md w-full shadow-2xl text-xs space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-white/60">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-amber-600 text-[22px]">pause_circle</span>
+              </div>
+              <div>
+                <h3 className="font-black text-sm text-slate-900">Nonaktifkan Cabang?</h3>
+                <p className="text-slate-500 text-[11px]">{toggleTarget.subdomain}.{APP_DOMAIN}</p>
+              </div>
+            </div>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] space-y-1">
+              <p className="font-bold">⚠️ Halaman publik cabang akan offline!</p>
+              <p>Calon penyewa yang membuka <strong>{toggleTarget.subdomain}.{APP_DOMAIN}</strong> akan melihat "Halaman Tidak Ditemukan" hingga cabang diaktifkan kembali.</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToggleTarget(null)} className="skeu-button-secondary px-4 py-2 rounded-xl font-bold">Batal</button>
+              <button
+                onClick={confirmDeactivate}
+                className="px-5 py-2 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-colors"
+              >
+                Ya, Nonaktifkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Delete Confirm Modal (ketik nama) ── */}
       {delTarget && (
@@ -787,8 +848,9 @@ export default function CabangPage() {
                       const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
                       setAddForm({ ...addForm, subdomain: v });
                       setSubAvail(null);
+                      if (v.length >= 3) debouncedCheckSubdomain(v);
                     }}
-                    onBlur={() => checkSubdomain(addForm.subdomain)}
+                    onBlur={() => { if (addForm.subdomain.length >= 3) checkSubdomain(addForm.subdomain); }}
                     maxLength={30}
                     className="flex-1 p-2.5 rounded-l-xl skeu-inset text-slate-800 outline-none font-mono border-r-0"
                   />

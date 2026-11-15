@@ -11,13 +11,42 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { subdomain } = body;
 
-    if (subdomain) revalidatePath(`/kost/${subdomain}`);
+    // M3 FIX: Validate subdomain belongs to caller's kost or branches
+    if (subdomain) {
+      const cleanSub = String(subdomain).toLowerCase().replace(/[^a-z0-9-]/g, "");
+      if (cleanSub) {
+        // Check if it's their main kost
+        const { data: profile } = await supabase
+          .from("kost_profiles")
+          .select("id, subdomain")
+          .eq("user_id", user.id)
+          .single();
+
+        const isMain   = profile?.subdomain === cleanSub;
+        let isBranch   = false;
+
+        if (!isMain && profile?.id) {
+          const { data: branch } = await supabase
+            .from("kost_branches")
+            .select("id")
+            .eq("kost_id", profile.id)
+            .eq("subdomain", cleanSub)
+            .maybeSingle();
+          isBranch = !!branch;
+        }
+
+        if (isMain || isBranch) {
+          revalidatePath(`/kost/${cleanSub}`);
+        }
+      }
+    }
+
+    // Always revalidate the template
     revalidatePath("/kost/[subdomain]", "page");
 
-    return NextResponse.json({ revalidated: true, subdomain });
+    return NextResponse.json({ revalidated: true });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[revalidate]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[revalidate]", err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -123,7 +123,7 @@ function RoomFormFields({
 }
 
 export default function DataKamarPage() {
-  const { rooms, addRoom, updateRoom, deleteRoom, profile, loading, kostId } = useKost();
+  const { rooms, addRoom, updateRoom, deleteRoom, profile, loading, kostId, activeBranch, activeNama } = useKost();
   const toast = useToast();
   const planStatus = usePlanLimits(); // ← cek limit paket
 
@@ -294,11 +294,12 @@ export default function DataKamarPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] sm:text-[11px] font-bold text-primary uppercase">Modul Operasional</span>
-            {profile.nama && (
-              <>
-                <span className="text-slate-400">•</span>
-                <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">{profile.nama}</span>
-              </>
+            <span className="text-slate-400">•</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold truncate">
+              {activeBranch ? `${activeBranch.nama} (Cabang)` : profile.nama}
+            </span>
+            {activeBranch && (
+              <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full shrink-0">CABANG</span>
             )}
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Manajemen Data Kamar</h1>

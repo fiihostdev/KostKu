@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Gunakan tipe SupabaseClient yang fleksibel agar tidak ada type mismatch
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -7,22 +8,21 @@ type AnySupabase = ReturnType<typeof createServiceClient<any>>;
 
 /**
  * POST /api/payment/create-transaction
- * Dibuat dari halaman publik kost oleh calon penyewa yang ingin booking
- * atau dari admin dashboard saat menagih penyewa yang sudah ada.
- *
- * Body: {
- *   kostId:        string   — UUID kost_profiles
- *   invoiceId:     string?  — UUID invoice existing (jika sudah ada)
- *   provider:      "midtrans" | "tripay" | "xendit"
- *   customerName:  string
- *   customerEmail: string
- *   customerPhone: string
- *   kamar:         string
- *   nominal:       number
- *   description:   string?
- * }
+ * Rate limited: 10 requests per IP per 10 menit
+ * kostId WAJIB terkait dengan bookingId atau existing invoiceId yang valid —
+ * mencegah cross-tenant DoS pada payment gateway account.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 per IP per 10 menit
+  const ip    = getClientIp(request);
+  const limit = checkRateLimit(`txn:${ip}`, { windowMs: 10 * 60 * 1000, max: 10 });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Terlalu banyak percobaan. Coba lagi nanti." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((limit.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   try {
     const body = await request.json();
     const {
@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
 
     if (!kostId || !provider || !customerName || !nominal) {
       return NextResponse.json({ error: "kostId, provider, customerName, nominal wajib diisi" }, { status: 400 });
+    }
+
+    // Validate UUID format
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(kostId)) {
+      return NextResponse.json({ error: "kostId tidak valid" }, { status: 400 });
+    }
+
+    if (!["midtrans", "tripay", "xendit"].includes(provider)) {
+      return NextResponse.json({ error: "Provider tidak valid" }, { status: 400 });
     }
 
     const supabase = createServiceClient(
@@ -136,9 +145,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Provider tidak dikenal" }, { status: 400 });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[create-transaction]", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[create-transaction]", err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

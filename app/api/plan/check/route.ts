@@ -68,7 +68,7 @@ export async function GET() {
       expired: false,
     });
 
-  } catch (err: unknown) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

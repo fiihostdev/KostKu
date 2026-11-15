@@ -208,7 +208,13 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   const [kostId,         setKostId]         = useState<string | null>(null);
   const [profile,        setProfileState]   = useState<KostProfile>(defaultProfile);
   const [branches,       setBranches]       = useState<Branch[]>([]);
-  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(() => {
+    // U1 FIX: Persist across page refreshes via localStorage
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("kostku_active_branch") || null;
+    }
+    return null;
+  });
 
   // useRef agar loadData bisa baca nilai terkini tanpa perlu masuk ke deps
   const activeBranchIdRef = React.useRef<string | null>(null);
@@ -312,6 +318,8 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         setProfileState(defaultProfile);
         setBranches([]);
         setActiveBranchId(null);
+        // Clear persisted branch on logout
+        if (typeof window !== "undefined") localStorage.removeItem("kostku_active_branch");
         setRooms([]); setTenants([]); setInvoices([]); setCashFlows([]);
       }
     });
@@ -335,6 +343,14 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
   // ── Branch switcher — reload data when user switches branch ──────────────
   const handleSetActiveBranch = useCallback((branchId: string | null) => {
     setActiveBranchId(branchId);
+    // U1 FIX: Persist to localStorage so refresh restores the correct branch
+    if (typeof window !== "undefined") {
+      if (branchId) {
+        localStorage.setItem("kostku_active_branch", branchId);
+      } else {
+        localStorage.removeItem("kostku_active_branch");
+      }
+    }
     loadData(branchId);
   }, [loadData]);
 

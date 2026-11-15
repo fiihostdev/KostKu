@@ -34,7 +34,7 @@ const emptyForm: FormData = {
 };
 
 export default function DataPenyewaPage() {
-  const { tenants, addTenant, updateTenant, deleteTenant, rooms, invoices, addInvoice, payInvoice, loading } = useKost();
+  const { tenants, addTenant, updateTenant, deleteTenant, rooms, invoices, addInvoice, payInvoice, loading, activeBranch, profile } = useKost();
   const toast = useToast();
 
   const [search,  setSearch]  = useState("");
@@ -243,6 +243,11 @@ export default function DataPenyewaPage() {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold text-primary uppercase">Modul Penyewa</span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            {activeBranch && (
+              <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full shrink-0">
+                {activeBranch.nama} · Cabang
+              </span>
+            )}
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Data Penyewa & Kontrak Sewa</h1>
           <p className="text-xs text-slate-500 mt-0.5">Kelola registrasi, data pribadi, kontrak, dan pembayaran penyewa.</p>

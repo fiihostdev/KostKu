@@ -37,16 +37,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (findErr || !profile) return NextResponse.json({ error: findErr }, { status: 404 });
 
     const body = await request.json();
-    const { nama, alamat, telepon, tagline, is_active } = body;
+    const { nama, alamat, telepon, tagline, is_active, logo_url } = body;
 
     const { data, error } = await supabase
       .from("kost_branches")
       .update({
-        ...(nama     !== undefined && { nama: nama.trim().slice(0, 100) }),
-        ...(alamat   !== undefined && { alamat: alamat?.trim() || null }),
-        ...(telepon  !== undefined && { telepon: telepon?.trim() || null }),
-        ...(tagline  !== undefined && { tagline: tagline?.trim() || null }),
-        ...(is_active !== undefined && { is_active }),
+        ...(nama      !== undefined && { nama: String(nama).trim().slice(0, 100) }),
+        ...(alamat    !== undefined && { alamat: alamat?.trim() || null }),
+        ...(telepon   !== undefined && { telepon: telepon?.trim() || null }),
+        ...(tagline   !== undefined && { tagline: tagline?.trim() || null }),
+        ...(is_active !== undefined && { is_active: Boolean(is_active) }),
+        ...(logo_url  !== undefined && { logo_url: logo_url?.trim().slice(0, 500) || null }),
         updated_at: new Date().toISOString(),
       })
       .eq("id", params.id)
@@ -54,11 +55,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Gagal memperbarui cabang" }, { status: 500 });
 
     return NextResponse.json({ success: true, branch: data });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -77,10 +78,10 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
       .eq("id", params.id)
       .eq("kost_id", profile.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Gagal menghapus cabang" }, { status: 500 });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
