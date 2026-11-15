@@ -116,8 +116,8 @@ export default function SuperadminDashboardPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Helper: tambah activity log
-  const addLog = useCallback((action: string, target: string, detail: string) => {
+  // Helper: tambah activity log ke DB DAN in-memory
+  const addLog = useCallback(async (action: string, target: string, detail: string) => {
     const log: ActivityLog = {
       id: Date.now().toString(),
       action,
@@ -126,7 +126,18 @@ export default function SuperadminDashboardPage() {
       timestamp: new Date().toISOString(),
       by: "superadmin",
     };
-    setActivityLogs((prev) => [log, ...prev].slice(0, 50)); // simpan 50 log terakhir
+    setActivityLogs((prev) => [log, ...prev].slice(0, 100));
+
+    // Persist ke database
+    try {
+      await fetch("/api/superadmin/activity-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, target, detail }),
+      });
+    } catch {
+      // silent — in-memory log tetap tersimpan
+    }
   }, []);
 
   // ── Load semua data platform ────────────────────────────────────────────────
@@ -211,7 +222,38 @@ export default function SuperadminDashboardPage() {
     }
   }, [supabase]);
 
+  // ── Platform MRR stats ─────────────────────────────────────────────────────
+  const [platformStats, setPlatformStats] = useState<{
+    mrr: number; arr: number; expiringSoon: number; newThisMonth: number;
+  } | null>(null);
+
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load platform stats and persisted activity logs
+  useEffect(() => {
+    // Load MRR stats
+    fetch("/api/superadmin/stats")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setPlatformStats(d); })
+      .catch(() => {});
+
+    // Load persisted activity logs
+    fetch("/api/superadmin/activity-log")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.logs) {
+          setActivityLogs(d.logs.map((l: { id: string; action: string; target: string; detail: string; created_at: string }) => ({
+            id: l.id,
+            action: l.action,
+            target: l.target,
+            detail: l.detail || "",
+            timestamp: l.created_at,
+            by: "superadmin",
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ── Buka modal suspend ─────────────────────────────────────────────────────
   const openSuspendModal = (tenant: KostTenant) => {
@@ -401,11 +443,23 @@ export default function SuperadminDashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Total Kost", val: tenants.length.toString(), sub: `${activeTenants.length} Aktif`, color: "text-primary", icon: "domain" },
-          { label: "Suspended", val: suspendedTenants.length.toString(), sub: "Perlu Perhatian", color: "text-red-600", icon: "block" },
+          { label: "Suspended", val: suspendedTenants.length.toString(), sub: "Perlu Perhatian", color: suspendedTenants.length > 0 ? "text-red-600" : "text-slate-400", icon: "block" },
           { label: "Total Kamar", val: totalKamar.toString(), sub: `${avgOkupansi}% Terisi`, color: "text-slate-900", icon: "bed" },
           { label: "Total Penyewa", val: totalPenyewa.toString(), sub: "Aktif Huni", color: "text-indigo-600", icon: "group" },
-          { label: "Pendapatan", val: `Rp ${(totalPendapatan / 1000000).toFixed(1)} Jt`, sub: "Invoice Lunas", color: "text-emerald-700", icon: "payments" },
-          { label: "Paket Aktif", val: plans.filter((p) => p.is_active).length.toString(), sub: "Platform Plans", color: "text-amber-600", icon: "sell" },
+          {
+            label: "MRR Platform",
+            val: platformStats ? `Rp ${(platformStats.mrr / 1000000).toFixed(1)} Jt` : "...",
+            sub: platformStats ? `ARR Rp ${(platformStats.arr / 1000000).toFixed(0)} Jt` : "Memuat...",
+            color: "text-emerald-700",
+            icon: "trending_up",
+          },
+          {
+            label: "Expire Soon",
+            val: platformStats ? platformStats.expiringSoon.toString() : "...",
+            sub: platformStats ? `${platformStats.newThisMonth} baru bulan ini` : "...",
+            color: platformStats?.expiringSoon ? "text-amber-600" : "text-slate-400",
+            icon: "schedule",
+          },
         ].map((s, i) => (
           <div key={i} className="skeu-card p-3 sm:p-4 rounded-xl flex flex-col justify-between">
             <div className="flex items-center justify-between mb-1">
@@ -734,9 +788,10 @@ export default function SuperadminDashboardPage() {
             {[
               { label: "Platform Name", val: "KOSTKU SaaS" },
               { label: "Main Domain", val: process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id" },
-              { label: "Supabase Project", val: "mmcgxkjbmdfrgkhrajuc" },
-              { label: "Bot URL", val: "wiya3dh8uopgirnwkgmuolug.fiihosting.my.id" },
+              { label: "Kost Domain",  val: `*.${process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}` },
               { label: "Total Registered", val: `${tenants.length} kost accounts` },
+              { label: "MRR Platform", val: platformStats ? `Rp ${(platformStats.mrr / 1000000).toFixed(2)} Jt/bln` : "Memuat..." },
+              { label: "ARR Platform", val: platformStats ? `Rp ${(platformStats.arr / 1000000).toFixed(1)} Jt/thn` : "Memuat..." },
             ].map((item, i) => (
               <div key={i} className="flex items-center justify-between p-2.5 rounded-lg skeu-inset">
                 <span className="text-slate-500 font-bold">{item.label}</span>
@@ -775,11 +830,30 @@ export default function SuperadminDashboardPage() {
       {activeTab === "logs" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-slate-900 text-base">Activity Log Superadmin</h2>
-            <button onClick={() => setActivityLogs([])} className="text-xs text-red-600 font-bold hover:underline flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
-              Bersihkan Log
-            </button>
+            <div>
+              <h2 className="font-bold text-slate-900 text-base">Activity Log Superadmin</h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">Log tersimpan permanen di database — tidak hilang saat refresh.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  fetch("/api/superadmin/activity-log")
+                    .then((r) => r.ok ? r.json() : null)
+                    .then((d) => {
+                      if (d?.logs) {
+                        setActivityLogs(d.logs.map((l: { id: string; action: string; target: string; detail: string; created_at: string }) => ({
+                          id: l.id, action: l.action, target: l.target,
+                          detail: l.detail || "", timestamp: l.created_at, by: "superadmin",
+                        })));
+                      }
+                    });
+                }}
+                className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
+              >
+                <span className="material-symbols-outlined text-[14px]">refresh</span>
+                Refresh
+              </button>
+            </div>
           </div>
           {activityLogs.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-sm">

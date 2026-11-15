@@ -32,6 +32,7 @@ interface KostProfile {
   telepon: string;
   logo_url?: string;
   has_qris?: boolean;
+  fasilitas?: string[];
 }
 
 // Supabase server-side client (env vars tersedia di server tanpa masalah)
@@ -56,7 +57,7 @@ async function getKostData(subdomain: string): Promise<{
   // ── 1. Cek kost_profiles (kost utama) ────────────────────────────────────
   const { data: profiles } = await supabase
     .from("kost_profiles")
-    .select("id, nama, subdomain, tagline, alamat, telepon, logo_url")
+    .select("id, nama, subdomain, tagline, alamat, telepon, logo_url, fasilitas")
     .eq("subdomain", subdomain)
     .limit(1);
 
@@ -301,30 +302,40 @@ export default async function PublicKostPage({
         </div>
       </section>
 
-      {/* Fasilitas */}
-      <section className="py-12 bg-surface-container-low border-y border-white/60 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-xl mx-auto mb-10">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Fasilitas Utama</span>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">Kenyamanan Eksklusif</h3>
+      {/* Fasilitas — dibaca dari profil kost (bukan hardcode) */}
+      {profile.fasilitas && profile.fasilitas.length > 0 && (
+        <section className="py-12 bg-surface-container-low border-y border-white/60 px-4 sm:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center max-w-xl mx-auto mb-10">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Fasilitas Utama</span>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">Kenyamanan Eksklusif</h3>
+            </div>
+            <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-${Math.min(profile.fasilitas.length, 6)} gap-3 sm:gap-4 text-center`}>
+              {profile.fasilitas.map((f, i) => {
+                // Map fasilitas string ke icon yang sesuai
+                const iconMap: Record<string, string> = {
+                  "AC Kamar":      "ac_unit",
+                  "WiFi Cepat":    "wifi",
+                  "K. Mandi Dalam":"shower",
+                  "Parkir Luas":   "local_parking",
+                  "Dapur Bersama": "soup_kitchen",
+                  "CCTV 24 Jam":   "videocam",
+                  "Kasur":         "bed",
+                  "Lemari":        "shelves",
+                  "Meja Belajar":  "desk",
+                };
+                const icon = iconMap[f] || "check_circle";
+                return (
+                  <div key={i} className="skeu-card p-4 rounded-2xl flex flex-col items-center justify-center">
+                    <span className="material-symbols-outlined text-primary text-[28px] mb-2">{icon}</span>
+                    <span className="text-xs font-bold text-slate-800">{f}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 text-center">
-            {[
-              { icon: "ac_unit", title: "AC Dingin" },
-              { icon: "wifi", title: "WiFi 100 Mbps" },
-              { icon: "shower", title: "K. Mandi Dalam" },
-              { icon: "local_parking", title: "Parkir Luas" },
-              { icon: "soup_kitchen", title: "Dapur Bersama" },
-              { icon: "videocam", title: "CCTV 24 Jam" },
-            ].map((f, i) => (
-              <div key={i} className="skeu-card p-4 rounded-2xl flex flex-col items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-[28px] mb-2">{f.icon}</span>
-                <span className="text-xs font-bold text-slate-800">{f.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Kamar */}
       <section id="kamar" className="py-16 px-4 sm:px-8">
