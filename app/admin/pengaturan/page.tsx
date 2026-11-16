@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AddressMapPicker from "@/components/admin/AddressMapPicker";
 import PaketManager from "@/components/admin/PaketManager";
-import WebsitePreview from "@/components/admin/WebsitePreview";
 
 // ── Skeleton shimmer card ─────────────────────────────────────────────────────
 function SkeletonCard({ rows = 4 }: { rows?: number }) {
@@ -521,12 +520,6 @@ export default function PengaturanPage() {
           </div>
 
           {/* ── Preview Website Publik ── */}
-          {profile.subdomain && (
-            <WebsitePreview
-              subdomain={profile.subdomain}
-              appDomain={process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}
-            />
-          )}
         </div>
       )}
 
