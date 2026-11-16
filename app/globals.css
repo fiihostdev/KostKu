@@ -160,3 +160,18 @@ html {
   animation: shimmer 1.4s infinite linear;
   border-radius: 0.75rem;
 }
+
+/* ── Scrollbar Hide (for mobile tab bars) ───────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE / Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome / Safari */
+}
+
+/* ── xs breakpoint helper (screens < 475px) ─────────────────────────────── */
+@media (min-width: 475px) {
+  .xs\:inline { display: inline; }
+  .xs\:hidden { display: none;   }
+}

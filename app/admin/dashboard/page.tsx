@@ -188,48 +188,67 @@ export default function DashboardAdminKost() {
                 </Link>
               </div>
             ) : (
-              <div className="overflow-x-auto -mx-2 sm:mx-0">
-                <table className="w-full text-left text-xs min-w-[500px]">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="py-2.5 px-3">No. Invoice</th>
-                      <th className="py-2.5 px-3">Penyewa</th>
-                      <th className="py-2.5 px-3">Kamar</th>
-                      <th className="py-2.5 px-3">Jumlah</th>
-                      <th className="py-2.5 px-3 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {recentInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-white/40 transition-colors">
-                        <td className="py-3 px-3 font-mono font-bold text-slate-700 whitespace-nowrap">
-                          {inv.noInvoice}
-                        </td>
-                        <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
-                          {inv.penyewa}
-                        </td>
-                        <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{inv.kamar}</td>
-                        <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
-                          Rp {inv.nominal.toLocaleString("id-ID")}
-                        </td>
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <span
-                            className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                              inv.status === "Lunas"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : inv.status === "Menunggu"
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {inv.status}
-                          </span>
-                        </td>
+              <>
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto -mx-2 sm:mx-0">
+                  <table className="w-full text-left text-xs min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-2.5 px-3">No. Invoice</th>
+                        <th className="py-2.5 px-3">Penyewa</th>
+                        <th className="py-2.5 px-3">Kamar</th>
+                        <th className="py-2.5 px-3">Jumlah</th>
+                        <th className="py-2.5 px-3 text-right">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {recentInvoices.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-white/40 transition-colors">
+                          <td className="py-3 px-3 font-mono font-bold text-slate-700 whitespace-nowrap">
+                            {inv.noInvoice}
+                          </td>
+                          <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
+                            {inv.penyewa}
+                          </td>
+                          <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{inv.kamar}</td>
+                          <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
+                            Rp {inv.nominal.toLocaleString("id-ID")}
+                          </td>
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                              inv.status === "Lunas" ? "bg-emerald-100 text-emerald-800" :
+                              inv.status === "Menunggu" ? "bg-amber-100 text-amber-800" :
+                              "bg-red-100 text-red-800"
+                            }`}>
+                              {inv.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-2 mt-1">
+                  {recentInvoices.map((inv) => (
+                    <div key={inv.id} className="flex items-center gap-3 skeu-inset px-3 py-2.5 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 text-[12px] truncate">{inv.penyewa}</p>
+                        <p className="text-[10px] text-slate-500">{inv.kamar} · {inv.noInvoice}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-black text-slate-900 text-[12px]">Rp {(inv.nominal / 1000000).toFixed(1)}Jt</p>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                          inv.status === "Lunas" ? "bg-emerald-100 text-emerald-800" :
+                          inv.status === "Menunggu" ? "bg-amber-100 text-amber-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>{inv.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>

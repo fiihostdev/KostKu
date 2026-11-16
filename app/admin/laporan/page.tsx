@@ -223,46 +223,84 @@ export default function LaporanKeuanganPage() {
             <span className="text-xs text-slate-500 font-medium">{cashFlows.length} Transaksi Terakhir</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[540px]">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-2.5 px-3">Tanggal</th>
-                  <th className="py-2.5 px-3">Keterangan</th>
-                  <th className="py-2.5 px-3">Kategori</th>
-                  <th className="py-2.5 px-3">Nominal</th>
-                  <th className="py-2.5 px-3 text-right">Saldo Kas</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {cashFlows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">Belum ada mutasi kas</td>
-                  </tr>
-                ) : filteredCF.map((c) => (
-                  <tr key={c.id} className="hover:bg-white/40">
-                    <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">{c.tgl}</td>
-                    <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">{c.ket}</td>
-                    <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-semibold">{c.kat}</span>
-                    </td>
-                    <td className="py-3 px-3 font-black whitespace-nowrap">
-                      <span className={c.tipe === "Masuk" ? "text-emerald-700" : "text-red-600"}>
-                        {c.tipe === "Masuk" ? "+" : "-"}Rp {c.nominal.toLocaleString("id-ID")}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap flex items-center justify-end gap-2">
-                      Rp {c.saldo.toLocaleString("id-ID")}
-                      <button onClick={() => setDeleteCFTarget(c)}
-                        className="text-red-400 hover:text-red-600 transition-colors ml-1" title="Hapus entri">
-                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                      </button>
-                    </td>
-                  </tr>
+          {cashFlows.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-sm">Belum ada mutasi kas</div>
+          ) : (
+            <>
+              {/* ── Desktop Table ── */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[540px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Tanggal</th>
+                      <th className="py-2.5 px-3">Keterangan</th>
+                      <th className="py-2.5 px-3">Kategori</th>
+                      <th className="py-2.5 px-3">Nominal</th>
+                      <th className="py-2.5 px-3 text-right">Saldo Kas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredCF.map((c) => (
+                      <tr key={c.id} className="hover:bg-white/40">
+                        <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">{c.tgl}</td>
+                        <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">{c.ket}</td>
+                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-semibold">{c.kat}</span>
+                        </td>
+                        <td className="py-3 px-3 font-black whitespace-nowrap">
+                          <span className={c.tipe === "Masuk" ? "text-emerald-700" : "text-red-600"}>
+                            {c.tipe === "Masuk" ? "+" : "-"}Rp {c.nominal.toLocaleString("id-ID")}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            Rp {c.saldo.toLocaleString("id-ID")}
+                            <button onClick={() => setDeleteCFTarget(c)}
+                              className="text-red-400 hover:text-red-600 transition-colors" title="Hapus entri">
+                              <span className="material-symbols-outlined text-[14px]">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Mobile Cards ── */}
+              <div className="sm:hidden space-y-2">
+                {filteredCF.map((c) => (
+                  <div key={c.id} className="skeu-inset rounded-xl px-3 py-2.5 flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      c.tipe === "Masuk" ? "bg-emerald-100" : "bg-red-100"
+                    }`}>
+                      <span className={`material-symbols-outlined text-[16px] ${
+                        c.tipe === "Masuk" ? "text-emerald-600" : "text-red-600"
+                      }`}>{c.tipe === "Masuk" ? "arrow_downward" : "arrow_upward"}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 text-[12px] truncate">{c.ket}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-semibold">{c.kat}</span>
+                        <span className="text-[9px] text-slate-400">{c.tgl}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`font-black text-sm ${c.tipe === "Masuk" ? "text-emerald-700" : "text-red-600"}`}>
+                        {c.tipe === "Masuk" ? "+" : "-"}Rp {(c.nominal / 1000000).toFixed(1)}Jt
+                      </p>
+                      <p className="text-[9px] text-slate-400 font-mono">
+                        Saldo {(c.saldo / 1000000).toFixed(1)}Jt
+                      </p>
+                    </div>
+                    <button onClick={() => setDeleteCFTarget(c)} className="text-red-400 hover:text-red-600 shrink-0 p-1">
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Expenses Breakdown */}

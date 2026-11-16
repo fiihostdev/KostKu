@@ -274,118 +274,156 @@ export default function TagihanPage() {
         ))}
       </div>
 
-      {/* Invoice Table */}
-      <div className="skeu-card rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[720px]">
-            <thead>
-              <tr className="border-b border-white/60 bg-white/40 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4">No. Invoice</th>
-                <th className="py-3 px-4">Penyewa</th>
-                <th className="py-3 px-4">Kamar</th>
-                <th className="py-3 px-4">Nominal</th>
-                <th className="py-3 px-4">Jatuh Tempo</th>
-                <th className="py-3 px-4">Metode</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/40">
-              {filteredInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-10 text-center text-slate-400">Tidak ada tagihan pada filter ini</td>
-                </tr>
-              ) : filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-white/50 transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">{inv.noInvoice}</td>
-                  <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">{inv.penyewa}</td>
-                  <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{inv.kamar}</td>
-                  <td className="py-3 px-4 font-black text-slate-900 whitespace-nowrap">
-                    Rp {inv.nominal.toLocaleString("id-ID")}
-                  </td>
-                  <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">{inv.jatuhTempo}</td>
-                  <td className="py-3 px-4 text-slate-600 whitespace-nowrap text-[11px]">{inv.metode}</td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                        inv.status === "Lunas"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : inv.status === "Menunggu"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
-                    {inv.status !== "Lunas" ? (
-                      <>
-                        {/* Bayar via gateway */}
-                        <button
-                          onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
-                          className="px-2.5 py-1 rounded-lg skeu-button text-[10px] font-bold inline-flex items-center gap-1"
-                          title="Bayar via QRIS/Midtrans"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">payments</span>
-                          Bayar
-                        </button>
-                        {/* Tandai Lunas Manual (tunai/transfer) */}
-                        <button
-                          onClick={() => handleLunasManual(inv)}
-                          className="px-2.5 py-1 rounded-lg skeu-button-secondary text-[10px] font-bold inline-flex items-center gap-1 text-emerald-700"
-                          title="Tandai Lunas Manual (tunai/transfer)"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
-                          Lunas
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-[10px] font-bold text-emerald-600 inline-flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[13px]">done_all</span>
-                        Terbayar
-                      </span>
-                    )}
-                    {/* Kirim WA */}
-                    <button
-                      onClick={async () => {
-                        const tenant = tenants.find((t) => t.nama === inv.penyewa);
-                        const phone = tenant?.phone || "";
-                        const cleanPhone = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
-                        const message =
-                          `Halo ${inv.penyewa}, ini rincian tagihan sewa ${inv.kamar} ` +
-                          `(${inv.noInvoice}) sebesar Rp ${inv.nominal.toLocaleString("id-ID")} ` +
-                          `dengan jatuh tempo ${inv.jatuhTempo}. Mohon melakukan pembayaran. Terima kasih 🙏`;
-                        try {
-                          const res = await fetch("/api/notify/send-wa", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ phone, name: inv.penyewa, message, invoiceId: inv.id }),
-                          });
-                          if (res.ok) { toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa}.`); return; }
-                        } catch {}
-                        window.open(`https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`, "_blank");
-                      }}
-                      className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center"
-                      title="Kirim Tagihan via WhatsApp"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">send</span>
-                    </button>
-                    {/* Hapus invoice */}
-                    <button
-                      onClick={() => setDeleteTarget(inv)}
-                      className="p-1.5 rounded-lg skeu-card text-red-500 hover:text-red-700 inline-flex items-center"
-                      title="Hapus invoice"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Invoice List — Mobile: cards, Desktop: table */}
+      {filteredInvoices.length === 0 ? (
+        <div className="skeu-card rounded-2xl py-12 text-center text-slate-400 text-sm">
+          Tidak ada tagihan pada filter ini
         </div>
-      </div>
+      ) : (
+        <>
+          {/* ── Desktop Table (hidden on mobile) ── */}
+          <div className="hidden sm:block skeu-card rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-white/60 bg-white/40 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">No. Invoice</th>
+                    <th className="py-3 px-4">Penyewa</th>
+                    <th className="py-3 px-4">Kamar</th>
+                    <th className="py-3 px-4">Nominal</th>
+                    <th className="py-3 px-4">Jatuh Tempo</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/40">
+                  {filteredInvoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-white/50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">{inv.noInvoice}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">{inv.penyewa}</td>
+                      <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{inv.kamar}</td>
+                      <td className="py-3 px-4 font-black text-slate-900 whitespace-nowrap">
+                        Rp {inv.nominal.toLocaleString("id-ID")}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">{inv.jatuhTempo}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                          inv.status === "Lunas" ? "bg-emerald-100 text-emerald-800" :
+                          inv.status === "Menunggu" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"
+                        }`}>{inv.status}</span>
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+                        {inv.status !== "Lunas" ? (
+                          <>
+                            <button onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
+                              className="px-2.5 py-1 rounded-lg skeu-button text-[10px] font-bold inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">payments</span>Bayar
+                            </button>
+                            <button onClick={() => handleLunasManual(inv)}
+                              className="px-2.5 py-1 rounded-lg skeu-button-secondary text-[10px] font-bold inline-flex items-center gap-1 text-emerald-700">
+                              <span className="material-symbols-outlined text-[13px]">check_circle</span>Lunas
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 inline-flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[13px]">done_all</span>Terbayar
+                          </span>
+                        )}
+                        <button onClick={async () => {
+                          const tenant = tenants.find((t) => t.nama === inv.penyewa);
+                          const phone = tenant?.phone || "";
+                          const cleanPhone = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
+                          const message = `Halo ${inv.penyewa}, tagihan sewa ${inv.kamar} (${inv.noInvoice}) Rp ${inv.nominal.toLocaleString("id-ID")} jatuh tempo ${inv.jatuhTempo}. Mohon segera dibayar. Terima kasih 🙏`;
+                          try {
+                            const res = await fetch("/api/notify/send-wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, name: inv.penyewa, message, invoiceId: inv.id }) });
+                            if (res.ok) { toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa}.`); return; }
+                          } catch {}
+                          window.open(`https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`, "_blank");
+                        }} className="p-1.5 rounded-lg skeu-card text-emerald-600 hover:text-emerald-800 inline-flex items-center" title="Kirim via WA">
+                          <span className="material-symbols-outlined text-[16px]">send</span>
+                        </button>
+                        <button onClick={() => setDeleteTarget(inv)}
+                          className="p-1.5 rounded-lg skeu-card text-red-500 hover:text-red-700 inline-flex items-center">
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Mobile Cards (hidden on sm+) ── */}
+          <div className="sm:hidden space-y-3">
+            {filteredInvoices.map((inv) => (
+              <div key={inv.id} className="skeu-card p-4 rounded-2xl space-y-3">
+                {/* Top row */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-900 text-sm truncate">{inv.penyewa}</p>
+                    <p className="text-[11px] text-slate-500">{inv.kamar}</p>
+                    <p className="font-mono text-[10px] text-slate-400">{inv.noInvoice}</p>
+                  </div>
+                  <span className={`shrink-0 px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                    inv.status === "Lunas" ? "bg-emerald-100 text-emerald-800" :
+                    inv.status === "Menunggu" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"
+                  }`}>{inv.status}</span>
+                </div>
+
+                {/* Amount + Due */}
+                <div className="flex items-center justify-between gap-2 skeu-inset px-3 py-2 rounded-xl">
+                  <div>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Nominal</p>
+                    <p className="font-black text-primary text-sm">Rp {inv.nominal.toLocaleString("id-ID")}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Jatuh Tempo</p>
+                    <p className="font-bold text-slate-700 text-[11px]">{inv.jatuhTempo}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-1 border-t border-white/60">
+                  {inv.status !== "Lunas" ? (
+                    <>
+                      <button onClick={() => handleBayar(inv.id, inv.noInvoice, inv.nominal, inv.kamar, inv.penyewa)}
+                        className="flex-1 skeu-button text-[11px] font-bold py-2 rounded-xl flex items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">payments</span>Bayar
+                      </button>
+                      <button onClick={() => handleLunasManual(inv)}
+                        className="flex-1 skeu-button-secondary text-[11px] font-bold py-2 rounded-xl flex items-center justify-center gap-1 text-emerald-700">
+                        <span className="material-symbols-outlined text-[14px]">check_circle</span>Lunas
+                      </button>
+                    </>
+                  ) : (
+                    <span className="flex-1 text-center text-[11px] font-bold text-emerald-600 py-2 flex items-center justify-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">done_all</span>Terbayar
+                    </span>
+                  )}
+                  <button onClick={async () => {
+                    const tenant = tenants.find((t) => t.nama === inv.penyewa);
+                    const phone = tenant?.phone || "";
+                    const cleanPhone = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
+                    const message = `Halo ${inv.penyewa}, tagihan sewa ${inv.kamar} (${inv.noInvoice}) Rp ${inv.nominal.toLocaleString("id-ID")} jatuh tempo ${inv.jatuhTempo}. Mohon segera dibayar. Terima kasih 🙏`;
+                    try {
+                      const res = await fetch("/api/notify/send-wa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, name: inv.penyewa, message, invoiceId: inv.id }) });
+                      if (res.ok) { toast.success(`Tagihan dikirim!`, `Berhasil ke ${inv.penyewa}.`); return; }
+                    } catch {}
+                    window.open(`https://wa.me/${cleanPhone || "62"}?text=${encodeURIComponent(message)}`, "_blank");
+                  }} className="p-2 rounded-xl skeu-card text-emerald-600 hover:text-emerald-800" title="WA">
+                    <span className="material-symbols-outlined text-[18px]">send</span>
+                  </button>
+                  <button onClick={() => setDeleteTarget(inv)}
+                    className="p-2 rounded-xl skeu-card text-red-500 hover:text-red-700">
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Modal Buat Tagihan */}
       {showModal && (

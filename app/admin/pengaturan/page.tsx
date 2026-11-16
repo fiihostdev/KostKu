@@ -404,29 +404,46 @@ export default function PengaturanPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/60">
-        {TABS.map((tab) => {
-          const locked = isTabLocked(tab.id);
-          return (
+      <div className="relative">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-white/60 scrollbar-hide">
+          {TABS.map((tab) => {
+            const locked = isTabLocked(tab.id);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap shrink-0 ${
+                  activeTab === tab.id
+                    ? "skeu-button text-white shadow-sm"
+                    : "skeu-card text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[15px]">{locked ? "lock" : tab.icon}</span>
+                <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                {/* On very small screens just show icon — label hidden below xs */}
+                {locked && !planStatus.loading && (
+                  <span className={`text-[8px] px-1 py-0.5 rounded-full font-black ${
+                    activeTab === tab.id ? "bg-white/30 text-white" : "bg-amber-100 text-amber-700"
+                  }`}>PRO</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Mobile tab labels below icons — full label row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto mt-0.5 sm:hidden">
+          {TABS.map((tab) => (
             <button
-              key={tab.id}
+              key={`lbl-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                activeTab === tab.id
-                  ? "skeu-button text-white shadow-sm"
-                  : "skeu-card text-slate-600 hover:text-slate-900"
+              className={`text-[9px] font-bold whitespace-nowrap shrink-0 px-3 py-0.5 transition-colors ${
+                activeTab === tab.id ? "text-primary" : "text-slate-400"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">{locked ? "lock" : tab.icon}</span>
-              <span>{tab.label}</span>
-              {locked && !planStatus.loading && (
-                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black ${
-                  activeTab === tab.id ? "bg-white/30 text-white" : "bg-amber-100 text-amber-700"
-                }`}>PRO</span>
-              )}
+              {tab.label}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       {/* ── Tab: PROFIL ── */}
