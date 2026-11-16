@@ -12,25 +12,58 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
   const [imgLoaded,  setImgLoaded]  = useState(false);
   const [imgError,   setImgError]   = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Try multiple screenshot providers in order
+  const [providerIdx, setProviderIdx] = useState(0);
 
   const url = `https://${subdomain}.${appDomain}`;
+  const encodedUrl = encodeURIComponent(url);
 
-  // Use a free screenshot API (thum.io) — no iframe, no X-Frame-Options issue
-  // thum.io: free tier, no API key required
-  const screenshotUrl = view === "mobile"
-    ? `https://image.thum.io/get/width/375/crop/667/noanimate/viewportWidth/375/${url}?${refreshKey}`
-    : `https://image.thum.io/get/width/1200/crop/675/noanimate/viewportWidth/1200/${url}?${refreshKey}`;
+  // Screenshot providers — tried in order on error
+  const providers = [
+    // 1. Microlink — free tier, reliable
+    view === "mobile"
+      ? `https://api.microlink.io/?url=${encodedUrl}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=390&viewport.height=844&viewport.deviceScaleFactor=2`
+      : `https://api.microlink.io/?url=${encodedUrl}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=720`,
+    // 2. thum.io fallback
+    view === "mobile"
+      ? `https://image.thum.io/get/width/390/crop/844/noanimate/viewportWidth/390/${url}?${refreshKey}`
+      : `https://image.thum.io/get/width/1280/crop/720/noanimate/viewportWidth/1280/${url}?${refreshKey}`,
+    // 3. s-shot.ru fallback
+    `https://mini.s-shot.ru/1280x720/PNG/1280/Z100/?${encodedUrl}`,
+  ];
+
+  const screenshotUrl = providers[Math.min(providerIdx, providers.length - 1)];
 
   const handleRefresh = () => {
     setImgLoaded(false);
     setImgError(false);
+    setProviderIdx(0);
     setRefreshKey((k) => k + 1);
+  };
+
+  const handleImgError = () => {
+    // Try next provider
+    if (providerIdx < providers.length - 1) {
+      setProviderIdx((p) => p + 1);
+      setImgLoaded(false);
+      setImgError(false);
+    } else {
+      setImgError(true);
+      setImgLoaded(true);
+    }
+  };
+
+  const switchView = (v: "mobile" | "desktop") => {
+    setView(v);
+    setImgLoaded(false);
+    setImgError(false);
+    setProviderIdx(0);
   };
 
   return (
     <div className="skeu-card rounded-2xl overflow-hidden">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/60 bg-white/40">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/60 bg-white/40 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-[18px]">web</span>
           <div>
@@ -43,7 +76,7 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
           {/* Mobile/Desktop toggle */}
           <div className="flex skeu-inset rounded-lg p-0.5 gap-0.5">
             <button
-              onClick={() => { setView("mobile"); setImgLoaded(false); setImgError(false); }}
+              onClick={() => switchView("mobile")}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                 view === "mobile" ? "skeu-button text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
@@ -52,7 +85,7 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
               Mobile
             </button>
             <button
-              onClick={() => { setView("desktop"); setImgLoaded(false); setImgError(false); }}
+              onClick={() => switchView("desktop")}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                 view === "desktop" ? "skeu-button text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
@@ -93,13 +126,12 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
               ? "rounded-[32px] border-[8px] border-slate-800"
               : "rounded-lg border-2 border-slate-300"
           }`}>
-            {/* Mobile: notch + buttons */}
+            {/* Mobile: notch */}
             {view === "mobile" && (
               <>
                 <div className="bg-slate-800 h-7 flex items-center justify-center rounded-t-[22px]">
                   <div className="w-20 h-2.5 rounded-full bg-slate-600"></div>
                 </div>
-                {/* Side buttons */}
                 <div className="absolute -right-[11px] top-20 w-1.5 h-8 bg-slate-700 rounded-r-sm"></div>
                 <div className="absolute -left-[11px] top-16 w-1.5 h-6 bg-slate-700 rounded-l-sm"></div>
                 <div className="absolute -left-[11px] top-24 w-1.5 h-6 bg-slate-700 rounded-l-sm"></div>
@@ -120,38 +152,46 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
               </div>
             )}
 
-            {/* Screenshot */}
-            <div className={`relative overflow-hidden ${view === "mobile" ? "rounded-b-[22px]" : "rounded-b-lg"}`}
+            {/* Screenshot area */}
+            <div
+              className={`relative overflow-hidden ${view === "mobile" ? "rounded-b-[22px]" : "rounded-b-lg"}`}
               style={{ minHeight: view === "mobile" ? "480px" : "320px" }}
             >
-              {/* Loading state */}
+              {/* Loading overlay */}
               {!imgLoaded && !imgError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 gap-2">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 gap-2 z-10">
                   <span className="material-symbols-outlined text-primary text-[32px] animate-spin">sync</span>
                   <p className="text-[11px] text-slate-500 font-semibold">Memuat screenshot...</p>
                   <p className="text-[9px] text-slate-400 text-center px-4">Ini mungkin memerlukan beberapa detik</p>
                 </div>
               )}
 
-              {/* Error state */}
+              {/* Error / fallback state */}
               {imgError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 gap-3 p-6">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 gap-3 p-6 z-10">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                     <span className="material-symbols-outlined text-primary text-[24px]">web</span>
                   </div>
                   <div className="text-center">
                     <p className="text-xs font-bold text-slate-700 mb-1">Screenshot tidak tersedia</p>
                     <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
-                      Website mungkin sedang dimuat atau screenshot belum ter-generate.
+                      Website mungkin belum dapat di-screenshot. Gunakan tombol <strong>Buka Live</strong> untuk melihat langsung.
                     </p>
                   </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <button onClick={handleRefresh} className="skeu-button text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm">
+                  <div className="flex flex-col items-center gap-2 w-full max-w-[180px]">
+                    <button
+                      onClick={handleRefresh}
+                      className="skeu-button text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm w-full justify-center"
+                    >
                       <span className="material-symbols-outlined text-[14px]">refresh</span>
                       Coba Lagi
                     </button>
-                    <a href={url} target="_blank" rel="noopener noreferrer"
-                      className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 justify-center"
+                    >
                       <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                       Buka di tab baru
                     </a>
@@ -161,20 +201,22 @@ export default function WebsitePreview({ subdomain, appDomain }: WebsitePreviewP
 
               {/* Screenshot image */}
               <img
-                key={`${subdomain}-${view}-${refreshKey}`}
+                key={`${subdomain}-${view}-${providerIdx}-${refreshKey}`}
                 src={screenshotUrl}
                 alt={`Preview ${subdomain}.${appDomain}`}
-                className={`w-full object-cover object-top transition-opacity duration-300 ${imgLoaded && !imgError ? "opacity-100" : "opacity-0 absolute"}`}
+                className={`w-full object-cover object-top transition-opacity duration-300 ${
+                  imgLoaded && !imgError ? "opacity-100" : "opacity-0 absolute"
+                }`}
                 style={{ minHeight: view === "mobile" ? "480px" : "320px" }}
                 onLoad={() => { setImgLoaded(true); setImgError(false); }}
-                onError={() => { setImgError(true); setImgLoaded(true); }}
+                onError={handleImgError}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Footer info ── */}
+      {/* ── Footer ── */}
       <div className="px-4 py-2.5 bg-white/60 border-t border-white/60 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
           <span className="material-symbols-outlined text-[13px] text-slate-400">photo_camera</span>
