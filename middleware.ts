@@ -10,20 +10,16 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // ── Redirect manajementkost.my.id (apex) ke fiihost.my.id ────────────────
-  // manajementkost.my.id hanya berfungsi untuk SUBDOMAIN kost (*.manajementkost.my.id)
-  // Apex domain-nya redirect ke platform utama
   if (hostname === APP_DOMAIN || hostname === `www.${APP_DOMAIN}`) {
     return NextResponse.redirect(`${APP_URL}${pathname}`, { status: 308 });
   }
 
   // ── Subdomain routing ─────────────────────────────────────────────────────
-  // Platform utama: fiihost.my.id, www.fiihost.my.id, *.vercel.app
   const isApexDomain =
     hostname === PLATFORM_DOMAIN ||
     hostname === `www.${PLATFORM_DOMAIN}` ||
     hostname.endsWith(".vercel.app");
 
-  // Subdomain kost: bisa dari fiihost.my.id ATAU manajementkost.my.id
   const isSubdomainOfFiihost =
     !isApexDomain &&
     hostname.endsWith(`.${PLATFORM_DOMAIN}`) &&
@@ -36,7 +32,6 @@ export async function middleware(request: NextRequest) {
 
   const isSubdomain = isSubdomainOfFiihost || isSubdomainOfManajemen;
 
-  // Ambil nama subdomain dari hostname yang sesuai
   const subdomainValue = isSubdomainOfFiihost
     ? hostname.slice(0, hostname.length - PLATFORM_DOMAIN.length - 1)
     : isSubdomainOfManajemen
@@ -46,8 +41,15 @@ export async function middleware(request: NextRequest) {
   if (isSubdomain) {
     const subdomain = subdomainValue;
 
-    if (!subdomain || subdomain === "www") {
-      return NextResponse.next();
+    // ── Guard: subdomain kosong atau invalid ─────────────────────────────
+    // https://.manajementkost.my.id → subdomain = "" → tampilkan 404
+    if (!subdomain || subdomain.trim() === "" || subdomain === "www") {
+      return NextResponse.redirect(`${APP_URL}`, { status: 301 });
+    }
+
+    // Validasi subdomain format (hanya huruf kecil, angka, tanda hubung)
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdomain) && subdomain.length > 1) {
+      return NextResponse.redirect(`${APP_URL}`, { status: 301 });
     }
 
     // Static assets — JANGAN di-rewrite, biarkan apa adanya

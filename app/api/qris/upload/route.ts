@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: profile } = await supabase
-      .from("kost_profiles").select("id").eq("user_id", user.id).single();
+      .from("kost_profiles").select("id").eq("user_id", user.id).maybeSingle();
     if (!profile) return NextResponse.json({ error: "Profil kost tidak ditemukan" }, { status: 404 });
 
     const formData   = await request.formData();
@@ -130,7 +130,7 @@ export async function GET() {
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: profile } = await supabase
-      .from("kost_profiles").select("id").eq("user_id", user.id).single();
+      .from("kost_profiles").select("id").eq("user_id", user.id).maybeSingle();
     if (!profile) return NextResponse.json({ configs: [] });
 
     const { data: configs } = await supabase
@@ -152,7 +152,7 @@ export async function DELETE() {
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: profile } = await supabase
-      .from("kost_profiles").select("id").eq("user_id", user.id).single();
+      .from("kost_profiles").select("id").eq("user_id", user.id).maybeSingle();
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
 
     const supabaseService = createServiceClient(

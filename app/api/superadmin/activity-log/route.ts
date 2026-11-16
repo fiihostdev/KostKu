@@ -10,7 +10,7 @@ async function verifySuperadmin(supabase: ReturnType<typeof createClient>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabase
-    .from("kost_profiles").select("role").eq("user_id", user.id).single();
+    .from("kost_profiles").select("role").eq("user_id", user.id).maybeSingle();
   if (!profile || profile.role !== "superadmin") return null;
   return user;
 }

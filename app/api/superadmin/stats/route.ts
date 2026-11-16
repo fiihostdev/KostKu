@@ -19,7 +19,7 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: profile } = await supabase
-      .from("kost_profiles").select("role").eq("user_id", user.id).single();
+      .from("kost_profiles").select("role").eq("user_id", user.id).maybeSingle();
     if (!profile || profile.role !== "superadmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

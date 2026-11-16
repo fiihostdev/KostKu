@@ -11,7 +11,7 @@ export async function GET() {
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: profile } = await supabase
-      .from("kost_profiles").select("id").eq("user_id", user.id).single();
+      .from("kost_profiles").select("id").eq("user_id", user.id).maybeSingle();
 
     if (!profile || !BOT_URL) return new NextResponse(null, { status: 204 });
 

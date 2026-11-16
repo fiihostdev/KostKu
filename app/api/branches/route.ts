@@ -13,7 +13,7 @@ export async function GET() {
       .from("kost_profiles")
       .select("id, paket, is_suspended")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
     if (profile.is_suspended) return NextResponse.json({ error: "Akun disuspend" }, { status: 403 });

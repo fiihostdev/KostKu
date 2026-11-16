@@ -12,7 +12,7 @@ export async function GET() {
 
     // Ambil kostId milik user ini
     const { data: profile } = await supabase
-      .from("kost_profiles").select("id").eq("user_id", user.id).single();
+      .from("kost_profiles").select("id").eq("user_id", user.id).maybeSingle();
 
     if (!profile) return NextResponse.json({ status: "idle", phone: null, qr_available: false, has_session: false, uptime: "0s" });
 
