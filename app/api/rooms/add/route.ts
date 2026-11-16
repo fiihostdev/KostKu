@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       .from("kost_profiles")
       .select("id, paket, max_kamar, is_suspended, expires_at")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
     if (profile.is_suspended) return NextResponse.json({ error: "Akun Anda sedang disuspend." }, { status: 403 });

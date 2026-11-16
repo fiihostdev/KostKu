@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
           .from("kost_profiles")
           .select("id, subdomain")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         const isMain   = profile?.subdomain === cleanSub;
         let isBranch   = false;

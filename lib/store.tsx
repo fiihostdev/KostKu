@@ -240,7 +240,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         .from("kost_profiles")
         .select("*")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!profileData) { setLoading(false); return; }
 

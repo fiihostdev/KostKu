@@ -55,8 +55,8 @@ export async function GET() {
       },
       canAddBranch: (branches || []).length < limits.maxCabang,
     });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       .from("kost_profiles")
       .select("id, paket, is_suspended, expires_at")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
     if (profile.is_suspended) return NextResponse.json({ error: "Akun Anda disuspend" }, { status: 403 });

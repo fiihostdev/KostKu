@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       .from("kost_profiles")
       .select("id, paket")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
 

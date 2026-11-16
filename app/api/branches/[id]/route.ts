@@ -12,7 +12,7 @@ async function getProfileAndBranch(supabase: ReturnType<typeof createClient>, us
     .from("kost_profiles")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (!profile) return { profile: null, branch: null, error: "Profil tidak ditemukan" };
 
@@ -21,7 +21,7 @@ async function getProfileAndBranch(supabase: ReturnType<typeof createClient>, us
     .select("*")
     .eq("id", branchId)
     .eq("kost_id", profile.id)
-    .single();
+    .maybeSingle();
 
   if (!branch) return { profile, branch: null, error: "Cabang tidak ditemukan atau bukan milik Anda" };
 
