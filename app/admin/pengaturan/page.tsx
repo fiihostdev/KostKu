@@ -10,6 +10,9 @@ import { LockedFeatureCard } from "@/components/admin/PlanLimitBanner";
 import { usePlanLimits } from "@/lib/use-plan-limits";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import AddressMapPicker from "@/components/admin/AddressMapPicker";
+import PaketManager from "@/components/admin/PaketManager";
+import WebsitePreview from "@/components/admin/WebsitePreview";
 
 // ── Skeleton shimmer card ─────────────────────────────────────────────────────
 function SkeletonCard({ rows = 4 }: { rows?: number }) {
@@ -183,6 +186,7 @@ export default function PengaturanPage() {
   // ── Tabs definition ───────────────────────────────────────────────────────
   const TABS = [
     { id: "profil",   label: "Identitas Kost",    icon: "apartment",   pro: false },
+    { id: "paket",    label: "Paket & Langganan",  icon: "sell",        pro: false },
     { id: "subdomain",label: "Subdomain",          icon: "domain",      pro: false },
     { id: "midtrans", label: "Payment Gateway",    icon: "credit_card", pro: true  },
     { id: "qris",     label: "QRIS Dinamis",       icon: "qr_code_2",  pro: true  },
@@ -427,58 +431,98 @@ export default function PengaturanPage() {
 
       {/* ── Tab: PROFIL ── */}
       {activeTab === "profil" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 skeu-card p-5 sm:p-6 rounded-2xl space-y-4 text-xs">
-            <h2 className="font-bold text-slate-900 text-sm pb-3 border-b border-white/60">Identitas & Informasi Properti Kost</h2>
-            <LogoUploader currentLogoUrl={logoUrl} onUploadSuccess={handleLogoUploaded} />
-            <div className="border-t border-white/60 pt-3">
-              <label className="font-bold text-slate-700 block mb-1">Nama Properti Kost</label>
-              <input type="text" value={namaKost} onChange={(e) => setNamaKost(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Alamat Lengkap</label>
-              <textarea rows={2} value={alamatKost} onChange={(e) => setAlamatKost(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none leading-relaxed" />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Nomor WhatsApp Pemilik</label>
-              <input type="text" value={teleponKost} onChange={(e) => setTeleponKost(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Bank Penerima</label>
-                <select value={bankPenerima} onChange={(e) => setBankPenerima(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer">
-                  {["BCA","Mandiri","BNI","BRI","BSI","CIMB Niaga","Danamon"].map((b) => <option key={b}>{b}</option>)}
-                </select>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 skeu-card p-5 sm:p-6 rounded-2xl space-y-4 text-xs">
+              <h2 className="font-bold text-slate-900 text-sm pb-3 border-b border-white/60">Identitas & Informasi Properti Kost</h2>
+              <LogoUploader currentLogoUrl={logoUrl} onUploadSuccess={handleLogoUploaded} />
+              <div className="border-t border-white/60 pt-3">
+                <label className="font-bold text-slate-700 block mb-1">Nama Properti Kost</label>
+                <input type="text" value={namaKost} onChange={(e) => setNamaKost(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-bold" />
               </div>
+
+              {/* ── Alamat dengan Google Maps ── */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Nomor Rekening</label>
-                <input type="text" value={noRekening} onChange={(e) => setNoRekening(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono font-bold" />
+                <label className="font-bold text-slate-700 block mb-2">
+                  Alamat Lengkap
+                  <span className="text-slate-400 font-normal ml-1">(cari via maps atau tulis manual)</span>
+                </label>
+                <AddressMapPicker
+                  value={alamatKost}
+                  onChange={setAlamatKost}
+                  placeholder="Cari nama jalan, kelurahan, kota..."
+                />
               </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Nomor WhatsApp Pemilik</label>
+                <input type="text" value={teleponKost} onChange={(e) => setTeleponKost(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Bank Penerima</label>
+                  <select value={bankPenerima} onChange={(e) => setBankPenerima(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer">
+                    {["BCA","Mandiri","BNI","BRI","BSI","CIMB Niaga","Danamon"].map((b) => <option key={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Nomor Rekening</label>
+                  <input type="text" value={noRekening} onChange={(e) => setNoRekening(e.target.value)} className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono font-bold" />
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-4 skeu-card p-5 sm:p-6 rounded-2xl flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-3 pb-3 border-b border-white/60 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-primary">info</span>
+                  Info Paket Aktif
+                </h3>
+                <div className="space-y-2.5 text-xs">
+                  <div className="skeu-inset p-3 rounded-xl">
+                    <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">Paket</span>
+                    <span className="font-black text-primary text-sm capitalize">{planStatus.paket || profile.paket}</span>
+                  </div>
+                  <div className="skeu-inset p-3 rounded-xl">
+                    <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">Subdomain Aktif</span>
+                    <span className="font-mono font-bold text-slate-800 text-[11px]">{profile.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}</span>
+                  </div>
+                  <div className="skeu-inset p-3 rounded-xl">
+                    <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">SSL</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> HTTPS Aktif</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("paket")}
+                  className="mt-3 w-full skeu-button-secondary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 text-primary"
+                >
+                  <span className="material-symbols-outlined text-[15px]">upgrade</span>
+                  Kelola Paket & Langganan
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-4">Perubahan nama kost langsung terbarui di semua halaman admin dan website publik.</p>
             </div>
           </div>
-          <div className="lg:col-span-4 skeu-card p-5 sm:p-6 rounded-2xl flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm mb-3 pb-3 border-b border-white/60 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-primary">info</span>
-                Info Paket Aktif
-              </h3>
-              <div className="space-y-2.5 text-xs">
-                <div className="skeu-inset p-3 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">Paket</span>
-                  <span className="font-black text-primary text-sm">{profile.paket}</span>
-                </div>
-                <div className="skeu-inset p-3 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">Subdomain Aktif</span>
-                  <span className="font-mono font-bold text-slate-800 text-[11px]">{profile.subdomain}.{process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}</span>
-                </div>
-                <div className="skeu-inset p-3 rounded-xl">
-                  <span className="text-slate-400 text-[10px] block uppercase font-bold mb-1">SSL</span>
-                  <span className="text-emerald-700 font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> HTTPS Aktif</span>
-                </div>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-4">Perubahan nama kost langsung terbarui di semua halaman admin dan website publik.</p>
+
+          {/* ── Preview Website Publik ── */}
+          {profile.subdomain && (
+            <WebsitePreview
+              subdomain={profile.subdomain}
+              appDomain={process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id"}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: PAKET & LANGGANAN ── */}
+      {activeTab === "paket" && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-black text-slate-900">Paket & Langganan</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Kelola paket, upgrade, downgrade, dan pantau masa aktif layanan Anda.
+            </p>
           </div>
+          <PaketManager />
         </div>
       )}
 
