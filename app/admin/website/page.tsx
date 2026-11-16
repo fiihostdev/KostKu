@@ -23,9 +23,7 @@ export default function WebsiteSayaPage() {
   const [logoUrl,    setLogoUrl]    = useState(profile.logoUrl || "");
   // Facility state — read from profile.fasilitas if available, else default all checked
   const [fasilitas, setFasilitas]   = useState<string[]>(
-    (profile as { fasilitas?: string[] }).fasilitas?.length
-      ? (profile as { fasilitas?: string[] }).fasilitas!
-      : [...ALL_FASILITAS]
+    profile.fasilitas?.length ? profile.fasilitas : [...ALL_FASILITAS]
   );
 
   // Sync saat profile dari store berubah
@@ -36,8 +34,7 @@ export default function WebsiteSayaPage() {
     setAlamat(profile.alamat);
     setKontakWa(profile.telepon);
     setLogoUrl(profile.logoUrl || "");
-    const pf = profile as { fasilitas?: string[] };
-    if (pf.fasilitas?.length) setFasilitas(pf.fasilitas);
+    if (profile.fasilitas?.length) setFasilitas(profile.fasilitas);
   }, [profile]);
 
   const toggleFasilitas = (f: string) => {
@@ -55,13 +52,14 @@ export default function WebsiteSayaPage() {
       alamat,
       telepon: kontakWa,
       logoUrl,
+      fasilitas,
     });
     toast.success("Website berhasil disimpan!", "Perubahan profil kost telah diperbarui.");
   };
 
   const handleLogoUploaded = (newLogoUrl: string) => {
     setLogoUrl(newLogoUrl);
-    setProfile({ ...profile, subdomain, nama: namaKost, tagline, alamat, telepon: kontakWa, logoUrl: newLogoUrl });
+    setProfile({ ...profile, subdomain, nama: namaKost, tagline, alamat, telepon: kontakWa, logoUrl: newLogoUrl, fasilitas });
     toast.success(newLogoUrl ? "Logo berhasil diupload!" : "Logo dihapus.", newLogoUrl ? "Logo kost diperbarui di website publik." : "Website menggunakan ikon default.");
   };
 

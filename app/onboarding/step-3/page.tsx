@@ -3,9 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import OnboardingStepper from "@/components/onboarding/OnboardingStepper";
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 import { createClient } from "@/lib/supabase-browser";
+
+// Fix: const must come AFTER all imports
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "manajementkost.my.id";
 
 function Step3Content() {
   const router = useRouter();

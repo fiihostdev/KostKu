@@ -69,6 +69,7 @@ export interface KostProfile {
   bankPenerima: string;
   noRekening: string;
   logoUrl: string;
+  fasilitas?: string[];  // Array fasilitas kost yang ditampilkan di halaman publik
 }
 
 export interface Branch {
@@ -131,7 +132,7 @@ interface KostContextType {
 
 const defaultProfile: KostProfile = {
   nama: "", subdomain: "", tagline: "", alamat: "", telepon: "",
-  paket: "", bankPenerima: "BCA", noRekening: "", logoUrl: "",
+  paket: "", bankPenerima: "BCA", noRekening: "", logoUrl: "", fasilitas: [],
 };
 
 const KostContext = createContext<KostContextType | undefined>(undefined);
@@ -256,6 +257,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         bankPenerima: profileData.bank_penerima || "BCA",
         noRekening:   profileData.no_rekening || "",
         logoUrl:      profileData.logo_url || "",
+        fasilitas:    (profileData.fasilitas as string[]) || [],
       });
 
       // 2. Daftar semua cabang milik kost ini (hanya yang aktif)

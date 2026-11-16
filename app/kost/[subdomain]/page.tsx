@@ -114,7 +114,7 @@ async function getKostData(subdomain: string): Promise<{
       telepon:   branch.telepon || (parentProfile ? "" : ""),
       logo_url:  branch.logo_url || parentProfile?.logo_url || undefined,
       has_qris:  false,
-      fasilitas: (parentProfile as { fasilitas?: string[] } | undefined)?.fasilitas || [],
+      fasilitas: (parentProfile as KostProfile | undefined)?.fasilitas || [],
     };
 
     const { count: qrisCount } = await supabase
