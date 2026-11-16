@@ -140,11 +140,8 @@ async function getKostData(subdomain: string): Promise<{
   return { profile: null, rooms: [], isBranch: false };
 }
 
-// Komponen booking button — harus client karena ada window.open
-import BookingButton from "./BookingButton";
-import BookingFlow from "./BookingFlow";
+// Komponen booking button — harus client karena ada window.open — now inside RoomFilter
 import RoomFilter from "./RoomFilter";
-import PhotoGallery from "./PhotoGallery";
 
 export default async function PublicKostPage({
   params,
@@ -362,74 +359,12 @@ export default async function PublicKostPage({
           ) : (
             <RoomFilter
               rooms={rooms}
-              renderRoom={(room) => {
-                const isAvailable = room.status === "Kosong";
-                const bookingText = `Halo pengelola ${profile.nama}, saya tertarik booking kamar ${room.nomor} (${room.tipe}) seharga Rp ${room.harga.toLocaleString("id-ID")}/bulan dari ${profile.subdomain}.${APP_DOMAIN}. Apakah masih tersedia?`;
-                return (
-                  <div
-                    className={`skeu-card p-5 rounded-2xl flex flex-col justify-between transition-all ${
-                      isAvailable ? "hover:-translate-y-1 border-2 border-emerald-500/20" : "opacity-75"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
-                          <h4 className="text-lg font-black text-slate-900">{room.nomor}</h4>
-                        </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          isAvailable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
-                        }`}>
-                          {isAvailable ? "Tersedia" : "Terisi"}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 mb-2">
-                        Tipe: <span className="font-bold text-slate-800">{room.tipe}</span>
-                        {room.luas_m2 && <span className="ml-2 text-slate-400">· {room.luas_m2} m²</span>}
-                      </div>
-                      <div className="text-xl font-black text-primary mb-3">
-                        Rp {room.harga.toLocaleString("id-ID")}
-                        <span className="text-xs font-normal text-slate-500"> / bulan</span>
-                      </div>
-
-                      {/* Photo gallery dengan lightbox */}
-                      <PhotoGallery photos={room.foto_urls || []} alt={`Kamar ${room.nomor}`} />
-
-                      {room.deskripsi && (
-                        <p className="text-[11px] text-slate-500 mb-3 leading-relaxed line-clamp-2">{room.deskripsi}</p>
-                      )}
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {(room.fasilitas || []).map((f: string, i: number) => (
-                          <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">
-                            {f}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="pt-3 border-t border-white/60">
-                      {isAvailable && waPhone ? (
-                        <div className="space-y-2">
-                          <BookingFlow
-                            kostId={profile.id}
-                            kostNama={profile.nama}
-                            kamarNomor={room.nomor}
-                            kamarTipe={room.tipe}
-                            kamarLantai={room.lantai}
-                            harga={room.harga}
-                            hasQris={profile.has_qris ?? false}
-                            waPhone={waPhone}
-                          />
-                          <BookingButton waPhone={waPhone} message={bookingText} />
-                        </div>
-                      ) : (
-                        <button disabled className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed">
-                          Kamar Telah Terisi
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              }}
+              kostId={profile.id}
+              kostNama={profile.nama}
+              appDomain={APP_DOMAIN}
+              profileSubdomain={profile.subdomain}
+              hasQris={profile.has_qris ?? false}
+              waPhone={waPhone}
             />
           )}
         </div>

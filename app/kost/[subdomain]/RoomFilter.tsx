@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import PhotoGallery from "./PhotoGallery";
+import BookingFlow from "./BookingFlow";
+import BookingButton from "./BookingButton";
 
 interface Room {
   id: string;
@@ -17,10 +20,23 @@ interface Room {
 
 interface RoomFilterProps {
   rooms: Room[];
-  renderRoom: (room: Room) => React.ReactNode;
+  kostId: string;
+  kostNama: string;
+  appDomain: string;
+  profileSubdomain: string;
+  hasQris: boolean;
+  waPhone: string;
 }
 
-export default function RoomFilter({ rooms, renderRoom }: RoomFilterProps) {
+export default function RoomFilter({
+  rooms,
+  kostId,
+  kostNama,
+  appDomain,
+  profileSubdomain,
+  hasQris,
+  waPhone,
+}: RoomFilterProps) {
   const [filterTipe,     setFilterTipe]     = useState("Semua");
   const [filterStatus,   setFilterStatus]   = useState("Semua");
   const [filterHargaMax, setFilterHargaMax] = useState("");
@@ -40,7 +56,7 @@ export default function RoomFilter({ rooms, renderRoom }: RoomFilterProps) {
       if (sortBy === "harga-asc")  return a.harga - b.harga;
       if (sortBy === "harga-desc") return b.harga - a.harga;
       if (sortBy === "lantai")     return a.lantai - b.lantai;
-      return a.nomor.localeCompare(b.nomor); // default
+      return a.nomor.localeCompare(b.nomor);
     });
 
   const availableCount = filtered.filter((r) => r.status === "Kosong").length;
@@ -50,9 +66,9 @@ export default function RoomFilter({ rooms, renderRoom }: RoomFilterProps) {
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3 mb-8 p-4 skeu-card rounded-2xl">
         {/* Tipe */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-bold text-slate-500">Tipe:</span>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {tipes.map((t) => (
               <button
                 key={t}
@@ -94,9 +110,11 @@ export default function RoomFilter({ rooms, renderRoom }: RoomFilterProps) {
             className="text-xs py-1.5 px-2 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer font-semibold"
           >
             <option value="">Semua Harga</option>
-            {[500000, 1000000, 1500000, 2000000, 3000000].filter((p) => p <= maxHarga * 1.1 || maxHarga === 0).map((p) => (
-              <option key={p} value={p}>≤ Rp {(p / 1000000).toFixed(1)} Jt</option>
-            ))}
+            {[500000, 1000000, 1500000, 2000000, 3000000]
+              .filter((p) => p <= maxHarga * 1.1 || maxHarga === 0)
+              .map((p) => (
+                <option key={p} value={p}>≤ Rp {(p / 1000000).toFixed(1)} Jt</option>
+              ))}
           </select>
         </div>
 
@@ -151,9 +169,77 @@ export default function RoomFilter({ rooms, renderRoom }: RoomFilterProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((room) => (
-            <div key={room.id}>{renderRoom(room)}</div>
-          ))}
+          {filtered.map((room) => {
+            const isAvailable = room.status === "Kosong";
+            const bookingText = `Halo pengelola ${kostNama}, saya tertarik booking kamar ${room.nomor} (${room.tipe}) seharga Rp ${room.harga.toLocaleString("id-ID")}/bulan dari ${profileSubdomain}.${appDomain}. Apakah masih tersedia?`;
+
+            return (
+              <div
+                key={room.id}
+                className={`skeu-card p-5 rounded-2xl flex flex-col justify-between transition-all ${
+                  isAvailable ? "hover:-translate-y-1 border-2 border-emerald-500/20" : "opacity-75"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Lantai {room.lantai}</span>
+                      <h4 className="text-lg font-black text-slate-900">{room.nomor}</h4>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isAvailable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
+                    }`}>
+                      {isAvailable ? "Tersedia" : "Terisi"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 mb-2">
+                    Tipe: <span className="font-bold text-slate-800">{room.tipe}</span>
+                    {room.luas_m2 && <span className="ml-2 text-slate-400">· {room.luas_m2} m²</span>}
+                  </div>
+                  <div className="text-xl font-black text-primary mb-3">
+                    Rp {room.harga.toLocaleString("id-ID")}
+                    <span className="text-xs font-normal text-slate-500"> / bulan</span>
+                  </div>
+
+                  {/* Photo gallery */}
+                  <PhotoGallery photos={room.foto_urls || []} alt={`Kamar ${room.nomor}`} />
+
+                  {room.deskripsi && (
+                    <p className="text-[11px] text-slate-500 mb-3 leading-relaxed line-clamp-2">{room.deskripsi}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {(room.fasilitas || []).map((f, i) => (
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-white/70 rounded-md text-slate-600 border border-slate-200">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-white/60">
+                  {isAvailable && waPhone ? (
+                    <div className="space-y-2">
+                      <BookingFlow
+                        kostId={kostId}
+                        kostNama={kostNama}
+                        kamarNomor={room.nomor}
+                        kamarTipe={room.tipe}
+                        kamarLantai={room.lantai}
+                        harga={room.harga}
+                        hasQris={hasQris}
+                        waPhone={waPhone}
+                      />
+                      <BookingButton waPhone={waPhone} message={bookingText} />
+                    </div>
+                  ) : (
+                    <button disabled className="bg-slate-200 text-slate-500 text-xs font-bold py-2.5 w-full rounded-xl cursor-not-allowed">
+                      Kamar Telah Terisi
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

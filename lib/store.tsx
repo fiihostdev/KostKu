@@ -388,6 +388,7 @@ export function KostProvider({ children }: { children: React.ReactNode }) {
         bank_penerima:newProfile.bankPenerima,
         no_rekening:  newProfile.noRekening,
         logo_url:     newProfile.logoUrl || null,
+        fasilitas:    (newProfile as unknown as { fasilitas?: string[] }).fasilitas || [],
       })
       .eq("id", kostId);
     if (newProfile.subdomain) {
