@@ -46,14 +46,14 @@ export async function POST(request: NextRequest) {
     const fileName = `platform-qris/qr_${Date.now()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Upload ke bucket logos (atau buat bucket baru)
+    // Upload ke bucket kost-logos (public, sudah ada)
     const { error: uploadErr } = await SERVICE.storage
-      .from("logos")
+      .from("kost-logos")
       .upload(fileName, buffer, { contentType: file.type, upsert: true });
 
     if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
 
-    const { data: urlData } = SERVICE.storage.from("logos").getPublicUrl(fileName);
+    const { data: urlData } = SERVICE.storage.from("kost-logos").getPublicUrl(fileName);
     const qrisUrl = urlData.publicUrl;
 
     // Simpan URL ke platform_config
