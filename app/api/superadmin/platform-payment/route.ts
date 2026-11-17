@@ -5,14 +5,11 @@ import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * Platform-level payment configuration (Superadmin only)
- * GET  /api/superadmin/platform-payment       → ambil config platform
- * POST /api/superadmin/platform-payment       → simpan/update config
+ * GET  /api/superadmin/platform-payment  → ambil config
+ * POST /api/superadmin/platform-payment  → simpan/update config
  *
- * Config ini digunakan untuk:
- * - Menerima pembayaran pembelian paket baru
- * - Menerima pembayaran upgrade/downgrade paket
- * - Menerima biaya ganti subdomain
- * - Onboarding step-4 pembayaran paket
+ * Digunakan untuk pembayaran: paket baru, upgrade paket, biaya ganti subdomain.
+ * Mendukung: Midtrans, Tripay, Xendit, QRIS Statis, Transfer Bank.
  */
 
 const SERVICE = createServiceClient(
@@ -20,7 +17,56 @@ const SERVICE = createServiceClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-/** Pastikan user adalah superadmin */
+/** Semua config keys yang dikelola */
+const ALL_KEYS = [
+  // ── Midtrans ─────────────────────────────────────────────────────────────
+  "midtrans_client_key",
+  "midtrans_server_key",
+  "midtrans_merchant_id",
+  "midtrans_is_production",
+  "midtrans_enabled",
+  // ── Tripay ────────────────────────────────────────────────────────────────
+  "tripay_merchant_code",
+  "tripay_api_key",
+  "tripay_private_key",
+  "tripay_channel",
+  "tripay_is_production",
+  "tripay_enabled",
+  // ── Xendit ───────────────────────────────────────────────────────────────
+  "xendit_secret_key",
+  "xendit_webhook_token",
+  "xendit_is_production",
+  "xendit_enabled",
+  // ── QRIS Statis ───────────────────────────────────────────────────────────
+  "qris_image_url",
+  "qris_enabled",
+  "qris_account_name",
+  "qris_bank_name",
+  "qris_no_rekening",
+  // ── Transfer Bank ─────────────────────────────────────────────────────────
+  "transfer_enabled",
+  "transfer_bank_name",
+  "transfer_account_name",
+  "transfer_no_rekening",
+  "transfer_instructions",
+] as const;
+
+/** Keys yang perlu di-mask saat GET */
+const SENSITIVE_KEYS_ARRAY = [
+  "midtrans_server_key",
+  "tripay_api_key",
+  "tripay_private_key",
+  "xendit_secret_key",
+  "xendit_webhook_token",
+] as const;
+const SENSITIVE_KEYS = new Set<string>(SENSITIVE_KEYS_ARRAY);
+
+function maskKey(key: string): string {
+  if (!key || key.length < 8) return "***";
+  return key.slice(0, 6) + "***" + key.slice(-4);
+}
+
+/** Guard: hanya superadmin */
 async function guardSuperadmin(): Promise<{ ok: boolean; error?: NextResponse }> {
   const supabase = createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -38,51 +84,21 @@ async function guardSuperadmin(): Promise<{ ok: boolean; error?: NextResponse }>
   return { ok: true };
 }
 
-function maskKey(key: string): string {
-  if (!key || key.length < 8) return "***";
-  return key.slice(0, 6) + "***" + key.slice(-4);
-}
-
 export async function GET() {
   const guard = await guardSuperadmin();
   if (!guard.ok) return guard.error!;
 
   try {
-    // Ambil dari platform_config table (key-value store)
     const { data, error } = await SERVICE
       .from("platform_config")
       .select("key, value")
-      .in("key", [
-        "midtrans_client_key",
-        "midtrans_server_key",
-        "midtrans_is_production",
-        "midtrans_enabled",
-        "qris_image_url",
-        "qris_enabled",
-        "qris_account_name",
-        "qris_bank_name",
-        "qris_no_rekening",
-        "transfer_enabled",
-        "transfer_bank_name",
-        "transfer_account_name",
-        "transfer_no_rekening",
-        "transfer_instructions",
-      ]);
+      .in("key", Array.from(ALL_KEYS) as string[]);
 
-    if (error) {
-      // Tabel mungkin belum ada — kembalikan empty config
-      return NextResponse.json({ config: {} });
-    }
+    if (error) return NextResponse.json({ config: {} });
 
-    // Build config object
     const config: Record<string, string> = {};
     for (const row of (data || [])) {
-      config[row.key] = row.value;
-    }
-
-    // Mask sensitive keys
-    if (config.midtrans_server_key) {
-      config.midtrans_server_key = maskKey(config.midtrans_server_key);
+      config[row.key] = SENSITIVE_KEYS.has(row.key) ? maskKey(row.value) : row.value;
     }
 
     return NextResponse.json({ config });
@@ -101,11 +117,11 @@ export async function POST(request: NextRequest) {
   try {
     const body: Record<string, string | boolean> = await request.json();
 
-    // Ambil nilai lama untuk keys yang sensitive (agar placeholder tidak overwrite)
+    // Ambil nilai lama untuk keys sensitive (agar placeholder tidak overwrite)
     const { data: existing } = await SERVICE
       .from("platform_config")
       .select("key, value")
-      .in("key", ["midtrans_server_key"]);
+      .in("key", SENSITIVE_KEYS_ARRAY as unknown as string[]);
 
     const existingMap: Record<string, string> = {};
     for (const row of (existing || [])) {
@@ -113,12 +129,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Build upsert rows
+    const allKeysSet = new Set<string>(ALL_KEYS);
     const rows = Object.entries(body)
-      .filter(([, v]) => v !== undefined && v !== null)
+      .filter(([key]) => allKeysSet.has(key))
       .map(([key, value]) => {
         const strVal = String(value);
-        // Jika placeholder, gunakan nilai lama
-        if (strVal.includes("***") && existingMap[key]) {
+        // Jika placeholder untuk sensitive key → pakai nilai lama
+        if (strVal.includes("***") && SENSITIVE_KEYS.has(key) && existingMap[key]) {
           return { key, value: existingMap[key] };
         }
         return { key, value: strVal };

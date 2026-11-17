@@ -26,9 +26,15 @@ export async function GET() {
     // Mask sensitive keys
     const masked = (configs || []).map((c) => {
       const cfg = { ...(c.config as Record<string, string>) };
-      if (cfg.server_key)  cfg.server_key  = maskKey(cfg.server_key);
-      if (cfg.secret_key)  cfg.secret_key  = maskKey(cfg.secret_key);
-      if (cfg.private_key) cfg.private_key = maskKey(cfg.private_key);
+      // Midtrans
+      if (cfg.server_key)    cfg.server_key    = maskKey(cfg.server_key);
+      if (cfg.client_key)    cfg.client_key    = maskKey(cfg.client_key);
+      // Tripay
+      if (cfg.api_key)       cfg.api_key       = maskKey(cfg.api_key);
+      if (cfg.private_key)   cfg.private_key   = maskKey(cfg.private_key);
+      // Xendit
+      if (cfg.secret_key)    cfg.secret_key    = maskKey(cfg.secret_key);
+      if (cfg.webhook_token) cfg.webhook_token = maskKey(cfg.webhook_token);
       return { ...c, config: cfg };
     });
 
@@ -73,10 +79,19 @@ export async function POST(request: NextRequest) {
     const existingConfig = (existing?.config as Record<string, string>) || {};
     const mergedConfig: Record<string, string> = { ...existingConfig };
 
-    // Hanya update value yang tidak placeholder
+    // Hanya update value yang tidak placeholder (***) — restore nilai lama untuk semua sensitive keys
+    const SENSITIVE_KEYS = new Set([
+      "server_key", "client_key",    // Midtrans
+      "api_key", "private_key",      // Tripay
+      "secret_key", "webhook_token", // Xendit
+    ]);
+
     for (const [key, val] of Object.entries(newConfig as Record<string, string>)) {
       if (val && !val.includes("***")) {
         mergedConfig[key] = val;
+      } else if (val.includes("***") && SENSITIVE_KEYS.has(key) && existingConfig[key]) {
+        // Placeholder untuk sensitive key → pakai nilai lama
+        mergedConfig[key] = existingConfig[key];
       }
     }
 
