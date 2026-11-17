@@ -44,7 +44,7 @@ interface PlatformPlan {
   is_active: boolean;
 }
 
-type ActiveTab = "overview" | "tenants" | "plans" | "settings" | "logs";
+type ActiveTab = "overview" | "tenants" | "plans" | "payment" | "logs" | "settings";
 
 // ── Activity Log type ──────────────────────────────────────────────────────────
 interface ActivityLog {
@@ -100,6 +100,12 @@ export default function SuperadminDashboardPage() {
   const [editTenant, setEditTenant] = useState<KostTenant | null>(null);
   const [editPlan, setEditPlan] = useState<PlatformPlan | null>(null);
   const [showAddPlan, setShowAddPlan] = useState(false);
+
+  // ── Platform Payment Config state ──────────────────────────────────────────
+  const [platformPayConfig, setPlatformPayConfig] = useState<Record<string, string>>({});
+  const [payConfigLoading, setPayConfigLoading] = useState(false);
+  const [payConfigSaving,  setPayConfigSaving]  = useState(false);
+  const [qrisUploading,    setQrisUploading]    = useState(false);
 
   // Suspend modal — ganti prompt() native
   const [suspendTarget, setSuspendTarget] = useState<KostTenant | null>(null);
@@ -229,7 +235,7 @@ export default function SuperadminDashboardPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Load platform stats and persisted activity logs
+  // Load platform stats, activity logs, AND payment config
   useEffect(() => {
     // Load MRR stats
     fetch("/api/superadmin/stats")
@@ -253,6 +259,14 @@ export default function SuperadminDashboardPage() {
         }
       })
       .catch(() => {});
+
+    // Load platform payment config
+    setPayConfigLoading(true);
+    fetch("/api/superadmin/platform-payment")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.config) setPlatformPayConfig(d.config); })
+      .catch(() => {})
+      .finally(() => setPayConfigLoading(false));
   }, []);
 
   // ── Buka modal suspend ─────────────────────────────────────────────────────
@@ -359,6 +373,44 @@ export default function SuperadminDashboardPage() {
   const deleteTenant = (tenant: KostTenant) => {
     setDeleteTarget(tenant);
     setDeleteConfirmText("");
+  };
+
+  // ── Save platform payment config ──────────────────────────────────────────
+  const savePlatformPayConfig = async () => {
+    setPayConfigSaving(true);
+    try {
+      const res = await fetch("/api/superadmin/platform-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(platformPayConfig),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan");
+      addLog("PAYMENT_CONFIG", "Platform", `Tersimpan ${data.saved} konfigurasi`);
+      showToast("success", "Konfigurasi payment platform berhasil disimpan!");
+    } catch (err) {
+      showToast("error", "Gagal: " + String(err));
+    } finally {
+      setPayConfigSaving(false);
+    }
+  };
+
+  // ── Upload QRIS image ─────────────────────────────────────────────────────
+  const handleQrisUpload = async (file: File) => {
+    setQrisUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/superadmin/platform-qris", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload gagal");
+      setPlatformPayConfig((prev) => ({ ...prev, qris_image_url: data.url }));
+      showToast("success", "QR Code berhasil diupload!");
+    } catch (err) {
+      showToast("error", "Upload gagal: " + String(err));
+    } finally {
+      setQrisUploading(false);
+    }
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -475,11 +527,12 @@ export default function SuperadminDashboardPage() {
       {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/60">
         {[
-          { id: "overview", label: "Overview", icon: "dashboard" },
-          { id: "tenants", label: "Kelola Kost", icon: "domain" },
-          { id: "plans", label: "Kelola Paket", icon: "sell" },
-          { id: "logs", label: `Activity Log ${activityLogs.length > 0 ? `(${activityLogs.length})` : ""}`, icon: "history" },
-          { id: "settings", label: "Platform Settings", icon: "settings" },
+          { id: "overview",  label: "Overview",          icon: "dashboard" },
+          { id: "tenants",   label: "Kelola Kost",       icon: "domain" },
+          { id: "plans",     label: "Kelola Paket",      icon: "sell" },
+          { id: "payment",   label: "Payment Gateway",   icon: "payment" },
+          { id: "logs",      label: `Activity Log ${activityLogs.length > 0 ? `(${activityLogs.length})` : ""}`, icon: "history" },
+          { id: "settings",  label: "Platform Settings", icon: "settings" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -772,6 +825,439 @@ export default function SuperadminDashboardPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: PAYMENT GATEWAY PLATFORM                                        */}
+      {/* Konfigurasi untuk menerima pembayaran paket, upgrade, onboarding     */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "payment" && (
+        <div className="space-y-6">
+
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-black text-slate-900">Konfigurasi Payment Gateway Platform</h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Pembayaran yang masuk ke sini: pembelian paket baru, upgrade paket, biaya ganti subdomain.
+              </p>
+            </div>
+            <button
+              onClick={savePlatformPayConfig}
+              disabled={payConfigSaving}
+              className="skeu-button text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md w-full sm:w-auto justify-center disabled:opacity-60"
+            >
+              <span className={`material-symbols-outlined text-[18px] ${payConfigSaving ? "animate-spin" : ""}`}>
+                {payConfigSaving ? "sync" : "save"}
+              </span>
+              {payConfigSaving ? "Menyimpan..." : "Simpan Semua Config"}
+            </button>
+          </div>
+
+          {payConfigLoading ? (
+            <div className="flex items-center gap-2 text-xs text-slate-500 py-6 justify-center">
+              <span className="material-symbols-outlined text-[20px] animate-spin text-primary">sync</span>
+              Memuat konfigurasi...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+              {/* ── Kolom kiri: provider cards ── */}
+              <div className="lg:col-span-8 space-y-4">
+
+                {/* ── MIDTRANS ─────────────────────────────────────────────── */}
+                <div className="skeu-card p-5 rounded-2xl space-y-4 text-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-blue-600 text-[22px]">credit_card</span>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-900 text-sm">Midtrans</h3>
+                        <p className="text-[10px] text-slate-500">QRIS, VA BCA/BNI/Mandiri, GoPay, OVO, Dana, Kartu Kredit</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-[10px] font-bold text-slate-600">
+                        {platformPayConfig.midtrans_enabled === "true" ? "Aktif" : "Nonaktif"}
+                      </span>
+                      <div
+                        onClick={() => setPlatformPayConfig((p) => ({
+                          ...p,
+                          midtrans_enabled: p.midtrans_enabled === "true" ? "false" : "true"
+                        }))}
+                        className={`w-10 h-5 rounded-full cursor-pointer transition-colors relative ${
+                          platformPayConfig.midtrans_enabled === "true" ? "bg-primary" : "bg-slate-300"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
+                          platformPayConfig.midtrans_enabled === "true" ? "left-5" : "left-0.5"
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Client Key
+                        <span className="text-slate-400 font-normal ml-1">(Frontend)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="SB-Mid-client-xxxx atau Mid-client-xxxx"
+                        value={platformPayConfig.midtrans_client_key || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, midtrans_client_key: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Server Key
+                        <span className="text-slate-400 font-normal ml-1">(Rahasia)</span>
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="SB-Mid-server-xxxx atau Mid-server-xxxx"
+                        value={platformPayConfig.midtrans_server_key || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, midtrans_server_key: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono text-[11px]"
+                      />
+                      <p className="text-[9px] text-slate-400 mt-0.5">Disimpan terenkripsi. Nilai lama tidak ditampilkan.</p>
+                    </div>
+                  </div>
+
+                  {/* Mode Production/Sandbox */}
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-slate-700">Mode:</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPlatformPayConfig((p) => ({ ...p, midtrans_is_production: "false" }))}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                          platformPayConfig.midtrans_is_production !== "true"
+                            ? "skeu-button shadow-sm"
+                            : "skeu-card text-slate-500"
+                        }`}
+                      >
+                        🧪 Sandbox (Testing)
+                      </button>
+                      <button
+                        onClick={() => setPlatformPayConfig((p) => ({ ...p, midtrans_is_production: "true" }))}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                          platformPayConfig.midtrans_is_production === "true"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "skeu-card text-slate-500"
+                        }`}
+                      >
+                        🚀 Production (Live)
+                      </button>
+                    </div>
+                  </div>
+
+                  {platformPayConfig.midtrans_is_production === "true" && (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                      Mode Production aktif — transaksi nyata akan diproses.
+                    </div>
+                  )}
+                  {platformPayConfig.midtrans_is_production !== "true" && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[14px]">science</span>
+                      Mode Sandbox — gunakan kartu test Midtrans. Tidak ada uang nyata.
+                    </div>
+                  )}
+
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[10px] text-blue-800 space-y-1">
+                    <p className="font-bold">📋 Cara mendapatkan API Key Midtrans:</p>
+                    <p>1. Login ke <strong>dashboard.midtrans.com</strong></p>
+                    <p>2. Settings → Access Keys → Salin Server Key & Client Key</p>
+                    <p>3. Untuk Production, aktifkan akun Midtrans Anda terlebih dahulu</p>
+                  </div>
+                </div>
+
+                {/* ── QRIS STATIS ──────────────────────────────────────────── */}
+                <div className="skeu-card p-5 rounded-2xl space-y-4 text-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-emerald-600 text-[22px]">qr_code_2</span>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-900 text-sm">QRIS Statis Platform</h3>
+                        <p className="text-[10px] text-slate-500">Upload QR code QRIS Anda — calon admin scan untuk bayar paket</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-[10px] font-bold text-slate-600">
+                        {platformPayConfig.qris_enabled === "true" ? "Aktif" : "Nonaktif"}
+                      </span>
+                      <div
+                        onClick={() => setPlatformPayConfig((p) => ({
+                          ...p,
+                          qris_enabled: p.qris_enabled === "true" ? "false" : "true"
+                        }))}
+                        className={`w-10 h-5 rounded-full cursor-pointer transition-colors relative ${
+                          platformPayConfig.qris_enabled === "true" ? "bg-emerald-500" : "bg-slate-300"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
+                          platformPayConfig.qris_enabled === "true" ? "left-5" : "left-0.5"
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Nama Pemilik Rekening</label>
+                      <input
+                        type="text"
+                        placeholder="PT. KOSTKU INDONESIA"
+                        value={platformPayConfig.qris_account_name || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, qris_account_name: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Bank/e-Wallet</label>
+                      <input
+                        type="text"
+                        placeholder="DANA / GoPay / BCA / dll"
+                        value={platformPayConfig.qris_bank_name || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, qris_bank_name: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Upload QR Code */}
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-2">Upload Gambar QR Code QRIS</label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      {/* Preview */}
+                      <div className="w-36 h-36 rounded-2xl skeu-inset flex items-center justify-center shrink-0 overflow-hidden">
+                        {platformPayConfig.qris_image_url ? (
+                          <img
+                            src={platformPayConfig.qris_image_url}
+                            alt="QR Code Platform"
+                            className="w-full h-full object-contain p-2"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <span className="material-symbols-outlined text-slate-300 text-[36px] block">qr_code_2</span>
+                            <p className="text-[9px] text-slate-400 mt-1">Belum ada QR</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Upload area */}
+                      <div className="flex-1 space-y-2">
+                        <label className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
+                          qrisUploading ? "border-primary/40 bg-primary/5" : "border-slate-300 hover:border-primary/40 hover:bg-primary/5"
+                        }`}>
+                          {qrisUploading ? (
+                            <span className="material-symbols-outlined text-primary text-[28px] animate-spin">sync</span>
+                          ) : (
+                            <span className="material-symbols-outlined text-slate-400 text-[28px]">upload_file</span>
+                          )}
+                          <span className="text-[11px] font-bold text-slate-600">
+                            {qrisUploading ? "Mengupload..." : "Klik untuk upload QR Code"}
+                          </span>
+                          <span className="text-[9px] text-slate-400">PNG/JPG/WebP, max 2MB</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            className="hidden"
+                            disabled={qrisUploading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleQrisUpload(file);
+                            }}
+                          />
+                        </label>
+                        {platformPayConfig.qris_image_url && (
+                          <div className="flex items-center gap-2 text-[10px] text-emerald-700 font-semibold">
+                            <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                            QR Code tersimpan di cloud
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── TRANSFER MANUAL ──────────────────────────────────────── */}
+                <div className="skeu-card p-5 rounded-2xl space-y-4 text-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-slate-600 text-[22px]">account_balance</span>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-900 text-sm">Transfer Bank Manual</h3>
+                        <p className="text-[10px] text-slate-500">Calon admin transfer ke rekening ini, konfirmasi manual oleh Anda</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-[10px] font-bold text-slate-600">
+                        {platformPayConfig.transfer_enabled !== "false" ? "Aktif" : "Nonaktif"}
+                      </span>
+                      <div
+                        onClick={() => setPlatformPayConfig((p) => ({
+                          ...p,
+                          transfer_enabled: p.transfer_enabled === "false" ? "true" : "false"
+                        }))}
+                        className={`w-10 h-5 rounded-full cursor-pointer transition-colors relative ${
+                          platformPayConfig.transfer_enabled !== "false" ? "bg-primary" : "bg-slate-300"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
+                          platformPayConfig.transfer_enabled !== "false" ? "left-5" : "left-0.5"
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Nama Bank</label>
+                      <select
+                        value={platformPayConfig.transfer_bank_name || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, transfer_bank_name: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none cursor-pointer"
+                      >
+                        <option value="">-- Pilih Bank --</option>
+                        {["BCA", "BNI", "BRI", "Mandiri", "BSI", "CIMB Niaga", "Danamon", "Permata", "BTN"].map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">No. Rekening</label>
+                      <input
+                        type="text"
+                        placeholder="1234567890"
+                        value={platformPayConfig.transfer_no_rekening || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, transfer_no_rekening: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Nama Pemilik</label>
+                      <input
+                        type="text"
+                        placeholder="NAMA PEMILIK REKENING"
+                        value={platformPayConfig.transfer_account_name || ""}
+                        onChange={(e) => setPlatformPayConfig((p) => ({ ...p, transfer_account_name: e.target.value }))}
+                        className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Instruksi Transfer
+                      <span className="text-slate-400 font-normal ml-1">(tampil di halaman pembayaran)</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Contoh: Transfer ke BCA 1234567890 a.n. PT. KOSTKU. Sertakan kode unik di berita transfer. WhatsApp konfirmasi ke 0812xxxx."
+                      value={platformPayConfig.transfer_instructions || ""}
+                      onChange={(e) => setPlatformPayConfig((p) => ({ ...p, transfer_instructions: e.target.value }))}
+                      className="w-full p-2.5 rounded-xl skeu-inset text-slate-800 outline-none leading-relaxed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Kolom kanan: preview & status ── */}
+              <div className="lg:col-span-4 space-y-4">
+
+                {/* Status aktif */}
+                <div className="skeu-card p-5 rounded-2xl space-y-3 text-xs">
+                  <h3 className="font-bold text-slate-900 text-sm pb-2 border-b border-white/60">
+                    Status Metode Pembayaran
+                  </h3>
+                  {[
+                    {
+                      label: "Midtrans Gateway",
+                      enabled: platformPayConfig.midtrans_enabled === "true",
+                      icon: "credit_card",
+                      color: "text-blue-600",
+                      desc: platformPayConfig.midtrans_is_production === "true" ? "Production" : "Sandbox",
+                    },
+                    {
+                      label: "QRIS Statis",
+                      enabled: platformPayConfig.qris_enabled === "true",
+                      icon: "qr_code_2",
+                      color: "text-emerald-600",
+                      desc: platformPayConfig.qris_account_name || "Belum dikonfigurasi",
+                    },
+                    {
+                      label: "Transfer Bank",
+                      enabled: platformPayConfig.transfer_enabled !== "false",
+                      icon: "account_balance",
+                      color: "text-slate-600",
+                      desc: platformPayConfig.transfer_bank_name
+                        ? `${platformPayConfig.transfer_bank_name} · ${platformPayConfig.transfer_no_rekening || "-"}`
+                        : "Belum dikonfigurasi",
+                    },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-3 p-2.5 rounded-xl skeu-inset">
+                      <span className={`material-symbols-outlined text-[20px] ${item.color}`}>{item.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 text-[12px]">{item.label}</p>
+                        <p className="text-[9px] text-slate-500 truncate">{item.desc}</p>
+                      </div>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                        item.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {item.enabled ? "ON" : "OFF"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Alur pembayaran */}
+                <div className="skeu-card p-5 rounded-2xl space-y-3 text-xs">
+                  <h3 className="font-bold text-slate-900 text-sm pb-2 border-b border-white/60 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-[16px]">route</span>
+                    Alur Pembayaran Paket
+                  </h3>
+                  <div className="space-y-2.5 text-[11px] text-slate-600">
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <p>Admin kost pilih paket di Onboarding Step 2 atau Pengaturan → Paket</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <p>Halaman pembayaran tampilkan metode yang Anda aktifkan di sini</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <p>Midtrans: otomatis via callback webhook. QRIS/Transfer: konfirmasi manual via tab Kelola Kost</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                      <p>Setelah dikonfirmasi, paket admin kost langsung aktif</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick action */}
+                <div className="skeu-card p-4 rounded-2xl bg-primary/5 border border-primary/15 text-xs space-y-2">
+                  <p className="font-bold text-primary flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">tips_and_updates</span>
+                    Rekomendasi Setup
+                  </p>
+                  <p className="text-slate-600 leading-relaxed">
+                    Untuk memulai, aktifkan minimal <strong>Transfer Bank</strong> + <strong>QRIS Statis</strong>. Midtrans opsional untuk pembayaran otomatis.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

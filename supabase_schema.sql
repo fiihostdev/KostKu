@@ -109,3 +109,48 @@ CREATE POLICY "Owners can manage invoices" ON invoices FOR ALL USING (true);
 CREATE POLICY "Owners can manage cash_flows" ON cash_flows FOR ALL USING (true);
 CREATE POLICY "Bot worker can read and update notification_queue" ON notification_queue FOR ALL USING (true);
 
+
+-- ================================================================
+-- PLATFORM CONFIG TABLE (run in Supabase SQL Editor)
+-- Menyimpan konfigurasi payment gateway platform-level
+-- Digunakan untuk menerima pembayaran paket, upgrade, onboarding
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS platform_config (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Seed default rows (kosong, diisi via superadmin dashboard)
+INSERT INTO platform_config (key, value) VALUES
+  ('midtrans_client_key',    ''),
+  ('midtrans_server_key',    ''),
+  ('midtrans_is_production', 'false'),
+  ('midtrans_enabled',       'false'),
+  ('qris_image_url',         ''),
+  ('qris_enabled',           'false'),
+  ('qris_account_name',      ''),
+  ('qris_bank_name',         ''),
+  ('qris_no_rekening',       ''),
+  ('transfer_enabled',       'true'),
+  ('transfer_bank_name',     ''),
+  ('transfer_account_name',  ''),
+  ('transfer_no_rekening',   ''),
+  ('transfer_instructions',  '')
+ON CONFLICT (key) DO NOTHING;
+
+-- RLS: Hanya superadmin (service_role) yang bisa baca/tulis
+ALTER TABLE platform_config ENABLE ROW LEVEL SECURITY;
+
+-- Policy: service_role bypass semua RLS
+-- (service role tidak terkena RLS secara default di Supabase)
+
+-- Policy: authenticated user bisa READ (untuk onboarding/checkout)
+CREATE POLICY "platform_config_read_auth"
+  ON platform_config FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Policy: hanya superadmin yang bisa WRITE (via API route dengan service role)
+-- Write dilakukan via service_role di API route — tidak perlu policy tambahan
