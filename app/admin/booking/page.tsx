@@ -7,33 +7,39 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { createClient } from "@/lib/supabase-browser";
 
 interface Booking {
-  id:           string;
-  kost_id:      string;
-  branch_id:    string | null;
-  kamar:        string;
-  nama:         string;
-  phone:        string;
-  email:        string | null;
-  no_ktp:       string | null;
-  nominal:      number;
-  nominal_asli: number;
-  ref_code:     string;
-  metode:       string;
-  status:       "Menunggu" | "Dikonfirmasi" | "Ditolak" | "Kadaluarsa";
+  id:            string;
+  kost_id:       string;
+  branch_id:     string | null;
+  kamar:         string;
+  nama:          string;
+  phone:         string;
+  email:         string | null;
+  no_ktp:        string | null;
+  nominal:       number;
+  nominal_asli:  number;
+  ref_code:      string;
+  metode:        string;
+  status:        "Menunggu" | "Dikonfirmasi" | "Ditolak" | "Kadaluarsa";
   catatan_admin: string | null;
-  created_at:   string;
+  created_at:    string;
 }
 
 export default function BookingPage() {
-  const { kostId, addTenant, addInvoice, activeBranchId } = useKost();
+  const { kostId, addTenant, addInvoice, deleteTenant, deleteInvoice, tenants, invoices, activeBranchId } = useKost();
   const toast = useToast();
 
-  const [bookings,    setBookings]    = useState<Booking[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [filter,      setFilter]      = useState("Menunggu");
-  const [processing,  setProcessing]  = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<Booking | null>(null);
-  const [catatanAdmin, setCatatanAdmin] = useState("");
+  const [bookings,     setBookings]     = useState<Booking[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [filter,       setFilter]       = useState("Menunggu");
+  const [processing,   setProcessing]   = useState<string | null>(null);
+
+  // Modal: tolak booking
+  const [rejectTarget,  setRejectTarget]  = useState<Booking | null>(null);
+  const [catatanAdmin,  setCatatanAdmin]  = useState("");
+
+  // Modal: hapus booking
+  const [deleteTarget,  setDeleteTarget]  = useState<Booking | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -41,11 +47,7 @@ export default function BookingPage() {
     if (!kostId) return;
     setLoading(true);
     try {
-      // Filter bookings by branch context — same pattern as store.tsx loadData
-      let q = supabase
-        .from("bookings")
-        .select("*")
-        .eq("kost_id", kostId);
+      let q = supabase.from("bookings").select("*").eq("kost_id", kostId);
       if (activeBranchId) {
         q = q.eq("branch_id", activeBranchId);
       } else {
@@ -74,19 +76,16 @@ export default function BookingPage() {
     return () => { supabase.removeChannel(channel); };
   }, [kostId, supabase, loadBookings]);
 
-  // Konfirmasi booking → buat penyewa + invoice otomatis
+  // ── Konfirmasi booking → penyewa + invoice Lunas ──────────────────────────
   const handleConfirm = async (b: Booking) => {
     setProcessing(b.id);
     try {
-      // Update status booking
       const { error } = await supabase
         .from("bookings")
         .update({ status: "Dikonfirmasi", updated_at: new Date().toISOString() })
         .eq("id", b.id);
       if (error) throw error;
 
-      // Buat penyewa otomatis
-      // Konfirmasi booking = admin sudah verifikasi transfer masuk → langsung Lunas
       const mulaiSewa = new Date().toISOString().split("T")[0];
       const akhirSewa = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -98,11 +97,10 @@ export default function BookingPage() {
         kamar:       `Kamar ${b.kamar}`,
         mulaiSewa,
         akhirSewa,
-        statusBayar: "Lunas",   // ← admin sudah cek mutasi = pembayaran diterima
+        statusBayar: "Lunas",
         ktpVerified: false,
       });
 
-      // Buat invoice dengan status Lunas langsung karena booking sudah diverifikasi bayar
       const tanggalHariIni = new Date()
         .toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -112,7 +110,7 @@ export default function BookingPage() {
         nominal:    b.nominal_asli,
         jatuhTempo: tanggalHariIni,
         metode:     b.metode,
-        status:     "Lunas",    // ← langsung lunas karena sudah dikonfirmasi admin
+        status:     "Lunas",
       });
 
       toast.success(
@@ -127,6 +125,7 @@ export default function BookingPage() {
     }
   };
 
+  // ── Tolak booking ─────────────────────────────────────────────────────────
   const handleReject = async () => {
     if (!rejectTarget) return;
     setProcessing(rejectTarget.id);
@@ -144,23 +143,79 @@ export default function BookingPage() {
     }
   };
 
+  // ── Hapus booking ─────────────────────────────────────────────────────────
+  // Logika hapus berbeda berdasarkan status:
+  //   Menunggu / Ditolak / Kadaluarsa → hapus booking saja
+  //   Dikonfirmasi → hapus booking + penyewa yang dibuat + invoice yang dibuat
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const b = deleteTarget;
+
+      // Jika sudah dikonfirmasi → hapus penyewa & invoice yang dibuat otomatis
+      if (b.status === "Dikonfirmasi") {
+        // Cari penyewa berdasarkan nama + kamar yang cocok dengan booking ini
+        const matchTenant = tenants.find(
+          (t) => t.nama === b.nama && t.kamar === `Kamar ${b.kamar}`
+        );
+        if (matchTenant) {
+          // Cari invoice milik penyewa ini
+          const matchInvoice = invoices.find(
+            (i) => i.penyewa === b.nama && i.kamar === `Kamar ${b.kamar}`
+          );
+          if (matchInvoice) {
+            await deleteInvoice(matchInvoice.id);
+          }
+          await deleteTenant(matchTenant.id);
+        }
+      }
+
+      // Hapus booking dari DB
+      const { error } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", b.id);
+      if (error) throw error;
+
+      toast.success(
+        "Booking dihapus",
+        b.status === "Dikonfirmasi"
+          ? `Booking ${b.ref_code} beserta data penyewa & invoice dihapus.`
+          : `Booking ${b.ref_code} dihapus.`
+      );
+      setDeleteTarget(null);
+      await loadBookings();
+    } catch (err) {
+      toast.error("Gagal menghapus", String(err));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const filtered = bookings.filter((b) => filter === "Semua" || b.status === filter);
   const counts = {
-    Menunggu:    bookings.filter(b => b.status === "Menunggu").length,
+    Menunggu:     bookings.filter(b => b.status === "Menunggu").length,
     Dikonfirmasi: bookings.filter(b => b.status === "Dikonfirmasi").length,
-    Ditolak:     bookings.filter(b => b.status === "Ditolak").length,
+    Ditolak:      bookings.filter(b => b.status === "Ditolak").length,
   };
 
   const statusColor = (s: Booking["status"]) => ({
-    Menunggu:    "bg-amber-100 text-amber-800",
+    Menunggu:     "bg-amber-100 text-amber-800",
     Dikonfirmasi: "bg-emerald-100 text-emerald-800",
-    Ditolak:     "bg-red-100 text-red-800",
-    Kadaluarsa:  "bg-slate-100 text-slate-600",
+    Ditolak:      "bg-red-100 text-red-800",
+    Kadaluarsa:   "bg-slate-100 text-slate-600",
   }[s]);
+
+  // Teks modal konfirmasi hapus — berbeda untuk yang sudah dikonfirmasi
+  const deleteModalMessage = deleteTarget?.status === "Dikonfirmasi"
+    ? `⚠️ Booking ini sudah DIKONFIRMASI.\n\nMenghapus akan otomatis:\n• Hapus data penyewa "${deleteTarget?.nama}"\n• Hapus invoice kamar ${deleteTarget?.kamar}\n• Hapus riwayat booking ini\n\nLakukan hanya jika terjadi kesalahan konfirmasi.`
+    : `Booking ${deleteTarget?.ref_code} dari ${deleteTarget?.nama} akan dihapus permanen.`;
 
   return (
     <div className="space-y-6 max-w-full">
 
+      {/* Modal: Tolak booking */}
       <ConfirmModal
         isOpen={!!rejectTarget}
         title="Tolak Booking?"
@@ -170,6 +225,18 @@ export default function BookingPage() {
         variant="danger"
         onConfirm={handleReject}
         onCancel={() => { setRejectTarget(null); setCatatanAdmin(""); }}
+      />
+
+      {/* Modal: Hapus booking */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title={deleteTarget?.status === "Dikonfirmasi" ? "Hapus Booking Terkonfirmasi?" : `Hapus Booking?`}
+        message={deleteModalMessage}
+        confirmLabel={deleteLoading ? "Menghapus..." : deleteTarget?.status === "Dikonfirmasi" ? "Ya, Hapus Semua" : "Ya, Hapus"}
+        cancelLabel="Batal"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       {/* Header */}
@@ -195,9 +262,9 @@ export default function BookingPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Menunggu",    val: counts.Menunggu,     color: "text-amber-700",   bg: "bg-amber-50" },
+          { label: "Menunggu",     val: counts.Menunggu,     color: "text-amber-700",   bg: "bg-amber-50" },
           { label: "Dikonfirmasi", val: counts.Dikonfirmasi, color: "text-emerald-700", bg: "bg-emerald-50" },
-          { label: "Ditolak",    val: counts.Ditolak,      color: "text-red-700",     bg: "bg-red-50" },
+          { label: "Ditolak",     val: counts.Ditolak,      color: "text-red-700",     bg: "bg-red-50" },
         ].map((s) => (
           <div key={s.label} className={`skeu-card p-3 sm:p-4 rounded-xl ${s.bg}`}>
             <span className="text-[10px] text-slate-500 font-semibold uppercase">{s.label}</span>
@@ -230,7 +297,7 @@ export default function BookingPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((b) => (
-            <div key={b.id} className="skeu-card p-4 sm:p-5 rounded-2xl">
+            <div key={b.id} className={`skeu-card p-4 sm:p-5 rounded-2xl ${b.status === "Dikonfirmasi" ? "border-l-4 border-emerald-400" : b.status === "Ditolak" ? "border-l-4 border-red-300 opacity-75" : ""}`}>
               <div className="flex flex-col sm:flex-row sm:items-start gap-4">
 
                 {/* Info utama */}
@@ -240,9 +307,24 @@ export default function BookingPage() {
                       <p className="font-black text-sm text-slate-900">{b.nama}</p>
                       <p className="text-[11px] text-slate-500">{b.phone}{b.email ? ` · ${b.email}` : ""}</p>
                     </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${statusColor(b.status)}`}>
-                      {b.status}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusColor(b.status)}`}>
+                        {b.status}
+                      </span>
+                      {/* Tombol hapus — selalu tampil di semua status */}
+                      <button
+                        onClick={() => setDeleteTarget(b)}
+                        disabled={!!processing}
+                        title={b.status === "Dikonfirmasi" ? "Hapus booking + penyewa + invoice" : "Hapus booking"}
+                        className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                          b.status === "Dikonfirmasi"
+                            ? "text-red-500 hover:text-red-700 hover:bg-red-50"
+                            : "text-slate-400 hover:text-red-500 hover:bg-red-50 skeu-card"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
@@ -268,14 +350,22 @@ export default function BookingPage() {
                     {b.no_ktp && <><span>·</span><span>KTP: {b.no_ktp}</span></>}
                   </div>
 
+                  {/* Info khusus status dikonfirmasi */}
+                  {b.status === "Dikonfirmasi" && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold">
+                      <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                      Penyewa & invoice Lunas sudah dibuat otomatis
+                    </div>
+                  )}
+
                   {b.catatan_admin && (
                     <div className="text-[11px] text-slate-600 italic p-2 bg-slate-50 rounded-lg border border-slate-200">
-                      Catatan: {b.catatan_admin}
+                      Catatan admin: {b.catatan_admin}
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
+                {/* Actions — hanya untuk status Menunggu */}
                 {b.status === "Menunggu" && (
                   <div className="flex sm:flex-col gap-2 shrink-0">
                     <button
@@ -283,8 +373,8 @@ export default function BookingPage() {
                       disabled={!!processing}
                       className="flex-1 sm:flex-none skeu-button text-xs font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-60"
                     >
-                      <span className={`material-symbols-outlined text-[14px] ${processing===b.id?"animate-spin":""}`}>
-                        {processing===b.id ? "sync" : "check_circle"}
+                      <span className={`material-symbols-outlined text-[14px] ${processing === b.id ? "animate-spin" : ""}`}>
+                        {processing === b.id ? "sync" : "check_circle"}
                       </span>
                       Konfirmasi
                     </button>
@@ -297,9 +387,23 @@ export default function BookingPage() {
                       Tolak
                     </button>
                     <a
-                      href={`https://wa.me/${b.phone.replace(/[^0-9]/g,"").replace(/^0/,"62")}`}
+                      href={`https://wa.me/${b.phone.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
                       target="_blank" rel="noopener noreferrer"
                       className="flex-1 sm:flex-none skeu-button-secondary text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1 text-emerald-700"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">chat</span>
+                      WA
+                    </a>
+                  </div>
+                )}
+
+                {/* Dikonfirmasi — tombol WA saja (untuk follow-up) */}
+                {b.status === "Dikonfirmasi" && (
+                  <div className="flex sm:flex-col gap-2 shrink-0">
+                    <a
+                      href={`https://wa.me/${b.phone.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="skeu-button-secondary text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1 text-emerald-700"
                     >
                       <span className="material-symbols-outlined text-[14px]">chat</span>
                       WA
@@ -312,7 +416,7 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* Info validasi nominal */}
+      {/* Panduan alur */}
       <div className="skeu-card p-4 rounded-2xl text-xs space-y-3">
         <p className="font-bold text-slate-800 flex items-center gap-2">
           <span className="material-symbols-outlined text-[16px] text-primary">help_center</span>
@@ -334,6 +438,10 @@ export default function BookingPage() {
           <div className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-red-100 text-red-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✕</span>
             <p>Jika nominal tidak cocok atau mencurigakan → klik <strong>Tolak</strong>.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">🗑</span>
+            <p>Tombol <strong>hapus</strong> (ikon tong) tersedia di semua status. Booking Dikonfirmasi yang dihapus akan sekalian menghapus penyewa & invoice yang dibuat.</p>
           </div>
         </div>
         <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
