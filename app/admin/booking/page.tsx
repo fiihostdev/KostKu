@@ -86,6 +86,7 @@ export default function BookingPage() {
       if (error) throw error;
 
       // Buat penyewa otomatis
+      // Konfirmasi booking = admin sudah verifikasi transfer masuk → langsung Lunas
       const mulaiSewa = new Date().toISOString().split("T")[0];
       const akhirSewa = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -97,24 +98,27 @@ export default function BookingPage() {
         kamar:       `Kamar ${b.kamar}`,
         mulaiSewa,
         akhirSewa,
-        statusBayar: b.metode === "QRIS" ? "Belum Bayar" : "Belum Bayar",
+        statusBayar: "Lunas",   // ← admin sudah cek mutasi = pembayaran diterima
         ktpVerified: false,
       });
 
-      // Buat invoice otomatis dengan nominal unik untuk tracking
-      const jatuhTempo = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      // Buat invoice dengan status Lunas langsung karena booking sudah diverifikasi bayar
+      const tanggalHariIni = new Date()
         .toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
       await addInvoice({
         penyewa:    b.nama,
         kamar:      `Kamar ${b.kamar}`,
         nominal:    b.nominal_asli,
-        jatuhTempo,
+        jatuhTempo: tanggalHariIni,
         metode:     b.metode,
-        status:     "Menunggu",
+        status:     "Lunas",    // ← langsung lunas karena sudah dikonfirmasi admin
       });
 
-      toast.success("Booking dikonfirmasi!", `${b.nama} · Kamar ${b.kamar} · Penyewa & invoice dibuat otomatis.`);
+      toast.success(
+        "Booking dikonfirmasi & Lunas!",
+        `${b.nama} · Kamar ${b.kamar} · Penyewa terdaftar & invoice langsung Lunas.`
+      );
       await loadBookings();
     } catch (err) {
       toast.error("Gagal konfirmasi", String(err));
@@ -309,13 +313,32 @@ export default function BookingPage() {
       )}
 
       {/* Info validasi nominal */}
-      <div className="skeu-card p-4 rounded-2xl text-xs space-y-2">
+      <div className="skeu-card p-4 rounded-2xl text-xs space-y-3">
         <p className="font-bold text-slate-800 flex items-center gap-2">
           <span className="material-symbols-outlined text-[16px] text-primary">help_center</span>
-          Cara Verifikasi Pembayaran QRIS
+          Alur Konfirmasi Booking
         </p>
-        <p className="text-slate-600">Setiap booking QRIS mendapat nominal unik (harga + 3 digit acak). Contoh: harga Rp 1.500.000 → penyewa A transfer Rp 1.500.347, penyewa B transfer Rp 1.500.219.</p>
-        <p className="text-slate-600">Cocokkan nominal di mutasi rekening/QRIS dengan kolom <strong>"Nominal Transfer Unik"</strong> di tabel di atas. Jika cocok → klik Konfirmasi.</p>
+        <div className="space-y-2 text-slate-600 leading-relaxed">
+          <div className="flex items-start gap-2">
+            <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+            <p>Calon penyewa booking online → masuk dengan status <strong>Menunggu</strong>.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+            <p>Cek mutasi rekening/QRIS Anda. Cocokkan dengan kolom <strong>"Nominal Transfer Unik"</strong> di atas (tiap booking punya 3 digit unik di akhir).</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+            <p>Jika nominal cocok → klik <strong>Konfirmasi</strong>. Sistem otomatis: membuat data penyewa, mencatat invoice sebagai <span className="font-bold text-emerald-700">Lunas</span>, dan memperbarui status kamar.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="w-5 h-5 rounded-full bg-red-100 text-red-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✕</span>
+            <p>Jika nominal tidak cocok atau mencurigakan → klik <strong>Tolak</strong>.</p>
+          </div>
+        </div>
+        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+          <strong>Catatan:</strong> Tombol Konfirmasi = verifikasi pembayaran sudah diterima. Penyewa langsung berstatus <strong>Lunas</strong> tanpa perlu konfirmasi ulang di halaman Tagihan.
+        </div>
       </div>
     </div>
   );
