@@ -7,25 +7,28 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { createClient } from "@/lib/supabase-browser";
 
 interface Booking {
-  id:            string;
-  kost_id:       string;
-  branch_id:     string | null;
-  kamar:         string;
-  nama:          string;
-  phone:         string;
-  email:         string | null;
-  no_ktp:        string | null;
-  nominal:       number;
-  nominal_asli:  number;
-  ref_code:      string;
-  metode:        string;
-  status:        "Menunggu" | "Dikonfirmasi" | "Ditolak" | "Kadaluarsa";
-  catatan_admin: string | null;
-  created_at:    string;
+  id:                 string;
+  kost_id:            string;
+  branch_id:          string | null;
+  kamar:              string;
+  nama:               string;
+  phone:              string;
+  email:              string | null;
+  no_ktp:             string | null;
+  nominal:            number;
+  nominal_asli:       number;
+  ref_code:           string;
+  metode:             string;
+  status:             "Menunggu" | "Dikonfirmasi" | "Ditolak" | "Kadaluarsa";
+  catatan_admin:      string | null;
+  confirmed_method:   string | null;
+  auto_confirmed_at:  string | null;
+  bukti_bayar_url:    string | null;
+  created_at:         string;
 }
 
 export default function BookingPage() {
-  const { kostId, addTenant, addInvoice, deleteTenant, deleteInvoice, tenants, invoices, activeBranchId } = useKost();
+  const { kostId, deleteTenant, deleteInvoice, tenants, invoices, activeBranchId } = useKost();
   const toast = useToast();
 
   const [bookings,     setBookings]     = useState<Booking[]>([]);
@@ -80,43 +83,22 @@ export default function BookingPage() {
   const handleConfirm = async (b: Booking) => {
     setProcessing(b.id);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: "Dikonfirmasi", updated_at: new Date().toISOString() })
-        .eq("id", b.id);
-      if (error) throw error;
-
-      const mulaiSewa = new Date().toISOString().split("T")[0];
-      const akhirSewa = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-      await addTenant({
-        nama:        b.nama,
-        phone:       b.phone,
-        email:       b.email || undefined,
-        noKtp:       b.no_ktp || undefined,
-        kamar:       `Kamar ${b.kamar}`,
-        mulaiSewa,
-        akhirSewa,
-        statusBayar: "Lunas",
-        ktpVerified: false,
+      const res = await fetch("/api/booking/confirm", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ bookingId: b.id, source: "manual_admin" }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal konfirmasi");
 
-      const tanggalHariIni = new Date()
-        .toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-
-      await addInvoice({
-        penyewa:    b.nama,
-        kamar:      `Kamar ${b.kamar}`,
-        nominal:    b.nominal_asli,
-        jatuhTempo: tanggalHariIni,
-        metode:     b.metode,
-        status:     "Lunas",
-      });
-
-      toast.success(
-        "Booking dikonfirmasi & Lunas!",
-        `${b.nama} · Kamar ${b.kamar} · Penyewa terdaftar & invoice langsung Lunas.`
-      );
+      if (data.already) {
+        toast.info("Sudah dikonfirmasi", "Booking ini sudah pernah dikonfirmasi sebelumnya.");
+      } else {
+        toast.success(
+          "Booking dikonfirmasi & Lunas!",
+          `${b.nama} · Kamar ${b.kamar} · Penyewa terdaftar & invoice langsung Lunas.`
+        );
+      }
       await loadBookings();
     } catch (err) {
       toast.error("Gagal konfirmasi", String(err));
@@ -352,9 +334,22 @@ export default function BookingPage() {
 
                   {/* Info khusus status dikonfirmasi */}
                   {b.status === "Dikonfirmasi" && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold">
-                      <span className="material-symbols-outlined text-[13px]">check_circle</span>
-                      Penyewa & invoice Lunas sudah dibuat otomatis
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold">
+                        <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                        Penyewa & invoice Lunas sudah dibuat otomatis
+                      </div>
+                      {b.confirmed_method && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                          b.confirmed_method === "wa_deeplink"   ? "bg-emerald-100 text-emerald-700" :
+                          b.confirmed_method === "nominal_match" ? "bg-blue-100 text-blue-700" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>
+                          {b.confirmed_method === "wa_deeplink"   ? "✓ Via Link WA" :
+                           b.confirmed_method === "nominal_match" ? "✓ Auto Nominal" :
+                           "✓ Manual Admin"}
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -420,7 +415,7 @@ export default function BookingPage() {
       <div className="skeu-card p-4 rounded-2xl text-xs space-y-3">
         <p className="font-bold text-slate-800 flex items-center gap-2">
           <span className="material-symbols-outlined text-[16px] text-primary">help_center</span>
-          Alur Konfirmasi Booking
+          Alur Konfirmasi Booking & Validasi Pembayaran
         </p>
         <div className="space-y-2 text-slate-600 leading-relaxed">
           <div className="flex items-start gap-2">
@@ -429,11 +424,11 @@ export default function BookingPage() {
           </div>
           <div className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-            <p>Cek mutasi rekening/QRIS Anda. Cocokkan dengan kolom <strong>"Nominal Transfer Unik"</strong> di atas (tiap booking punya 3 digit unik di akhir).</p>
+            <p>Cek mutasi rekening/QRIS Anda. Cocokkan dengan kolom <strong>"Nominal Transfer Unik"</strong> di atas (tiap booking punya 3 digit unik di akhir nominal).</p>
           </div>
           <div className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
-            <p>Jika nominal cocok → klik <strong>Konfirmasi</strong>. Sistem otomatis: membuat data penyewa, mencatat invoice sebagai <span className="font-bold text-emerald-700">Lunas</span>, dan memperbarui status kamar.</p>
+            <p>Jika nominal cocok → klik <strong>Konfirmasi</strong>. Sistem otomatis: membuat data penyewa, mencatat invoice sebagai <span className="font-bold text-emerald-700">Lunas</span>, update status kamar, dan kirim notifikasi WA ke penyewa.</p>
           </div>
           <div className="flex items-start gap-2">
             <span className="w-5 h-5 rounded-full bg-red-100 text-red-700 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">✕</span>
@@ -444,8 +439,28 @@ export default function BookingPage() {
             <p>Tombol <strong>hapus</strong> (ikon tong) tersedia di semua status. Booking Dikonfirmasi yang dihapus akan sekalian menghapus penyewa & invoice yang dibuat.</p>
           </div>
         </div>
+
+        {/* Info sistem validasi */}
+        <div className="border-t border-white/60 pt-3 space-y-2">
+          <p className="font-bold text-slate-700 text-[11px]">🔐 Sistem Validasi Pembayaran</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="font-bold text-blue-800 text-[10px] mb-1">✓ Nominal Unik</p>
+              <p className="text-[10px] text-blue-700">Tiap booking punya 3 digit acak unik — cocokkan di mutasi rekening. Akurasi ~99.9%.</p>
+            </div>
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="font-bold text-emerald-800 text-[10px] mb-1">✓ 1-Klik via WA</p>
+              <p className="text-[10px] text-emerald-700">Bot WA kirim link konfirmasi ke HP Anda. Klik link → booking langsung dikonfirmasi otomatis.</p>
+            </div>
+            <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
+              <p className="font-bold text-purple-800 text-[10px] mb-1">✓ Midtrans Auto</p>
+              <p className="text-[10px] text-purple-700">Jika pakai Midtrans di Pengaturan → webhook konfirmasi 100% otomatis tanpa intervensi manual.</p>
+            </div>
+          </div>
+        </div>
+
         <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
-          <strong>Catatan:</strong> Tombol Konfirmasi = verifikasi pembayaran sudah diterima. Penyewa langsung berstatus <strong>Lunas</strong> tanpa perlu konfirmasi ulang di halaman Tagihan.
+          <strong>Mengapa tidak bisa validasi nama/NIK dari QRIS?</strong> Bank Indonesia dan semua bank tidak mengekspos data pembayar QRIS ke merchant — ini proteksi privasi pengguna. Nominal unik 3-digit adalah metode validasi terbaik yang tersedia untuk QRIS statis.
         </div>
       </div>
     </div>

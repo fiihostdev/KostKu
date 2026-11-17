@@ -100,15 +100,24 @@ export async function POST(request: NextRequest) {
     const botSecret = process.env.NOTIFICATION_BOT_SECRET;
     if (botUrl && botSecret && kost.telepon) {
       const adminPhone = kost.telepon.replace(/[^0-9]/g, "").replace(/^0/, "62");
+
+      // Generate deep link konfirmasi 1-klik
+      const { createHmac } = await import("crypto");
+      const confirmSecret = process.env.BOOKING_CONFIRM_SECRET || "kostku-secret-change-me";
+      const confirmToken  = createHmac("sha256", confirmSecret).update(booking.id).digest("hex").slice(0, 16);
+      const appUrl        = process.env.NEXT_PUBLIC_APP_URL || "https://fiihost.my.id";
+      const confirmLink   = `${appUrl}/api/booking/confirm?bookingId=${booking.id}&token=${confirmToken}`;
+
       const msg =
         `🏠 *Booking Baru!*\n*${kost.nama}*\n\n` +
         `Kamar: *${safeKamar}*\n` +
         `Nama: *${safeName}*\n` +
         `HP: ${safePhone}\n` +
         `Metode: ${metode}\n` +
-        `Nominal: *Rp ${nominal.toLocaleString("id-ID")}*\n` +
+        `Nominal Unik: *Rp ${nominal.toLocaleString("id-ID")}*\n` +
         `Kode: \`${refCode}\`\n\n` +
-        `Konfirmasi di dashboard admin.`;
+        `Cek mutasi rekening → cocokkan nominal *${nominal.toLocaleString("id-ID")}*\n\n` +
+        `Klik untuk konfirmasi otomatis:\n${confirmLink}`;
 
       fetch(`${botUrl}/api/send-notification`, {
         method: "POST",
